@@ -11,9 +11,9 @@ import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 type Client = {
   id: string
   name: string
-  email: string | null
-  phone: string | null
-  company: string | null
+  email?: string
+  phone?: string
+  company?: string
   status: string
   has_accounting: boolean
   has_fiscal: boolean

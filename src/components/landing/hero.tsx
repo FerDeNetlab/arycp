@@ -46,11 +46,11 @@ export function Hero() {
           </div>
 
           <div className="relative">
-            <div className="aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20">
+            <div className="aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 flex items-center justify-center">
               <img
-                src="/professional-business-team.jpg"
-                alt="Equipo profesional ARYCP"
-                className="object-cover w-full h-full"
+                src="/images/arycp-logo.jpg"
+                alt="ARYCP Soluciones Corporativas"
+                className="object-contain w-3/4 h-3/4 rounded-xl"
               />
             </div>
           </div>
