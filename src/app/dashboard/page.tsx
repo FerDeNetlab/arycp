@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   FileText,
@@ -15,254 +17,300 @@ import {
   Scale,
   Briefcase,
 } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
+import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
+// Module definitions with their service flags
+const ALL_MODULES = [
+  {
+    key: "accounting",
+    href: "/dashboard/accounting",
+    icon: Calculator,
+    label: "Contabilidad",
+    description: "Gestión contable, declaraciones y documentos",
+    color: "primary",
+    hoverBorder: "hover:border-primary",
+    bgClass: "bg-primary/10",
+    iconClass: "text-primary",
+    serviceFlag: "has_accounting" as const,
+  },
+  {
+    key: "fiscal",
+    href: "/dashboard/fiscal",
+    icon: FileWarning,
+    label: "Fiscal",
+    description: "Observaciones y asesoría fiscal",
+    color: "orange",
+    hoverBorder: "hover:border-orange-500",
+    bgClass: "bg-orange-100",
+    iconClass: "text-orange-600",
+    serviceFlag: "has_fiscal" as const,
+  },
+  {
+    key: "legal",
+    href: "/dashboard/legal",
+    icon: Scale,
+    label: "Jurídico",
+    description: "Procesos legales y tramitología",
+    color: "purple",
+    hoverBorder: "hover:border-purple-500",
+    bgClass: "bg-purple-100",
+    iconClass: "text-purple-600",
+    serviceFlag: "has_legal" as const,
+  },
+  {
+    key: "labor",
+    href: "/dashboard/labor",
+    icon: Briefcase,
+    label: "Laboral",
+    description: "Nóminas y asuntos laborales",
+    color: "green",
+    hoverBorder: "hover:border-green-500",
+    bgClass: "bg-green-100",
+    iconClass: "text-green-600",
+    serviceFlag: "has_labor" as const,
+  },
+]
 
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data?.user) {
-    redirect("/auth/login")
+const ADMIN_MODULES = [
+  {
+    key: "clients",
+    href: "/dashboard/clients",
+    icon: Users,
+    label: "Clientes",
+    description: "Administrar datos de clientes",
+    hoverBorder: "hover:border-blue-500",
+    bgClass: "bg-blue-100",
+    iconClass: "text-blue-600",
+  },
+  {
+    key: "users",
+    href: "/dashboard/users",
+    icon: UserCircle,
+    label: "Usuarios del Sistema",
+    description: "Administrar usuarios y responsables",
+    hoverBorder: "hover:border-indigo-500",
+    bgClass: "bg-indigo-100",
+    iconClass: "text-indigo-600",
+  },
+  {
+    key: "procedures",
+    href: "/dashboard/procedures",
+    icon: FileText,
+    label: "Tramitología",
+    description: "Gestión de trámites y documentos",
+    hoverBorder: "hover:border-cyan-500",
+    bgClass: "bg-cyan-100",
+    iconClass: "text-cyan-600",
+  },
+  {
+    key: "calendar",
+    href: "/dashboard/calendar",
+    icon: Calendar,
+    label: "Calendario",
+    description: "Agenda y recordatorios",
+    hoverBorder: "hover:border-red-500",
+    bgClass: "bg-red-100",
+    iconClass: "text-red-600",
+  },
+  {
+    key: "emails",
+    href: "/dashboard/emails",
+    icon: Mail,
+    label: "Correos Electrónicos",
+    description: "Plantillas y envío de correos",
+    hoverBorder: "hover:border-primary",
+    bgClass: "bg-primary/10",
+    iconClass: "text-primary",
+  },
+]
+
+// Client-specific extra modules (Tramitología as tracking)
+const CLIENT_EXTRA_MODULES = [
+  {
+    key: "procedures",
+    href: "/dashboard/procedures",
+    icon: FileText,
+    label: "Mis Trámites",
+    description: "Seguimiento de tus trámites",
+    hoverBorder: "hover:border-cyan-500",
+    bgClass: "bg-cyan-100",
+    iconClass: "text-cyan-600",
+  },
+  {
+    key: "calendar",
+    href: "/dashboard/calendar",
+    icon: Calendar,
+    label: "Calendario",
+    description: "Próximos eventos y citas",
+    hoverBorder: "hover:border-red-500",
+    bgClass: "bg-red-100",
+    iconClass: "text-red-600",
+  },
+  {
+    key: "emails",
+    href: "/dashboard/emails",
+    icon: Mail,
+    label: "Correos",
+    description: "Comunicaciones recibidas",
+    hoverBorder: "hover:border-primary",
+    bgClass: "bg-primary/10",
+    iconClass: "text-primary",
+  },
+]
+
+export default function DashboardPage() {
+  const { role, fullName, services, clientId, loading } = useUserRole()
+  const router = useRouter()
+  const isClient = isClientRole(role)
+
+  // Filter modules for client based on contracted services
+  const visibleServiceModules = isClient
+    ? ALL_MODULES.filter((m) => services?.[m.serviceFlag])
+    : ALL_MODULES
+
+  const visibleExtraModules = isClient ? CLIENT_EXTRA_MODULES : ADMIN_MODULES
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    )
   }
 
-  const userName = data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "Usuario"
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-3">
-              <Image src="/images/arycp-logo.png" alt="ARYCP Logo" width={40} height={40} className="h-10 w-10" />
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-foreground">AR&CP</span>
-                <span className="text-xs text-muted-foreground -mt-1">ERP System</span>
-              </div>
-            </Link>
-            <div className="ml-4 pl-4 border-l border-border">
-              <p className="text-sm text-muted-foreground">Bienvenido, {userName}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard/users">
-              <button className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent/10 transition-colors flex items-center gap-2">
-                <UserCircle className="h-4 w-4" />
-                Administrador
-              </button>
-            </Link>
-            <form action="/auth/logout" method="post">
-              <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Cerrar Sesión
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-
+    <div>
       <main className="container mx-auto px-6 py-8">
-        {/* Stats Overview */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-2 hover:border-primary/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Trámites Activos</CardTitle>
-              <FileText className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground mt-1">+2 desde la semana pasada</p>
-            </CardContent>
-          </Card>
 
-          <Card className="border-2 hover:border-secondary/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pendientes</CardTitle>
-              <ClipboardCheck className="h-5 w-5 text-secondary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">8</div>
-              <p className="text-xs text-muted-foreground mt-1">Requieren atención</p>
-            </CardContent>
-          </Card>
+        {/* Stats Overview - Only for admin/contador */}
+        {!isClient && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card className="border-2 hover:border-primary/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Trámites Activos</CardTitle>
+                <FileText className="h-5 w-5 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">12</div>
+                <p className="text-xs text-muted-foreground mt-1">+2 desde la semana pasada</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-2 hover:border-accent/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Eventos Próximos</CardTitle>
-              <Calendar className="h-5 w-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">5</div>
-              <p className="text-xs text-muted-foreground mt-1">Esta semana</p>
-            </CardContent>
-          </Card>
+            <Card className="border-2 hover:border-secondary/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Pendientes</CardTitle>
+                <ClipboardCheck className="h-5 w-5 text-secondary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">8</div>
+                <p className="text-xs text-muted-foreground mt-1">Requieren atención</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-2 hover:border-destructive/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Alertas</CardTitle>
-              <AlertCircle className="h-5 w-5 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground mt-1">Requieren acción inmediata</p>
+            <Card className="border-2 hover:border-accent/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Eventos Próximos</CardTitle>
+                <Calendar className="h-5 w-5 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">5</div>
+                <p className="text-xs text-muted-foreground mt-1">Esta semana</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 hover:border-destructive/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Alertas</CardTitle>
+                <AlertCircle className="h-5 w-5 text-destructive" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">3</div>
+                <p className="text-xs text-muted-foreground mt-1">Requieren acción inmediata</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Client Welcome Banner */}
+        {isClient && (
+          <Card className="border-2 border-primary/20 bg-primary/5 mb-8">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-bold mb-2">Bienvenido, {fullName}</h2>
+              <p className="text-muted-foreground">
+                Aquí puedes consultar el resumen de actividad de tus servicios contratados.
+              </p>
             </CardContent>
           </Card>
-        </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Módulos Principales */}
+          {/* Módulos */}
           <Card className="border-2">
             <CardHeader>
-              <CardTitle>Módulos del Sistema</CardTitle>
+              <CardTitle>{isClient ? "Mis Servicios" : "Módulos del Sistema"}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Link
-                href="/dashboard/accounting"
-                className="block w-full p-4 rounded-lg border-2 hover:border-primary transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Calculator className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Contabilidad</h3>
-                    <p className="text-sm text-muted-foreground">Gestión contable, declaraciones y documentos</p>
-                  </div>
-                </div>
-              </Link>
+              {visibleServiceModules.map((mod) => {
+                const Icon = mod.icon
+                return (
+                  <Link
+                    key={mod.key}
+                    href={mod.href}
+                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} transition-colors text-left`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center`}>
+                        <Icon className={`h-6 w-6 ${mod.iconClass}`} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{mod.label}</h3>
+                        <p className="text-sm text-muted-foreground">{mod.description}</p>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
 
-              <Link
-                href="/dashboard/fiscal"
-                className="block w-full p-4 rounded-lg border-2 hover:border-orange-500 transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                    <FileWarning className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Fiscal</h3>
-                    <p className="text-sm text-muted-foreground">Observaciones y asesoría fiscal</p>
-                  </div>
-                </div>
-              </Link>
+              {visibleExtraModules.map((mod) => {
+                const Icon = mod.icon
+                return (
+                  <Link
+                    key={mod.key}
+                    href={mod.href}
+                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} transition-colors text-left`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center`}>
+                        <Icon className={`h-6 w-6 ${mod.iconClass}`} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{mod.label}</h3>
+                        <p className="text-sm text-muted-foreground">{mod.description}</p>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
 
-              <Link
-                href="/dashboard/legal"
-                className="block w-full p-4 rounded-lg border-2 hover:border-purple-500 transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <Scale className="h-6 w-6 text-purple-600" />
+              {/* Control de Procesos - solo admin/contador */}
+              {!isClient && (
+                <button className="w-full p-4 rounded-lg border-2 hover:border-emerald-500 transition-colors text-left">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <ClipboardCheck className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Control de Procesos</h3>
+                      <p className="text-sm text-muted-foreground">Seguimiento de flujos de trabajo</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">Jurídico</h3>
-                    <p className="text-sm text-muted-foreground">Procesos legales y tramitología</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/dashboard/labor"
-                className="block w-full p-4 rounded-lg border-2 hover:border-green-500 transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
-                    <Briefcase className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Laboral</h3>
-                    <p className="text-sm text-muted-foreground">Nóminas y asuntos laborales</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/dashboard/clients"
-                className="block w-full p-4 rounded-lg border-2 hover:border-secondary transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center">
-                    <Users className="h-6 w-6 text-secondary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Clientes</h3>
-                    <p className="text-sm text-muted-foreground">Administrar datos de clientes</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/dashboard/users"
-                className="block w-full p-4 rounded-lg border-2 hover:border-accent transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center">
-                    <UserCircle className="h-6 w-6 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Usuarios del Sistema</h3>
-                    <p className="text-sm text-muted-foreground">Administrar usuarios y responsables</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/dashboard/procedures"
-                className="block w-full p-4 rounded-lg border-2 hover:border-cyan-500 transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-cyan-100 flex items-center justify-center">
-                    <FileText className="h-6 w-6 text-cyan-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Tramitología</h3>
-                    <p className="text-sm text-muted-foreground">Gestión de trámites y documentos</p>
-                  </div>
-                </div>
-              </Link>
-
-              <button className="w-full p-4 rounded-lg border-2 hover:border-secondary transition-colors text-left">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center">
-                    <ClipboardCheck className="h-6 w-6 text-secondary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Control de Procesos</h3>
-                    <p className="text-sm text-muted-foreground">Seguimiento de flujos de trabajo</p>
-                  </div>
-                </div>
-              </button>
-
-              <Link
-                href="/dashboard/calendar"
-                className="block w-full p-4 rounded-lg border-2 hover:border-accent transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Calendario</h3>
-                    <p className="text-sm text-muted-foreground">Agenda y recordatorios</p>
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                href="/dashboard/emails"
-                className="block w-full p-4 rounded-lg border-2 hover:border-primary transition-colors text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Mail className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Correos Electrónicos</h3>
-                    <p className="text-sm text-muted-foreground">Plantillas y envío de correos</p>
-                  </div>
-                </div>
-              </Link>
+                </button>
+              )}
             </CardContent>
           </Card>
 

@@ -16,40 +16,69 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createClient } from "@/lib/supabase/client"
 
-export function AddUserDialog({ children }: { children: React.ReactNode }) {
+export function AddUserDialog({ children, onUserCreated }: { children: React.ReactNode; onUserCreated?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [role, setRole] = useState("user")
+  const [role, setRole] = useState("contador")
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
     const formData = new FormData(e.currentTarget)
-    const supabase = createClient()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
+    const password = formData.get("password") as string
+    const confirmPassword = formData.get("confirm_password") as string
 
-    const { error } = await supabase.from("system_users").insert({
-      auth_user_id: user.id,
-      full_name: formData.get("full_name") as string,
-      email: formData.get("email") as string,
-      phone: (formData.get("phone") as string) || null,
-      role: role,
-      is_active: true,
-    })
+    // Validar que las contraseñas coincidan
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden")
+      setLoading(false)
+      return
+    }
 
-    setLoading(false)
+    // Validar longitud de contraseña
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres")
+      setLoading(false)
+      return
+    }
 
-    if (!error) {
+    try {
+      // Llamar al API route para crear usuario
+      const response = await fetch("/api/users/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          full_name: formData.get("full_name") as string,
+          email: formData.get("email") as string,
+          phone: (formData.get("phone") as string) || null,
+          role: role,
+          password: password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || "Error al crear usuario")
+        setLoading(false)
+        return
+      }
+
+      // Éxito
       setOpen(false)
+      onUserCreated?.() // Notificar al padre que se creó un usuario
       router.refresh()
+    } catch (err) {
+      setError("Error de conexión. Intenta nuevamente.")
+      setLoading(false)
     }
   }
 
@@ -59,7 +88,7 @@ export function AddUserDialog({ children }: { children: React.ReactNode }) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Añadir Usuario del Sistema</DialogTitle>
-          <DialogDescription>Crea un nuevo usuario para administrar el sistema</DialogDescription>
+          <DialogDescription>Crea un nuevo usuario con acceso al sistema</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -87,13 +116,35 @@ export function AddUserDialog({ children }: { children: React.ReactNode }) {
               <SelectContent>
                 <SelectItem value="admin">Administrador</SelectItem>
                 <SelectItem value="contador">Contador</SelectItem>
-                <SelectItem value="user">Usuario</SelectItem>
+                <SelectItem value="cliente">Cliente</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              {role === "admin" && "Acceso completo al sistema"}
+              {role === "contador" && "Acceso a módulos de trabajo"}
+              {role === "cliente" && "Acceso solo lectura a sus servicios"}
+            </p>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="password">Contraseña *</Label>
+            <Input id="password" name="password" type="password" required minLength={6} />
+            <p className="text-xs text-muted-foreground">Mínimo 6 caracteres</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm_password">Confirmar Contraseña *</Label>
+            <Input id="confirm_password" name="confirm_password" type="password" required minLength={6} />
+          </div>
+
+          {error && (
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>

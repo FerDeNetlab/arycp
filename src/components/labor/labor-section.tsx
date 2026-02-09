@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Briefcase, Plus, Trash2, Edit2, Users, FileText, Calendar, 
+import {
+  Briefcase, Plus, Trash2, Edit2, Users, FileText, Calendar,
   DollarSign, UserPlus, UserMinus, AlertCircle, Check, Clock
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -70,12 +71,13 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 
-export function LaborSection({ clientId }: { clientId: string }) {
+export function LaborSection({ clientId, userRole }: { clientId: string; userRole?: string }) {
+  const isClient = userRole === "cliente"
   const [activeTab, setActiveTab] = useState("payroll")
   const supabase = createClient()
 
   return (
-    <Card className="border-2">
+    <Card className="border-2 border-green-200 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Briefcase className="h-5 w-5 text-green-600" />
@@ -104,19 +106,19 @@ export function LaborSection({ clientId }: { clientId: string }) {
           </TabsList>
 
           <TabsContent value="payroll" className="mt-6">
-            <PayrollSection clientId={clientId} supabase={supabase} />
+            <PayrollSection clientId={clientId} supabase={supabase} isClient={isClient} />
           </TabsContent>
 
           <TabsContent value="incidents" className="mt-6">
-            <IncidentsSection clientId={clientId} supabase={supabase} />
+            <IncidentsSection clientId={clientId} supabase={supabase} isClient={isClient} />
           </TabsContent>
 
           <TabsContent value="imss" className="mt-6">
-            <IMSSSection clientId={clientId} supabase={supabase} />
+            <IMSSSection clientId={clientId} supabase={supabase} isClient={isClient} />
           </TabsContent>
 
           <TabsContent value="taxes" className="mt-6">
-            <TaxesSection clientId={clientId} supabase={supabase} />
+            <TaxesSection clientId={clientId} supabase={supabase} isClient={isClient} />
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -125,7 +127,7 @@ export function LaborSection({ clientId }: { clientId: string }) {
 }
 
 // Sección de Nóminas
-function PayrollSection({ clientId, supabase }: { clientId: string; supabase: any }) {
+function PayrollSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
   const [payrolls, setPayrolls] = useState<Payroll[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -147,7 +149,7 @@ function PayrollSection({ clientId, supabase }: { clientId: string; supabase: an
       .select("*")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
-    
+
     if (data) setPayrolls(data)
     setIsLoading(false)
   }
@@ -173,9 +175,9 @@ function PayrollSection({ clientId, supabase }: { clientId: string; supabase: an
   const handleUpdateStatus = async (id: string, status: string) => {
     await supabase
       .from("labor_payroll")
-      .update({ 
-        status, 
-        completed_date: status === "realizada" ? new Date().toISOString().split("T")[0] : null 
+      .update({
+        status,
+        completed_date: status === "realizada" ? new Date().toISOString().split("T")[0] : null
       })
       .eq("id", id)
     loadPayrolls()
@@ -191,53 +193,55 @@ function PayrollSection({ clientId, supabase }: { clientId: string; supabase: an
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold">Control de Nóminas</h3>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Nómina
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Registrar Nómina</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Tipo de Nómina</label>
-                <Select value={formData.payroll_type} onValueChange={(v) => setFormData({...formData, payroll_type: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="semanal">Semanal</SelectItem>
-                    <SelectItem value="quincenal">Quincenal</SelectItem>
-                    <SelectItem value="mensual">Mensual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Período</label>
-                <Input 
-                  placeholder="Ej: 1ra Quincena Enero 2026"
-                  value={formData.period}
-                  onChange={(e) => setFormData({...formData, period: e.target.value})}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Comentarios</label>
-                <Textarea 
-                  placeholder="Notas adicionales..."
-                  value={formData.comments}
-                  onChange={(e) => setFormData({...formData, comments: e.target.value})}
-                />
-              </div>
-              <Button onClick={handleSave} className="w-full" disabled={!formData.period.trim()}>
-                Registrar Nómina
+        {!isClient && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva Nómina
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Nómina</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tipo de Nómina</label>
+                  <Select value={formData.payroll_type} onValueChange={(v) => setFormData({ ...formData, payroll_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="quincenal">Quincenal</SelectItem>
+                      <SelectItem value="mensual">Mensual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Período</label>
+                  <Input
+                    placeholder="Ej: 1ra Quincena Enero 2026"
+                    value={formData.period}
+                    onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                  <Textarea
+                    placeholder="Notas adicionales..."
+                    value={formData.comments}
+                    onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                  />
+                </div>
+                <Button onClick={handleSave} className="w-full" disabled={!formData.period.trim()}>
+                  Registrar Nómina
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {isLoading ? (
@@ -250,7 +254,7 @@ function PayrollSection({ clientId, supabase }: { clientId: string; supabase: an
       ) : (
         <div className="space-y-3">
           {payrolls.map((payroll) => (
-            <div key={payroll.id} className="p-4 border rounded-lg hover:border-green-300 transition-colors">
+            <div key={payroll.id} className="p-4 border-2 border-gray-200 rounded-lg hover:border-green-500 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
@@ -259,25 +263,34 @@ function PayrollSection({ clientId, supabase }: { clientId: string; supabase: an
                   <div>
                     <h4 className="font-medium">{payroll.period}</h4>
                     <p className="text-sm text-muted-foreground">
-                      Nómina {payroll.payroll_type} 
+                      Nómina {payroll.payroll_type}
                       {payroll.completed_date && ` - Realizada: ${new Date(payroll.completed_date).toLocaleDateString()}`}
                     </p>
                     {payroll.comments && <p className="text-xs text-muted-foreground mt-1">{payroll.comments}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Select value={payroll.status} onValueChange={(v) => handleUpdateStatus(payroll.id, v)}>
-                    <SelectTrigger className={`w-32 ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                      <SelectItem value="realizada">Realizada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(payroll.id)} className="text-red-500">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {!isClient && (
+                    <>
+                      <Select value={payroll.status} onValueChange={(v) => handleUpdateStatus(payroll.id, v)}>
+                        <SelectTrigger className={`w-32 ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendiente">Pendiente</SelectItem>
+                          <SelectItem value="realizada">Realizada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(payroll.id)} className="text-red-500">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  {isClient && (
+                    <Badge variant={payroll.status === "realizada" ? "default" : "outline"}>
+                      {payroll.status === "realizada" ? "Realizada" : "Pendiente"}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -289,7 +302,7 @@ function PayrollSection({ clientId, supabase }: { clientId: string; supabase: an
 }
 
 // Sección de Incidencias
-function IncidentsSection({ clientId, supabase }: { clientId: string; supabase: any }) {
+function IncidentsSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -312,7 +325,7 @@ function IncidentsSection({ clientId, supabase }: { clientId: string; supabase: 
       .select("*")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
-    
+
     if (data) setIncidents(data)
     setIsLoading(false)
   }
@@ -370,72 +383,74 @@ function IncidentsSection({ clientId, supabase }: { clientId: string; supabase: 
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold">Incidencias de Empleados</h3>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Incidencia
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Registrar Incidencia</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Nombre del Empleado</label>
-                <Input 
-                  placeholder="Nombre completo"
-                  value={formData.employee_name}
-                  onChange={(e) => setFormData({...formData, employee_name: e.target.value})}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Tipo de Incidencia</label>
-                <Select value={formData.incident_type} onValueChange={(v) => setFormData({...formData, incident_type: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="faltas">Faltas</SelectItem>
-                    <SelectItem value="vacaciones">Vacaciones</SelectItem>
-                    <SelectItem value="horas_extra">Horas Extra</SelectItem>
-                    <SelectItem value="incapacidades">Incapacidades</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Fecha Inicio</label>
-                  <Input 
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Fecha Fin (opcional)</label>
-                  <Input 
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({...formData, end_date: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Comentarios</label>
-                <Textarea 
-                  placeholder="Notas adicionales..."
-                  value={formData.comments}
-                  onChange={(e) => setFormData({...formData, comments: e.target.value})}
-                />
-              </div>
-              <Button onClick={handleSave} className="w-full" disabled={!formData.employee_name.trim() || !formData.start_date}>
-                Registrar Incidencia
+        {!isClient && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva Incidencia
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Incidencia</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Nombre del Empleado</label>
+                  <Input
+                    placeholder="Nombre completo"
+                    value={formData.employee_name}
+                    onChange={(e) => setFormData({ ...formData, employee_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tipo de Incidencia</label>
+                  <Select value={formData.incident_type} onValueChange={(v) => setFormData({ ...formData, incident_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="faltas">Faltas</SelectItem>
+                      <SelectItem value="vacaciones">Vacaciones</SelectItem>
+                      <SelectItem value="horas_extra">Horas Extra</SelectItem>
+                      <SelectItem value="incapacidades">Incapacidades</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Fecha Inicio</label>
+                    <Input
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Fecha Fin (opcional)</label>
+                    <Input
+                      type="date"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                  <Textarea
+                    placeholder="Notas adicionales..."
+                    value={formData.comments}
+                    onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                  />
+                </div>
+                <Button onClick={handleSave} className="w-full" disabled={!formData.employee_name.trim() || !formData.start_date}>
+                  Registrar Incidencia
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {isLoading ? (
@@ -464,18 +479,27 @@ function IncidentsSection({ clientId, supabase }: { clientId: string; supabase: 
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Select value={incident.status} onValueChange={(v) => handleUpdateStatus(incident.id, v)}>
-                    <SelectTrigger className={`w-32 ${incident.status === "aplicada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                      <SelectItem value="aplicada">Aplicada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(incident.id)} className="text-red-500">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {!isClient && (
+                    <>
+                      <Select value={incident.status} onValueChange={(v) => handleUpdateStatus(incident.id, v)}>
+                        <SelectTrigger className={`w-32 ${incident.status === "aplicada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendiente">Pendiente</SelectItem>
+                          <SelectItem value="aplicada">Aplicada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(incident.id)} className="text-red-500">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  {isClient && (
+                    <Badge variant={incident.status === "aplicada" ? "default" : "outline"}>
+                      {incident.status === "aplicada" ? "Aplicada" : "Pendiente"}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -487,7 +511,7 @@ function IncidentsSection({ clientId, supabase }: { clientId: string; supabase: 
 }
 
 // Sección de Altas/Bajas IMSS
-function IMSSSection({ clientId, supabase }: { clientId: string; supabase: any }) {
+function IMSSSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
   const [movements, setMovements] = useState<IMSSMovement[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -512,7 +536,7 @@ function IMSSSection({ clientId, supabase }: { clientId: string; supabase: any }
       .eq("year", selectedYear)
       .eq("month", selectedMonth)
       .order("created_at", { ascending: false })
-    
+
     if (data) setMovements(data)
     setIsLoading(false)
   }
@@ -544,7 +568,7 @@ function IMSSSection({ clientId, supabase }: { clientId: string; supabase: any }
     if (field === "registered_in_imss" && value) {
       updateData.registration_date = new Date().toISOString().split("T")[0]
     }
-    
+
     await supabase.from("labor_imss").update(updateData).eq("id", id)
     loadMovements()
   }
@@ -585,52 +609,54 @@ function IMSSSection({ clientId, supabase }: { clientId: string; supabase: any }
             </Select>
           </div>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Movimiento
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Registrar Movimiento IMSS</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Nombre del Empleado</label>
-                <Input 
-                  placeholder="Nombre completo"
-                  value={formData.employee_name}
-                  onChange={(e) => setFormData({...formData, employee_name: e.target.value})}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Tipo de Movimiento</label>
-                <Select value={formData.movement_type} onValueChange={(v) => setFormData({...formData, movement_type: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="alta">Alta</SelectItem>
-                    <SelectItem value="baja">Baja</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Comentarios</label>
-                <Textarea 
-                  placeholder="Notas adicionales..."
-                  value={formData.comments}
-                  onChange={(e) => setFormData({...formData, comments: e.target.value})}
-                />
-              </div>
-              <Button onClick={handleSave} className="w-full" disabled={!formData.employee_name.trim()}>
-                Registrar Movimiento
+        {!isClient && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Movimiento
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Movimiento IMSS</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Nombre del Empleado</label>
+                  <Input
+                    placeholder="Nombre completo"
+                    value={formData.employee_name}
+                    onChange={(e) => setFormData({ ...formData, employee_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tipo de Movimiento</label>
+                  <Select value={formData.movement_type} onValueChange={(v) => setFormData({ ...formData, movement_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="alta">Alta</SelectItem>
+                      <SelectItem value="baja">Baja</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                  <Textarea
+                    placeholder="Notas adicionales..."
+                    value={formData.comments}
+                    onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                  />
+                </div>
+                <Button onClick={handleSave} className="w-full" disabled={!formData.employee_name.trim()}>
+                  Registrar Movimiento
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {isLoading ? (
@@ -657,31 +683,36 @@ function IMSSSection({ clientId, supabase }: { clientId: string; supabase: any }
                     {movement.comments && <p className="text-xs text-muted-foreground mt-1">{movement.comments}</p>}
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(movement.id)} className="text-red-500">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {!isClient && (
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(movement.id)} className="text-red-500">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               <div className="mt-4 flex flex-wrap gap-6 pl-12">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox 
+                  <Checkbox
                     checked={movement.sent_to_imss}
                     onCheckedChange={(checked) => handleCheckboxChange(movement.id, "sent_to_imss", !!checked)}
+                    disabled={isClient}
                   />
                   <span className="text-sm">Enviado al IMSS</span>
                   {movement.sent_date && <span className="text-xs text-muted-foreground">({new Date(movement.sent_date).toLocaleDateString()})</span>}
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox 
+                  <Checkbox
                     checked={movement.registered_in_imss}
                     onCheckedChange={(checked) => handleCheckboxChange(movement.id, "registered_in_imss", !!checked)}
+                    disabled={isClient}
                   />
                   <span className="text-sm">Registrado en IMSS</span>
                   {movement.registration_date && <span className="text-xs text-muted-foreground">({new Date(movement.registration_date).toLocaleDateString()})</span>}
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox 
+                  <Checkbox
                     checked={movement.reviewed}
                     onCheckedChange={(checked) => handleCheckboxChange(movement.id, "reviewed", !!checked)}
+                    disabled={isClient}
                   />
                   <span className="text-sm">Revisado</span>
                 </label>
@@ -695,7 +726,7 @@ function IMSSSection({ clientId, supabase }: { clientId: string; supabase: any }
 }
 
 // Sección de Impuestos Laborales
-function TaxesSection({ clientId, supabase }: { clientId: string; supabase: any }) {
+function TaxesSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
   const [taxes, setTaxes] = useState<LaborTax[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -720,7 +751,7 @@ function TaxesSection({ clientId, supabase }: { clientId: string; supabase: any 
       .eq("year", selectedYear)
       .eq("month", selectedMonth)
       .order("created_at", { ascending: false })
-    
+
     if (data) setTaxes(data)
     setIsLoading(false)
   }
@@ -748,9 +779,9 @@ function TaxesSection({ clientId, supabase }: { clientId: string; supabase: any 
   const handleUpdateStatus = async (id: string, status: string) => {
     await supabase
       .from("labor_taxes")
-      .update({ 
-        status, 
-        completed_date: status === "realizado" ? new Date().toISOString().split("T")[0] : null 
+      .update({
+        status,
+        completed_date: status === "realizado" ? new Date().toISOString().split("T")[0] : null
       })
       .eq("id", id)
     loadTaxes()
@@ -797,56 +828,58 @@ function TaxesSection({ clientId, supabase }: { clientId: string; supabase: any 
             </Select>
           </div>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Impuesto
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Registrar Impuesto Laboral</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Tipo de Impuesto</label>
-                <Select value={formData.tax_type} onValueChange={(v) => setFormData({...formData, tax_type: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ISN">ISN (Impuesto Sobre Nóminas)</SelectItem>
-                    <SelectItem value="ISR">ISR Retenciones</SelectItem>
-                    <SelectItem value="IMSS">Cuotas IMSS</SelectItem>
-                    <SelectItem value="INFONAVIT">Aportaciones INFONAVIT</SelectItem>
-                    <SelectItem value="SAR">SAR (Sistema de Ahorro para el Retiro)</SelectItem>
-                    <SelectItem value="otro">Otro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Responsable</label>
-                <Input 
-                  placeholder="Nombre del responsable"
-                  value={formData.responsible}
-                  onChange={(e) => setFormData({...formData, responsible: e.target.value})}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Comentarios</label>
-                <Textarea 
-                  placeholder="Notas adicionales..."
-                  value={formData.comments}
-                  onChange={(e) => setFormData({...formData, comments: e.target.value})}
-                />
-              </div>
-              <Button onClick={handleSave} className="w-full">
-                Registrar Impuesto
+        {!isClient && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Impuesto
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Impuesto Laboral</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tipo de Impuesto</label>
+                  <Select value={formData.tax_type} onValueChange={(v) => setFormData({ ...formData, tax_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ISN">ISN (Impuesto Sobre Nóminas)</SelectItem>
+                      <SelectItem value="ISR">ISR Retenciones</SelectItem>
+                      <SelectItem value="IMSS">Cuotas IMSS</SelectItem>
+                      <SelectItem value="INFONAVIT">Aportaciones INFONAVIT</SelectItem>
+                      <SelectItem value="SAR">SAR (Sistema de Ahorro para el Retiro)</SelectItem>
+                      <SelectItem value="otro">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Responsable</label>
+                  <Input
+                    placeholder="Nombre del responsable"
+                    value={formData.responsible}
+                    onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                  <Textarea
+                    placeholder="Notas adicionales..."
+                    value={formData.comments}
+                    onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                  />
+                </div>
+                <Button onClick={handleSave} className="w-full">
+                  Registrar Impuesto
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {isLoading ? (
@@ -877,27 +910,40 @@ function TaxesSection({ clientId, supabase }: { clientId: string; supabase: any 
                     {tax.comments && <p className="text-xs text-muted-foreground mt-1">{tax.comments}</p>}
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(tax.id)} className="text-red-500">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {!isClient && (
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(tax.id)} className="text-red-500">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-4 pl-12">
-                <Select value={tax.status} onValueChange={(v) => handleUpdateStatus(tax.id, v)}>
-                  <SelectTrigger className={`w-32 ${tax.status === "realizado" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendiente">Pendiente</SelectItem>
-                    <SelectItem value="realizado">Realizado</SelectItem>
-                  </SelectContent>
-                </Select>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox 
-                    checked={tax.sent}
-                    onCheckedChange={(checked) => handleSentChange(tax.id, !!checked)}
-                  />
-                  <span className="text-sm">Enviado al cliente</span>
-                </label>
+                {!isClient && (
+                  <>
+                    <Select value={tax.status} onValueChange={(v) => handleUpdateStatus(tax.id, v)}>
+                      <SelectTrigger className={`w-32 ${tax.status === "realizado" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente">Pendiente</SelectItem>
+                        <SelectItem value="realizado">Realizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={tax.sent}
+                        onCheckedChange={(checked) => handleSentChange(tax.id, !!checked)}
+                      />
+                      <span className="text-sm">Enviado al cliente</span>
+                    </label>
+                  </>
+                )}
+                {isClient && (
+                  <Badge variant={tax.status === "realizado" ? "default" : "outline"}>
+                    {tax.status === "realizado" ? "Realizado" : "Pendiente"}
+                  </Badge>
+                )}
               </div>
             </div>
           ))}

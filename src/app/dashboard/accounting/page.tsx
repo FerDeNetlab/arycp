@@ -1,30 +1,82 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { AccountingList } from "@/components/accounting/accounting-list"
+import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 
-// Los clientes ahora se crean solo desde el módulo de Clientes
-// y se asignan automáticamente según los servicios contratados
+type Client = {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  company: string | null
+  status: string
+  has_accounting: boolean
+  has_fiscal: boolean
+  has_legal: boolean
+  has_labor: boolean
+  created_at: string
+}
 
-export default async function AccountingPage() {
-  const supabase = await createClient()
+export default function AccountingPage() {
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const { role, clientId, loading: roleLoading } = useUserRole()
 
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data?.user) {
-    redirect("/auth/login")
+  // Redirect client to their own data
+  useEffect(() => {
+    if (!roleLoading && isClientRole(role) && clientId) {
+      router.replace(`/dashboard/accounting/${clientId}`)
+    }
+  }, [roleLoading, role, clientId, router])
+
+  useEffect(() => {
+    if (!roleLoading && !isClientRole(role)) {
+      fetchClients()
+    }
+  }, [roleLoading, role])
+
+  async function fetchClients() {
+    try {
+      const response = await fetch("/api/accounting/clients")
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push("/auth/login")
+          return
+        }
+        setError(data.error || "Error al cargar clientes")
+        setLoading(false)
+        return
+      }
+
+      setClients(data.clients || [])
+      setLoading(false)
+    } catch (err) {
+      console.error("Error fetching clients:", err)
+      setError("Error de conexión")
+      setLoading(false)
+    }
   }
 
-  const { data: clients, error: clientsError } = await supabase
-    .from("clients")
-    .select("*")
-    .eq("user_id", data.user.id)
-    .eq("has_accounting", true)
-    .order("created_at", { ascending: false })
+  // Show loading while checking role or redirecting
+  if (roleLoading || isClientRole(role)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Cargando...</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-25 to-background">
       <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -44,7 +96,9 @@ export default async function AccountingPage() {
       </header>
 
       <main className="container mx-auto px-6 py-8">
-        <AccountingList clients={clients || []} />
+        {loading && <p className="text-center text-muted-foreground">Cargando clientes...</p>}
+        {error && <p className="text-center text-destructive">{error}</p>}
+        {!loading && !error && <AccountingList clients={clients} />}
       </main>
     </div>
   )

@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { 
-  Plus, Trash2, Scale, FileText, Calendar, Gavel, 
+import {
+  Plus, Trash2, Scale, FileText, Calendar, Gavel,
   Clock, MapPin, CheckCircle2, AlertCircle, Users
 } from "lucide-react"
 import { toast } from "sonner"
@@ -22,6 +22,7 @@ interface JudicialFullSectionProps {
   clientId: string
   clientName: string
   clientEmail?: string
+  userRole?: string
 }
 
 interface JudicialCase {
@@ -118,20 +119,21 @@ const DOCUMENT_TYPES = [
   { value: "otro", label: "Otro" },
 ]
 
-export function JudicialFullSection({ clientId, clientName }: JudicialFullSectionProps) {
+export function JudicialFullSection({ clientId, clientName, userRole }: JudicialFullSectionProps) {
+  const isClient = userRole === "cliente"
   const [cases, setCases] = useState<JudicialCase[]>([])
   const [actions, setActions] = useState<JudicialAction[]>([])
   const [hearings, setHearings] = useState<JudicialHearing[]>([])
   const [documents, setDocuments] = useState<JudicialDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCase, setSelectedCase] = useState<string | null>(null)
-  
+
   // Dialog states
   const [showCaseDialog, setShowCaseDialog] = useState(false)
   const [showActionDialog, setShowActionDialog] = useState(false)
   const [showHearingDialog, setShowHearingDialog] = useState(false)
   const [showDocumentDialog, setShowDocumentDialog] = useState(false)
-  
+
   // Form states
   const [newCase, setNewCase] = useState({
     case_type: "",
@@ -143,14 +145,14 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
     lawyer_responsible: "",
     comments: "",
   })
-  
+
   const [newAction, setNewAction] = useState({
     case_id: "",
     action_type: "",
     action_date: "",
     description: "",
   })
-  
+
   const [newHearing, setNewHearing] = useState({
     case_id: "",
     hearing_type: "",
@@ -159,7 +161,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
     location: "",
     comments: "",
   })
-  
+
   const [newDocument, setNewDocument] = useState({
     case_id: "",
     document_type: "",
@@ -177,7 +179,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
 
   const loadData = async () => {
     setLoading(true)
-    
+
     const { data: userData } = await supabase.auth.getUser()
     if (!userData?.user) {
       setLoading(false)
@@ -257,7 +259,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
 
   const handleUpdateCaseStatus = async (caseId: string, status: string) => {
     const { data: userData } = await supabase.auth.getUser()
-    
+
     const { error } = await supabase
       .from("judicial_cases")
       .update({ status, updated_by: userData?.user?.id, updated_at: new Date().toISOString() })
@@ -271,7 +273,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
 
   const handleUpdateCaseStage = async (caseId: string, process_stage: string) => {
     const { data: userData } = await supabase.auth.getUser()
-    
+
     const { error } = await supabase
       .from("judicial_cases")
       .update({ process_stage, updated_by: userData?.user?.id, updated_at: new Date().toISOString() })
@@ -293,7 +295,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
 
   const handleToggleCaseReviewed = async (caseId: string, isReviewed: boolean) => {
     const { data: userData } = await supabase.auth.getUser()
-    
+
     const { error } = await supabase
       .from("judicial_cases")
       .update({ is_reviewed: isReviewed, updated_by: userData?.user?.id })
@@ -327,7 +329,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
 
   const handleUpdateActionStatus = async (actionId: string, status: string) => {
     const { data: userData } = await supabase.auth.getUser()
-    
+
     const { error } = await supabase
       .from("judicial_actions")
       .update({ status, updated_by: userData?.user?.id })
@@ -372,7 +374,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
 
   const handleToggleHearingAttended = async (hearingId: string, attended: boolean) => {
     const { data: userData } = await supabase.auth.getUser()
-    
+
     const { error } = await supabase
       .from("judicial_hearings")
       .update({ attended, updated_by: userData?.user?.id })
@@ -383,7 +385,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
 
   const handleUpdateHearingResult = async (hearingId: string, result: string) => {
     const { data: userData } = await supabase.auth.getUser()
-    
+
     const { error } = await supabase
       .from("judicial_hearings")
       .update({ result, updated_by: userData?.user?.id })
@@ -462,7 +464,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -474,7 +476,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-orange-50 border-orange-200">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -486,7 +488,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-yellow-50 border-yellow-200">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -552,81 +554,83 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                 <Scale className="h-5 w-5 text-purple-600" />
                 Asuntos Judiciales
               </CardTitle>
-              <Dialog open={showCaseDialog} onOpenChange={setShowCaseDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-purple-600 hover:bg-purple-700">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Asunto
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>Nuevo Asunto Judicial</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tipo de Asunto *</Label>
-                        <Select value={newCase.case_type} onValueChange={(v) => setNewCase({...newCase, case_type: v})}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CASE_TYPES.map((t) => (
-                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Número de Expediente</Label>
-                        <Input
-                          value={newCase.case_number}
-                          onChange={(e) => setNewCase({...newCase, case_number: e.target.value})}
-                          placeholder="Ej: 123/2024"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Juzgado/Autoridad</Label>
-                      <Input
-                        value={newCase.authority}
-                        onChange={(e) => setNewCase({...newCase, authority: e.target.value})}
-                        placeholder="Ej: Juzgado Primero Civil"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Fecha de Inicio</Label>
-                        <Input
-                          type="date"
-                          value={newCase.start_date}
-                          onChange={(e) => setNewCase({...newCase, start_date: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Abogado Responsable</Label>
-                        <Input
-                          value={newCase.lawyer_responsible}
-                          onChange={(e) => setNewCase({...newCase, lawyer_responsible: e.target.value})}
-                          placeholder="Nombre del abogado"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Comentarios</Label>
-                      <Textarea
-                        value={newCase.comments}
-                        onChange={(e) => setNewCase({...newCase, comments: e.target.value})}
-                        placeholder="Notas adicionales..."
-                      />
-                    </div>
-                    <Button onClick={handleAddCase} className="w-full bg-purple-600 hover:bg-purple-700" disabled={!newCase.case_type}>
-                      Crear Asunto
+              {!isClient && (
+                <Dialog open={showCaseDialog} onOpenChange={setShowCaseDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-purple-600 hover:bg-purple-700">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nuevo Asunto
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Nuevo Asunto Judicial</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Tipo de Asunto *</Label>
+                          <Select value={newCase.case_type} onValueChange={(v) => setNewCase({ ...newCase, case_type: v })}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CASE_TYPES.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Número de Expediente</Label>
+                          <Input
+                            value={newCase.case_number}
+                            onChange={(e) => setNewCase({ ...newCase, case_number: e.target.value })}
+                            placeholder="Ej: 123/2024"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Juzgado/Autoridad</Label>
+                        <Input
+                          value={newCase.authority}
+                          onChange={(e) => setNewCase({ ...newCase, authority: e.target.value })}
+                          placeholder="Ej: Juzgado Primero Civil"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Fecha de Inicio</Label>
+                          <Input
+                            type="date"
+                            value={newCase.start_date}
+                            onChange={(e) => setNewCase({ ...newCase, start_date: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Abogado Responsable</Label>
+                          <Input
+                            value={newCase.lawyer_responsible}
+                            onChange={(e) => setNewCase({ ...newCase, lawyer_responsible: e.target.value })}
+                            placeholder="Nombre del abogado"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Comentarios</Label>
+                        <Textarea
+                          value={newCase.comments}
+                          onChange={(e) => setNewCase({ ...newCase, comments: e.target.value })}
+                          placeholder="Notas adicionales..."
+                        />
+                      </div>
+                      <Button onClick={handleAddCase} className="w-full bg-purple-600 hover:bg-purple-700" disabled={!newCase.case_type}>
+                        Crear Asunto
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </CardHeader>
             <CardContent>
               {cases.length === 0 ? (
@@ -649,11 +653,11 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                                 {CASE_STATUSES.find(s => s.value === caseItem.status)?.label}
                               </Badge>
                             </div>
-                            
+
                             {caseItem.authority && (
                               <p className="text-sm"><strong>Autoridad:</strong> {caseItem.authority}</p>
                             )}
-                            
+
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               {caseItem.start_date && (
                                 <span className="flex items-center gap-1">
@@ -673,59 +677,70 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                               <p className="text-sm text-muted-foreground">{caseItem.comments}</p>
                             )}
 
-                            <div className="flex items-center gap-4 pt-2">
-                              <div className="flex items-center gap-2">
-                                <Label className="text-xs">Etapa:</Label>
-                                <Select 
-                                  value={caseItem.process_stage} 
-                                  onValueChange={(v) => handleUpdateCaseStage(caseItem.id, v)}
-                                >
-                                  <SelectTrigger className="h-7 text-xs w-[150px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {PROCESS_STAGES.map((s) => (
-                                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                            {!isClient && (
+                              <div className="flex items-center gap-4 pt-2">
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs">Etapa:</Label>
+                                  <Select
+                                    value={caseItem.process_stage}
+                                    onValueChange={(v) => handleUpdateCaseStage(caseItem.id, v)}
+                                  >
+                                    <SelectTrigger className="h-7 text-xs w-[150px]">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {PROCESS_STAGES.map((s) => (
+                                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs">Estado:</Label>
+                                  <Select
+                                    value={caseItem.status}
+                                    onValueChange={(v) => handleUpdateCaseStatus(caseItem.id, v)}
+                                  >
+                                    <SelectTrigger className="h-7 text-xs w-[120px]">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {CASE_STATUSES.map((s) => (
+                                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Label className="text-xs">Estado:</Label>
-                                <Select 
-                                  value={caseItem.status} 
-                                  onValueChange={(v) => handleUpdateCaseStatus(caseItem.id, v)}
-                                >
-                                  <SelectTrigger className="h-7 text-xs w-[120px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {CASE_STATUSES.map((s) => (
-                                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                            )}
+                            {isClient && (
+                              <div className="flex items-center gap-4 pt-2">
+                                <Badge variant="outline">
+                                  Etapa: {PROCESS_STAGES.find(s => s.value === caseItem.process_stage)?.label}
+                                </Badge>
                               </div>
-                            </div>
+                            )}
                           </div>
-                          
-                          <div className="flex items-center gap-2">
+
+                          {!isClient && (
                             <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={caseItem.is_reviewed}
-                                onCheckedChange={(checked) => handleToggleCaseReviewed(caseItem.id, !!checked)}
-                              />
-                              <Label className="text-xs">Revisado</Label>
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={caseItem.is_reviewed}
+                                  onCheckedChange={(checked) => handleToggleCaseReviewed(caseItem.id, !!checked)}
+                                />
+                                <Label className="text-xs">Revisado</Label>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-500 hover:text-red-700"
+                                onClick={() => handleDeleteCase(caseItem.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="text-red-500 hover:text-red-700"
-                              onClick={() => handleDeleteCase(caseItem.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -758,7 +773,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Asunto *</Label>
-                      <Select value={newAction.case_id} onValueChange={(v) => setNewAction({...newAction, case_id: v})}>
+                      <Select value={newAction.case_id} onValueChange={(v) => setNewAction({ ...newAction, case_id: v })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar asunto" />
                         </SelectTrigger>
@@ -774,7 +789,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Tipo *</Label>
-                        <Select value={newAction.action_type} onValueChange={(v) => setNewAction({...newAction, action_type: v})}>
+                        <Select value={newAction.action_type} onValueChange={(v) => setNewAction({ ...newAction, action_type: v })}>
                           <SelectTrigger>
                             <SelectValue placeholder="Tipo de actuación" />
                           </SelectTrigger>
@@ -790,7 +805,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                         <Input
                           type="date"
                           value={newAction.action_date}
-                          onChange={(e) => setNewAction({...newAction, action_date: e.target.value})}
+                          onChange={(e) => setNewAction({ ...newAction, action_date: e.target.value })}
                         />
                       </div>
                     </div>
@@ -798,12 +813,12 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                       <Label>Descripción</Label>
                       <Textarea
                         value={newAction.description}
-                        onChange={(e) => setNewAction({...newAction, description: e.target.value})}
+                        onChange={(e) => setNewAction({ ...newAction, description: e.target.value })}
                         placeholder="Descripción de la actuación..."
                       />
                     </div>
-                    <Button 
-                      onClick={handleAddAction} 
+                    <Button
+                      onClick={handleAddAction}
                       className="w-full bg-purple-600 hover:bg-purple-700"
                       disabled={!newAction.case_id || !newAction.action_type || !newAction.action_date}
                     >
@@ -843,8 +858,8 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Select 
-                            value={action.status} 
+                          <Select
+                            value={action.status}
                             onValueChange={(v) => handleUpdateActionStatus(action.id, v)}
                           >
                             <SelectTrigger className="h-8 w-[120px]">
@@ -855,9 +870,9 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                               <SelectItem value="realizada">Realizada</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="text-red-500"
                             onClick={() => handleDeleteAction(action.id)}
                           >
@@ -895,7 +910,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Asunto *</Label>
-                      <Select value={newHearing.case_id} onValueChange={(v) => setNewHearing({...newHearing, case_id: v})}>
+                      <Select value={newHearing.case_id} onValueChange={(v) => setNewHearing({ ...newHearing, case_id: v })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar asunto" />
                         </SelectTrigger>
@@ -910,7 +925,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                     </div>
                     <div className="space-y-2">
                       <Label>Tipo *</Label>
-                      <Select value={newHearing.hearing_type} onValueChange={(v) => setNewHearing({...newHearing, hearing_type: v})}>
+                      <Select value={newHearing.hearing_type} onValueChange={(v) => setNewHearing({ ...newHearing, hearing_type: v })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Tipo de fecha" />
                         </SelectTrigger>
@@ -927,7 +942,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                         <Input
                           type="date"
                           value={newHearing.hearing_date}
-                          onChange={(e) => setNewHearing({...newHearing, hearing_date: e.target.value})}
+                          onChange={(e) => setNewHearing({ ...newHearing, hearing_date: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
@@ -935,7 +950,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                         <Input
                           type="time"
                           value={newHearing.hearing_time}
-                          onChange={(e) => setNewHearing({...newHearing, hearing_time: e.target.value})}
+                          onChange={(e) => setNewHearing({ ...newHearing, hearing_time: e.target.value })}
                         />
                       </div>
                     </div>
@@ -943,7 +958,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                       <Label>Lugar</Label>
                       <Input
                         value={newHearing.location}
-                        onChange={(e) => setNewHearing({...newHearing, location: e.target.value})}
+                        onChange={(e) => setNewHearing({ ...newHearing, location: e.target.value })}
                         placeholder="Dirección o sala"
                       />
                     </div>
@@ -951,11 +966,11 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                       <Label>Comentarios</Label>
                       <Textarea
                         value={newHearing.comments}
-                        onChange={(e) => setNewHearing({...newHearing, comments: e.target.value})}
+                        onChange={(e) => setNewHearing({ ...newHearing, comments: e.target.value })}
                       />
                     </div>
-                    <Button 
-                      onClick={handleAddHearing} 
+                    <Button
+                      onClick={handleAddHearing}
                       className="w-full bg-purple-600 hover:bg-purple-700"
                       disabled={!newHearing.case_id || !newHearing.hearing_type || !newHearing.hearing_date}
                     >
@@ -976,7 +991,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                     const caseInfo = getCaseById(hearing.case_id)
                     const isPast = new Date(hearing.hearing_date) < new Date()
                     const isUpcoming = !isPast && !hearing.attended
-                    
+
                     return (
                       <Card key={hearing.id} className={`border-l-4 ${isUpcoming ? "border-l-orange-500 bg-orange-50/50" : hearing.attended ? "border-l-green-500" : "border-l-gray-300"}`}>
                         <CardContent className="p-4">
@@ -996,14 +1011,14 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                                   </Badge>
                                 )}
                               </div>
-                              
+
                               {hearing.location && (
                                 <p className="text-sm flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
                                   {hearing.location}
                                 </p>
                               )}
-                              
+
                               {hearing.comments && (
                                 <p className="text-sm text-muted-foreground">{hearing.comments}</p>
                               )}
@@ -1020,7 +1035,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                                 </div>
                               )}
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
                                 <Checkbox
@@ -1038,9 +1053,9 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                                   )}
                                 </Label>
                               </div>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="text-red-500"
                                 onClick={() => handleDeleteHearing(hearing.id)}
                               >
@@ -1081,7 +1096,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                     {cases.length > 0 && (
                       <div className="space-y-2">
                         <Label>Asunto (opcional)</Label>
-                        <Select value={newDocument.case_id} onValueChange={(v) => setNewDocument({...newDocument, case_id: v})}>
+                        <Select value={newDocument.case_id} onValueChange={(v) => setNewDocument({ ...newDocument, case_id: v })}>
                           <SelectTrigger>
                             <SelectValue placeholder="Sin asunto específico" />
                           </SelectTrigger>
@@ -1099,7 +1114,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Tipo *</Label>
-                        <Select value={newDocument.document_type} onValueChange={(v) => setNewDocument({...newDocument, document_type: v})}>
+                        <Select value={newDocument.document_type} onValueChange={(v) => setNewDocument({ ...newDocument, document_type: v })}>
                           <SelectTrigger>
                             <SelectValue placeholder="Tipo de documento" />
                           </SelectTrigger>
@@ -1115,7 +1130,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                         <Input
                           type="date"
                           value={newDocument.document_date}
-                          onChange={(e) => setNewDocument({...newDocument, document_date: e.target.value})}
+                          onChange={(e) => setNewDocument({ ...newDocument, document_date: e.target.value })}
                         />
                       </div>
                     </div>
@@ -1123,7 +1138,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                       <Label>Nombre del archivo *</Label>
                       <Input
                         value={newDocument.file_name}
-                        onChange={(e) => setNewDocument({...newDocument, file_name: e.target.value})}
+                        onChange={(e) => setNewDocument({ ...newDocument, file_name: e.target.value })}
                         placeholder="Ej: Demanda inicial"
                       />
                     </div>
@@ -1131,7 +1146,7 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                       <Label>URL del archivo *</Label>
                       <Input
                         value={newDocument.file_url}
-                        onChange={(e) => setNewDocument({...newDocument, file_url: e.target.value})}
+                        onChange={(e) => setNewDocument({ ...newDocument, file_url: e.target.value })}
                         placeholder="https://..."
                       />
                     </div>
@@ -1139,11 +1154,11 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                       <Label>Comentarios</Label>
                       <Textarea
                         value={newDocument.comments}
-                        onChange={(e) => setNewDocument({...newDocument, comments: e.target.value})}
+                        onChange={(e) => setNewDocument({ ...newDocument, comments: e.target.value })}
                       />
                     </div>
-                    <Button 
-                      onClick={handleAddDocument} 
+                    <Button
+                      onClick={handleAddDocument}
                       className="w-full bg-purple-600 hover:bg-purple-700"
                       disabled={!newDocument.document_type || !newDocument.file_url || !newDocument.file_name}
                     >
@@ -1184,9 +1199,9 @@ export function JudicialFullSection({ clientId, clientName }: JudicialFullSectio
                             {doc.comments && <span>{doc.comments}</span>}
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="text-red-500"
                           onClick={() => handleDeleteDocument(doc.id)}
                         >

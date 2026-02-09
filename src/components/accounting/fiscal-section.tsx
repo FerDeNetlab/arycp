@@ -25,7 +25,8 @@ interface FiscalObservation {
   created_at: string
 }
 
-export function FiscalSection({ clientId, clientData }: { clientId: string; clientData: any }) {
+export function FiscalSection({ clientId, clientData, userRole }: { clientId: string; clientData: any; userRole?: string }) {
+  const isClient = userRole === "cliente"
   const [observations, setObservations] = useState<FiscalObservation[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -245,69 +246,71 @@ export function FiscalSection({ clientId, clientData }: { clientId: string; clie
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Observaciones Fiscales</span>
-          <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Nueva Observación
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{editingObservation ? "Editar Observación" : "Nueva Observación Fiscal"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Título</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Ej: Reducir gastos deducibles"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descripción</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe la recomendación o observación..."
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                {!editingObservation && (
+          {!isClient && (
+            <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nueva Observación
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{editingObservation ? "Editar Observación" : "Nueva Observación Fiscal"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="importance">Importancia</Label>
-                    <Select
-                      value={formData.importance}
-                      onValueChange={(value) => setFormData({ ...formData, importance: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">No mucha</SelectItem>
-                        <SelectItem value="important">Importante</SelectItem>
-                        <SelectItem value="very_important">Muy importante</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="title">Título</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Ej: Reducir gastos deducibles"
+                      required
+                    />
                   </div>
-                )}
 
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">{editingObservation ? "Actualizar" : "Crear"} Observación</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Descripción</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Describe la recomendación o observación..."
+                      rows={4}
+                      required
+                    />
+                  </div>
+
+                  {!editingObservation && (
+                    <div className="space-y-2">
+                      <Label htmlFor="importance">Importancia</Label>
+                      <Select
+                        value={formData.importance}
+                        onValueChange={(value) => setFormData({ ...formData, importance: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">No mucha</SelectItem>
+                          <SelectItem value="important">Importante</SelectItem>
+                          <SelectItem value="very_important">Muy importante</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit">{editingObservation ? "Actualizar" : "Crear"} Observación</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -324,35 +327,40 @@ export function FiscalSection({ clientId, clientData }: { clientId: string; clie
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <h4 className="font-semibold">{observation.title}</h4>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Select
-                            value={observation.status}
-                            onValueChange={(value) => handleStatusChange(observation.id, value)}
-                          >
-                            <SelectTrigger className="w-[140px] h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pendiente</SelectItem>
-                              <SelectItem value="in_progress">En Proceso</SelectItem>
-                              <SelectItem value="completed">Completada</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => handleEdit(observation)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => handleDelete(observation.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {!isClient && (
+                            <>
+                              <Select
+                                value={observation.status}
+                                onValueChange={(value) => handleStatusChange(observation.id, value)}
+                              >
+                                <SelectTrigger className="w-[140px] h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pendiente</SelectItem>
+                                  <SelectItem value="in_progress">En Proceso</SelectItem>
+                                  <SelectItem value="completed">Completada</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => handleEdit(observation)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handleDelete(observation.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          {isClient && getStatusBadge(observation.status)}
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground mb-3">{observation.description}</p>
@@ -367,7 +375,7 @@ export function FiscalSection({ clientId, clientData }: { clientId: string; clie
           )}
         </div>
 
-        {observations.length > 0 && (
+        {!isClient && observations.length > 0 && (
           <div className="mt-6 pt-4 border-t">
             <Dialog open={isSendEmailOpen} onOpenChange={setIsSendEmailOpen}>
               <DialogTrigger asChild>

@@ -45,7 +45,7 @@ export default function LoginPage() {
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
             <Link href="/" className="flex flex-col items-center gap-2">
-              <Image src="/images/arycp-logo.png" alt="ARYCP Logo" width={80} height={80} className="h-20 w-20" />
+              <Image src="/images/arycp-logo.jpg" alt="ARYCP Logo" width={80} height={80} className="h-20 w-20" />
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">AR&CP</div>
                 <div className="text-sm text-muted-foreground">Soluciones Corporativas</div>

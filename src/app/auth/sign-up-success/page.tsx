@@ -11,7 +11,7 @@ export default function SignUpSuccessPage() {
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
             <Link href="/">
-              <Image src="/images/arycp-logo.png" alt="ARYCP Logo" width={180} height={60} className="h-16 w-auto" />
+              <Image src="/images/arycp-logo.jpg" alt="ARYCP Logo" width={180} height={60} className="h-16 w-auto" />
             </Link>
           </div>
 

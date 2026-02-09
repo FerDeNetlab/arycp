@@ -41,7 +41,8 @@ interface MonthlyDeclaration {
   notes?: string
 }
 
-export function AccountingSection({ clientId }: { clientId: string }) {
+export function AccountingSection({ clientId, userRole }: { clientId: string; userRole?: string }) {
+  const isClient = userRole === "cliente"
   const currentYear = new Date().getFullYear()
   const [selectedYear, setSelectedYear] = useState(currentYear)
   const [declarations, setDeclarations] = useState<Record<number, MonthlyDeclaration>>({})
@@ -289,8 +290,8 @@ export function AccountingSection({ clientId }: { clientId: string }) {
             return (
               <div
                 key={index}
-                className="border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer"
-                onClick={() => openMonthDialog(index)}
+                className={`border rounded-lg p-4 ${!isClient ? 'hover:border-primary transition-colors cursor-pointer' : ''}`}
+                onClick={() => !isClient && openMonthDialog(index)}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-sm">{month}</h4>
@@ -320,169 +321,175 @@ export function AccountingSection({ clientId }: { clientId: string }) {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 bg-transparent"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openMonthDialog(index)
-                    }}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    {hasData ? "Editar" : "Agregar Datos"}
-                  </Button>
-                  {hasData && declaration.declaration_pdf_url && (
+                {!isClient && (
+                  <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="bg-transparent"
+                      className="flex-1 bg-transparent"
                       onClick={(e) => {
                         e.stopPropagation()
-                        openEmailDialog(declaration)
+                        openMonthDialog(index)
                       }}
                     >
-                      <Mail className="h-3 w-3" />
+                      <Plus className="h-3 w-3 mr-1" />
+                      {hasData ? "Editar" : "Agregar Datos"}
                     </Button>
-                  )}
-                </div>
+                    {hasData && declaration.declaration_pdf_url && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-transparent"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openEmailDialog(declaration)
+                        }}
+                      >
+                        <Mail className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{selectedMonth && `${months[selectedMonth - 1]} ${selectedYear}`}</DialogTitle>
-            </DialogHeader>
-            {formData && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="pdf">Declaración PDF</Label>
-                  <div className="space-y-2">
-                    {!selectedFileName && !formData.declaration_pdf_name && (
-                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors">
-                        <Input id="pdf" type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
-                        <Label htmlFor="pdf" className="cursor-pointer flex flex-col items-center gap-2">
-                          <Upload className="h-8 w-8 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Seleccionar archivo PDF</span>
-                        </Label>
-                      </div>
-                    )}
+        {!isClient && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{selectedMonth && `${months[selectedMonth - 1]} ${selectedYear}`}</DialogTitle>
+              </DialogHeader>
+              {formData && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="pdf">Declaración PDF</Label>
+                    <div className="space-y-2">
+                      {!selectedFileName && !formData.declaration_pdf_name && (
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors">
+                          <Input id="pdf" type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
+                          <Label htmlFor="pdf" className="cursor-pointer flex flex-col items-center gap-2">
+                            <Upload className="h-8 w-8 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Seleccionar archivo PDF</span>
+                          </Label>
+                        </div>
+                      )}
 
-                    {selectedFileName && (
-                      <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <span className="text-sm flex-1 truncate">{selectedFileName}</span>
-                        <Button size="sm" variant="ghost" onClick={clearSelectedFile}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {!selectedFileName && formData.declaration_pdf_name && (
-                      <div className="space-y-2">
+                      {selectedFileName && (
                         <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
                           <FileText className="h-5 w-5 text-primary" />
-                          <span className="text-sm flex-1 truncate">{formData.declaration_pdf_name}</span>
-                        </div>
-                        <Input
-                          id="pdf-replace"
-                          type="file"
-                          accept=".pdf"
-                          className="hidden"
-                          onChange={handleFileChange}
-                        />
-                        <Label htmlFor="pdf-replace">
-                          <Button size="sm" variant="outline" className="w-full bg-transparent" asChild>
-                            <span>
-                              <Upload className="h-4 w-4 mr-2" />
-                              Cambiar archivo
-                            </span>
+                          <span className="text-sm flex-1 truncate">{selectedFileName}</span>
+                          <Button size="sm" variant="ghost" onClick={clearSelectedFile}>
+                            <X className="h-4 w-4" />
                           </Button>
-                        </Label>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="tax">Pago de Impuestos</Label>
-                  <Input
-                    id="tax"
-                    type="number"
-                    step="0.01"
-                    value={formData.tax_payment || ""}
-                    onChange={(e) => setFormData({ ...formData, tax_payment: Number.parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="invoiced">Facturado</Label>
-                  <Input
-                    id="invoiced"
-                    type="number"
-                    step="0.01"
-                    value={formData.invoiced_amount || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, invoiced_amount: Number.parseFloat(e.target.value) || 0 })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="expenses">Gastos</Label>
-                  <Input
-                    id="expenses"
-                    type="number"
-                    step="0.01"
-                    value={formData.expenses_amount || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, expenses_amount: Number.parseFloat(e.target.value) || 0 })
-                    }
-                  />
-                </div>
-                <Button onClick={handleSaveDeclaration} className="w-full">
-                  Guardar
-                </Button>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                        </div>
+                      )}
 
-        <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Enviar Declaración por Correo</DialogTitle>
-            </DialogHeader>
-            {formData && (
-              <div className="space-y-4">
-                <div>
-                  <Label>Mes y Año</Label>
-                  <p className="text-sm font-medium">
-                    {months[formData.month - 1]} {formData.year}
-                  </p>
+                      {!selectedFileName && formData.declaration_pdf_name && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
+                            <FileText className="h-5 w-5 text-primary" />
+                            <span className="text-sm flex-1 truncate">{formData.declaration_pdf_name}</span>
+                          </div>
+                          <Input
+                            id="pdf-replace"
+                            type="file"
+                            accept=".pdf"
+                            className="hidden"
+                            onChange={handleFileChange}
+                          />
+                          <Label htmlFor="pdf-replace">
+                            <Button size="sm" variant="outline" className="w-full bg-transparent" asChild>
+                              <span>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Cambiar archivo
+                              </span>
+                            </Button>
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="tax">Pago de Impuestos</Label>
+                    <Input
+                      id="tax"
+                      type="number"
+                      step="0.01"
+                      value={formData.tax_payment || ""}
+                      onChange={(e) => setFormData({ ...formData, tax_payment: Number.parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="invoiced">Facturado</Label>
+                    <Input
+                      id="invoiced"
+                      type="number"
+                      step="0.01"
+                      value={formData.invoiced_amount || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, invoiced_amount: Number.parseFloat(e.target.value) || 0 })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="expenses">Gastos</Label>
+                    <Input
+                      id="expenses"
+                      type="number"
+                      step="0.01"
+                      value={formData.expenses_amount || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, expenses_amount: Number.parseFloat(e.target.value) || 0 })
+                      }
+                    />
+                  </div>
+                  <Button onClick={handleSaveDeclaration} className="w-full">
+                    Guardar
+                  </Button>
                 </div>
-                <div>
-                  <Label htmlFor="email">Correo del Destinatario</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="cliente@ejemplo.com"
-                    value={emailRecipient}
-                    onChange={(e) => setEmailRecipient(e.target.value)}
-                  />
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {!isClient && (
+          <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Enviar Declaración por Correo</DialogTitle>
+              </DialogHeader>
+              {formData && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Mes y Año</Label>
+                    <p className="text-sm font-medium">
+                      {months[formData.month - 1]} {formData.year}
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Correo del Destinatario</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="cliente@ejemplo.com"
+                      value={emailRecipient}
+                      onChange={(e) => setEmailRecipient(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    onClick={() => handleSendDeclarationEmail(formData)}
+                    className="w-full"
+                    disabled={isSendingEmail}
+                  >
+                    {isSendingEmail ? "Enviando..." : "Enviar Correo"}
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => handleSendDeclarationEmail(formData)}
-                  className="w-full"
-                  disabled={isSendingEmail}
-                >
-                  {isSendingEmail ? "Enviando..." : "Enviar Correo"}
-                </Button>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
       </CardContent>
     </Card>
   )

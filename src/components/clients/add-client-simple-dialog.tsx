@@ -18,39 +18,52 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 
-export function AddClientSimpleDialog({ children }: { children: React.ReactNode }) {
+export function AddClientSimpleDialog({ children, onClientCreated }: { children: React.ReactNode; onClientCreated?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
     const formData = new FormData(e.currentTarget)
-    const supabase = createClient()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      const response = await fetch("/api/clients/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.get("name") as string,
+          email: formData.get("email") as string,
+          phone: (formData.get("phone") as string) || null,
+          has_accounting: formData.get("has_accounting") === "on",
+          has_fiscal: formData.get("has_fiscal") === "on",
+          has_legal: formData.get("has_legal") === "on",
+          has_labor: formData.get("has_labor") === "on",
+        }),
+      })
 
-    const { error } = await supabase.from("clients").insert({
-      user_id: user.id,
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      phone: (formData.get("phone") as string) || null,
-      has_accounting: formData.get("has_accounting") === "on",
-      has_fiscal: formData.get("has_fiscal") === "on",
-      has_legal: formData.get("has_legal") === "on",
-      has_labor: formData.get("has_labor") === "on",
-    })
+      const data = await response.json()
 
-    setLoading(false)
+      if (!response.ok) {
+        setError(data.error || "Error al crear cliente")
+        setLoading(false)
+        return
+      }
 
-    if (!error) {
+      // Éxito
       setOpen(false)
+      onClientCreated?.()
       router.refresh()
+    } catch (err) {
+      console.error("Error:", err)
+      setError("Error de conexión. Intenta nuevamente.")
+      setLoading(false)
     }
   }
 
@@ -106,6 +119,12 @@ export function AddClientSimpleDialog({ children }: { children: React.ReactNode 
               </label>
             </div>
           </div>
+
+          {error && (
+            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+              {error}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

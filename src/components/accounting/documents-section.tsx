@@ -18,7 +18,8 @@ interface Document {
   uploaded_at: string
 }
 
-export function DocumentsSection({ clientId }: { clientId: string }) {
+export function DocumentsSection({ clientId, userRole }: { clientId: string; userRole?: string }) {
+  const isClient = userRole === "cliente"
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -146,52 +147,54 @@ export function DocumentsSection({ clientId }: { clientId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Documentos del Cliente</span>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditingDoc(null)
-                  setDocumentName("")
-                  setFile(null)
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Crear Documento
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingDoc ? "Editar Documento" : "Crear Documento"}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="docName">Nombre del Documento</Label>
-                  <Input
-                    id="docName"
-                    placeholder="Ej: Constancia de Situación Fiscal"
-                    value={documentName}
-                    onChange={(e) => setDocumentName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="docFile">Archivo</Label>
-                  <Input
-                    id="docFile"
-                    type="file"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  />
-                  {editingDoc && !file && (
-                    <p className="text-sm text-muted-foreground mt-1">Archivo actual: {editingDoc.file_name}</p>
-                  )}
-                </div>
-                <Button onClick={handleSaveDocument} className="w-full">
-                  {editingDoc ? "Actualizar" : "Crear"}
+          {!isClient && (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingDoc(null)
+                    setDocumentName("")
+                    setFile(null)
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Documento
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingDoc ? "Editar Documento" : "Crear Documento"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="docName">Nombre del Documento</Label>
+                    <Input
+                      id="docName"
+                      placeholder="Ej: Constancia de Situación Fiscal"
+                      value={documentName}
+                      onChange={(e) => setDocumentName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="docFile">Archivo</Label>
+                    <Input
+                      id="docFile"
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                    {editingDoc && !file && (
+                      <p className="text-sm text-muted-foreground mt-1">Archivo actual: {editingDoc.file_name}</p>
+                    )}
+                  </div>
+                  <Button onClick={handleSaveDocument} className="w-full">
+                    {editingDoc ? "Actualizar" : "Crear"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -215,21 +218,25 @@ export function DocumentsSection({ clientId }: { clientId: string }) {
                     <Button size="sm" variant="outline" onClick={() => window.open(doc.file_url, "_blank")}>
                       <Upload className="h-4 w-4" />
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setEditingDoc(doc)
-                        setDocumentName(doc.document_type)
-                        setFile(null)
-                        setIsCreateOpen(true)
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleDeleteDocument(doc)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {!isClient && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingDoc(doc)
+                            setDocumentName(doc.document_type)
+                            setFile(null)
+                            setIsCreateOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleDeleteDocument(doc)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

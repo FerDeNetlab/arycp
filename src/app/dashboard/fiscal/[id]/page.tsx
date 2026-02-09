@@ -1,38 +1,98 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { FiscalFullSection } from "@/components/fiscal/fiscal-full-section"
 import { ClientHeader } from "@/components/accounting/client-header"
+import { useUserRole } from "@/hooks/use-user-role"
 
-export default async function FiscalClientPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const supabase = await createClient()
+type Client = {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  company: string | null
+  status: string
+  has_accounting: boolean
+  has_fiscal: boolean
+  has_legal: boolean
+  has_labor: boolean
+  created_at: string
+}
 
-  const { data: userData, error } = await supabase.auth.getUser()
-  if (error || !userData?.user) {
-    redirect("/auth/login")
+export default function FiscalClientPage({ params }: { params: Promise<{ id: string }> }) {
+  const [client, setClient] = useState<Client | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const [clientId, setClientId] = useState<string | null>(null)
+  const { role } = useUserRole()
+
+  useEffect(() => {
+    params.then((p) => setClientId(p.id))
+  }, [params])
+
+  useEffect(() => {
+    if (clientId) {
+      fetchClient()
+    }
+  }, [clientId])
+
+  async function fetchClient() {
+    if (!clientId) return
+
+    try {
+      const response = await fetch(`/api/clients/${clientId}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push("/auth/login")
+          return
+        }
+        if (response.status === 404 || response.status === 403) {
+          router.push("/dashboard/fiscal")
+          return
+        }
+        setError(data.error || "Error al cargar cliente")
+        setLoading(false)
+        return
+      }
+
+      setClient(data.client)
+      setLoading(false)
+    } catch (err) {
+      console.error("Error fetching client:", err)
+      setError("Error de conexión")
+      setLoading(false)
+    }
   }
 
-  // Obtener datos del cliente
-  const { data: client, error: clientError } = await supabase
-    .from("clients")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", userData.user.id)
-    .single()
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Cargando cliente...</p>
+      </div>
+    )
+  }
 
-  if (clientError || !client) {
-    redirect("/dashboard/fiscal")
+  if (error || !client) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-destructive">{error || "Cliente no encontrado"}</p>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-background to-secondary/5">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-background to-orange-100/50">
       <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/fiscal">
+            <Link href={role === "cliente" ? "/dashboard" : "/dashboard/fiscal"}>
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
@@ -47,8 +107,9 @@ export default async function FiscalClientPage({ params }: { params: Promise<{ i
 
       <main className="container mx-auto px-6 py-8 space-y-8">
         <ClientHeader client={client} />
-        <FiscalFullSection clientId={client.id} clientName={client.name} clientEmail={client.email} />
+        <FiscalFullSection clientId={client.id} clientName={client.name} clientEmail={client.email} userRole={role} />
       </main>
     </div>
   )
 }
+

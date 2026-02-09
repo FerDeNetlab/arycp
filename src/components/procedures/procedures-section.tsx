@@ -11,17 +11,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { 
-  Plus, 
-  Trash2, 
-  Building2, 
-  UserCheck, 
-  KeyRound, 
-  FileCheck, 
-  CheckCircle2, 
-  MapPin, 
-  FileUp, 
-  Mail, 
+import {
+  Plus,
+  Trash2,
+  Building2,
+  UserCheck,
+  KeyRound,
+  FileCheck,
+  CheckCircle2,
+  MapPin,
+  FileUp,
+  Mail,
   Search as SearchIcon,
   Calendar,
   AlertCircle
@@ -44,6 +44,7 @@ interface Procedure {
 interface ProceduresSectionProps {
   clientId: string
   clientName: string
+  userRole?: string
 }
 
 const PROCEDURE_TYPES = [
@@ -65,7 +66,8 @@ const STATUS_OPTIONS = [
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-800" },
 ]
 
-export function ProceduresSection({ clientId, clientName }: ProceduresSectionProps) {
+export function ProceduresSection({ clientId, clientName, userRole }: ProceduresSectionProps) {
+  const isClient = userRole === "cliente"
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -128,12 +130,12 @@ export function ProceduresSection({ clientId, clientName }: ProceduresSectionPro
 
   const handleUpdateStatus = async (id: string, status: string) => {
     const { data: userData } = await supabase.auth.getUser()
-    const updateData: Record<string, unknown> = { 
+    const updateData: Record<string, unknown> = {
       status,
       updated_by: userData?.user?.id,
       updated_at: new Date().toISOString()
     }
-    
+
     if (status === "completado") {
       updateData.end_date = new Date().toISOString().split("T")[0]
     }
@@ -144,7 +146,7 @@ export function ProceduresSection({ clientId, clientName }: ProceduresSectionPro
 
   const handleUpdateReviewed = async (id: string, is_reviewed: boolean) => {
     const { data: userData } = await supabase.auth.getUser()
-    await supabase.from("procedures").update({ 
+    await supabase.from("procedures").update({
       is_reviewed,
       updated_by: userData?.user?.id,
       updated_at: new Date().toISOString()
@@ -182,74 +184,76 @@ export function ProceduresSection({ clientId, clientName }: ProceduresSectionPro
       {/* Header con botón de nuevo trámite */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Trámites</h2>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-cyan-600 hover:bg-cyan-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Trámite
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Nuevo Trámite</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Tipo de Trámite</label>
-                <Select
-                  value={newProcedure.procedure_type}
-                  onValueChange={(value) => setNewProcedure({ ...newProcedure, procedure_type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PROCEDURE_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Fecha de Inicio</label>
-                <Input
-                  type="date"
-                  value={newProcedure.start_date}
-                  onChange={(e) => setNewProcedure({ ...newProcedure, start_date: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Responsable</label>
-                <Input
-                  placeholder="Nombre del responsable"
-                  value={newProcedure.responsible}
-                  onChange={(e) => setNewProcedure({ ...newProcedure, responsible: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Comentarios</label>
-                <Textarea
-                  placeholder="Observaciones o notas adicionales"
-                  value={newProcedure.comments}
-                  onChange={(e) => setNewProcedure({ ...newProcedure, comments: e.target.value })}
-                />
-              </div>
-
-              <Button 
-                onClick={handleCreateProcedure} 
-                className="w-full bg-cyan-600 hover:bg-cyan-700"
-                disabled={!newProcedure.procedure_type}
-              >
-                Crear Trámite
+        {!isClient && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-cyan-600 hover:bg-cyan-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Trámite
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Nuevo Trámite</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tipo de Trámite</label>
+                  <Select
+                    value={newProcedure.procedure_type}
+                    onValueChange={(value) => setNewProcedure({ ...newProcedure, procedure_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROCEDURE_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Fecha de Inicio</label>
+                  <Input
+                    type="date"
+                    value={newProcedure.start_date}
+                    onChange={(e) => setNewProcedure({ ...newProcedure, start_date: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Responsable</label>
+                  <Input
+                    placeholder="Nombre del responsable"
+                    value={newProcedure.responsible}
+                    onChange={(e) => setNewProcedure({ ...newProcedure, responsible: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                  <Textarea
+                    placeholder="Observaciones o notas adicionales"
+                    value={newProcedure.comments}
+                    onChange={(e) => setNewProcedure({ ...newProcedure, comments: e.target.value })}
+                  />
+                </div>
+
+                <Button
+                  onClick={handleCreateProcedure}
+                  className="w-full bg-cyan-600 hover:bg-cyan-700"
+                  disabled={!newProcedure.procedure_type}
+                >
+                  Crear Trámite
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Tabs por tipo de trámite */}
@@ -279,7 +283,7 @@ export function ProceduresSection({ clientId, clientName }: ProceduresSectionPro
         {PROCEDURE_TYPES.map((type) => {
           const Icon = type.icon
           const typeProcedures = proceduresByType(type.value)
-          
+
           return (
             <TabsContent key={type.value} value={type.value} className="mt-6">
               <Card className="border-2">
@@ -327,46 +331,50 @@ export function ProceduresSection({ clientId, clientName }: ProceduresSectionPro
                                   <p className="text-sm text-muted-foreground">{procedure.comments}</p>
                                 )}
 
-                                <div className="flex items-center gap-4 pt-2">
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      id={`reviewed-${procedure.id}`}
-                                      checked={procedure.is_reviewed}
-                                      onCheckedChange={(checked) =>
-                                        handleUpdateReviewed(procedure.id, checked as boolean)
-                                      }
-                                    />
-                                    <label htmlFor={`reviewed-${procedure.id}`} className="text-sm">
-                                      Revisado
-                                    </label>
-                                  </div>
+                                {!isClient && (
+                                  <div className="flex items-center gap-4 pt-2">
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id={`reviewed-${procedure.id}`}
+                                        checked={procedure.is_reviewed}
+                                        onCheckedChange={(checked) =>
+                                          handleUpdateReviewed(procedure.id, checked as boolean)
+                                        }
+                                      />
+                                      <label htmlFor={`reviewed-${procedure.id}`} className="text-sm">
+                                        Revisado
+                                      </label>
+                                    </div>
 
-                                  <Select
-                                    value={procedure.status}
-                                    onValueChange={(value) => handleUpdateStatus(procedure.id, value)}
-                                  >
-                                    <SelectTrigger className="w-40 h-8">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {STATUS_OPTIONS.map((status) => (
-                                        <SelectItem key={status.value} value={status.value}>
-                                          {status.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
+                                    <Select
+                                      value={procedure.status}
+                                      onValueChange={(value) => handleUpdateStatus(procedure.id, value)}
+                                    >
+                                      <SelectTrigger className="w-40 h-8">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {STATUS_OPTIONS.map((status) => (
+                                          <SelectItem key={status.value} value={status.value}>
+                                            {status.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
                               </div>
 
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteProcedure(procedure.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {!isClient && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteProcedure(procedure.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

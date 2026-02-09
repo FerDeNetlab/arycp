@@ -12,12 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { 
-  Plus, 
-  Trash2, 
-  FileText, 
-  DollarSign, 
-  Upload, 
+import {
+  Plus,
+  Trash2,
+  FileText,
+  DollarSign,
+  Upload,
   Calendar,
   AlertTriangle,
   CheckCircle2,
@@ -33,6 +33,7 @@ interface FiscalFullSectionProps {
   clientId: string
   clientName: string
   clientEmail?: string | null
+  userRole?: string
 }
 
 interface FiscalProfile {
@@ -120,27 +121,28 @@ const TAX_REGIMES = [
   "Otro"
 ]
 
-export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalFullSectionProps) {
+export function FiscalFullSection({ clientId, clientName, clientEmail, userRole }: FiscalFullSectionProps) {
+  const isClient = userRole === "cliente"
   const supabase = createClient()
   const [activeTab, setActiveTab] = useState("obligations")
   const [loading, setLoading] = useState(true)
-  
+
   // Data states
   const [profile, setProfile] = useState<FiscalProfile | null>(null)
   const [obligations, setObligations] = useState<FiscalObligation[]>([])
   const [payments, setPayments] = useState<FiscalPayment[]>([])
   const [documents, setDocuments] = useState<FiscalDocument[]>([])
-  
+
   // Filter states
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  
+
   // Dialog states
   const [showObligationDialog, setShowObligationDialog] = useState(false)
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [showDocumentDialog, setShowDocumentDialog] = useState(false)
   const [showProfileDialog, setShowProfileDialog] = useState(false)
-  
+
   // Form states
   const [obligationForm, setObligationForm] = useState({
     obligation_type: "",
@@ -150,7 +152,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
     responsible: "",
     comments: ""
   })
-  
+
   const [paymentForm, setPaymentForm] = useState({
     obligation_id: "",
     amount: "",
@@ -158,7 +160,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
     payment_date: "",
     comments: ""
   })
-  
+
   const [documentForm, setDocumentForm] = useState({
     document_type: "",
     period_month: new Date().getMonth() + 1,
@@ -166,7 +168,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
     comments: ""
   })
   const [documentFile, setDocumentFile] = useState<File | null>(null)
-  
+
   const [profileForm, setProfileForm] = useState({
     taxpayer_type: "",
     tax_regime: "",
@@ -201,7 +203,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
       .select("*")
       .eq("client_id", clientId)
       .single()
-    
+
     if (data) {
       setProfile(data)
       setProfileForm({
@@ -221,7 +223,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
       .eq("period_month", selectedMonth)
       .eq("period_year", selectedYear)
       .order("due_date")
-    
+
     if (data) setObligations(data)
   }
 
@@ -231,7 +233,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
       .select("*")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
-    
+
     if (data) setPayments(data)
   }
 
@@ -241,7 +243,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
       .select("*")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
-    
+
     if (data) setDocuments(data)
   }
 
@@ -266,7 +268,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
           ...profileForm
         })
     }
-    
+
     toast.success("Perfil fiscal guardado")
     setShowProfileDialog(false)
     loadProfile()
@@ -303,26 +305,26 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
   const updateObligationStatus = async (id: string, status: string) => {
     await supabase
       .from("fiscal_obligations")
-      .update({ 
+      .update({
         status,
         presentation_date: status === "presentada" || status === "pagada" ? new Date().toISOString().split("T")[0] : null,
         updated_at: new Date().toISOString()
       })
       .eq("id", id)
-    
+
     loadObligations()
   }
 
   const updateObligationResult = async (id: string, result: string, amount?: number) => {
     await supabase
       .from("fiscal_obligations")
-      .update({ 
+      .update({
         result,
         amount: amount || null,
         updated_at: new Date().toISOString()
       })
       .eq("id", id)
-    
+
     loadObligations()
   }
 
@@ -331,7 +333,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
       .from("fiscal_obligations")
       .update({ is_reviewed: isReviewed })
       .eq("id", id)
-    
+
     loadObligations()
   }
 
@@ -375,12 +377,12 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
   const markPaymentAsPaid = async (id: string) => {
     await supabase
       .from("fiscal_payments")
-      .update({ 
+      .update({
         status: "pagado",
         payment_date: new Date().toISOString().split("T")[0]
       })
       .eq("id", id)
-    
+
     toast.success("Pago marcado como pagado")
     loadPayments()
   }
@@ -447,7 +449,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
       .from("fiscal_documents")
       .update({ is_reviewed: isReviewed })
       .eq("id", id)
-    
+
     loadDocuments()
   }
 
@@ -500,61 +502,63 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
               <User className="h-5 w-5 text-orange-600" />
               Perfil Fiscal
             </CardTitle>
-            <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  {profile ? "Editar" : "Configurar"}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Perfil Fiscal</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Tipo de Contribuyente</Label>
-                    <Select value={profileForm.taxpayer_type} onValueChange={(v) => setProfileForm({ ...profileForm, taxpayer_type: v })}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="persona_fisica">Persona Física</SelectItem>
-                        <SelectItem value="persona_moral">Persona Moral</SelectItem>
-                      </SelectContent>
-                    </Select>
+            {!isClient && (
+              <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    {profile ? "Editar" : "Configurar"}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Perfil Fiscal</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Tipo de Contribuyente</Label>
+                      <Select value={profileForm.taxpayer_type} onValueChange={(v) => setProfileForm({ ...profileForm, taxpayer_type: v })}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="persona_fisica">Persona Física</SelectItem>
+                          <SelectItem value="persona_moral">Persona Moral</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Régimen Fiscal</Label>
+                      <Select value={profileForm.tax_regime} onValueChange={(v) => setProfileForm({ ...profileForm, tax_regime: v })}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>
+                          {TAX_REGIMES.map(r => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Periodicidad de Declaraciones</Label>
+                      <Select value={profileForm.periodicity} onValueChange={(v) => setProfileForm({ ...profileForm, periodicity: v })}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mensual">Mensual</SelectItem>
+                          <SelectItem value="bimestral">Bimestral</SelectItem>
+                          <SelectItem value="trimestral">Trimestral</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Notas</Label>
+                      <Textarea
+                        value={profileForm.notes}
+                        onChange={(e) => setProfileForm({ ...profileForm, notes: e.target.value })}
+                        placeholder="Notas adicionales..."
+                      />
+                    </div>
+                    <Button onClick={saveProfile} className="w-full">Guardar</Button>
                   </div>
-                  <div>
-                    <Label>Régimen Fiscal</Label>
-                    <Select value={profileForm.tax_regime} onValueChange={(v) => setProfileForm({ ...profileForm, tax_regime: v })}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                      <SelectContent>
-                        {TAX_REGIMES.map(r => (
-                          <SelectItem key={r} value={r}>{r}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Periodicidad de Declaraciones</Label>
-                    <Select value={profileForm.periodicity} onValueChange={(v) => setProfileForm({ ...profileForm, periodicity: v })}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mensual">Mensual</SelectItem>
-                        <SelectItem value="bimestral">Bimestral</SelectItem>
-                        <SelectItem value="trimestral">Trimestral</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Notas</Label>
-                    <Textarea 
-                      value={profileForm.notes} 
-                      onChange={(e) => setProfileForm({ ...profileForm, notes: e.target.value })}
-                      placeholder="Notas adicionales..."
-                    />
-                  </div>
-                  <Button onClick={saveProfile} className="w-full">Guardar</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -687,24 +691,24 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
                   </div>
                   <div>
                     <Label>Fecha Límite</Label>
-                    <Input 
-                      type="date" 
-                      value={obligationForm.due_date} 
+                    <Input
+                      type="date"
+                      value={obligationForm.due_date}
                       onChange={(e) => setObligationForm({ ...obligationForm, due_date: e.target.value })}
                     />
                   </div>
                   <div>
                     <Label>Responsable</Label>
-                    <Input 
-                      value={obligationForm.responsible} 
+                    <Input
+                      value={obligationForm.responsible}
                       onChange={(e) => setObligationForm({ ...obligationForm, responsible: e.target.value })}
                       placeholder="Nombre del responsable"
                     />
                   </div>
                   <div>
                     <Label>Comentarios</Label>
-                    <Textarea 
-                      value={obligationForm.comments} 
+                    <Textarea
+                      value={obligationForm.comments}
                       onChange={(e) => setObligationForm({ ...obligationForm, comments: e.target.value })}
                     />
                   </div>
@@ -741,8 +745,8 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
-                          <Checkbox 
-                            checked={ob.is_reviewed} 
+                          <Checkbox
+                            checked={ob.is_reviewed}
                             onCheckedChange={(c) => toggleObligationReview(ob.id, !!c)}
                           />
                           <span className="text-xs text-muted-foreground">Revisado</span>
@@ -752,7 +756,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
                         </Button>
                       </div>
                     </div>
-                    
+
                     {/* Controles de estado y resultado */}
                     <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
                       <Select value={ob.status} onValueChange={(v) => updateObligationStatus(ob.id, v)}>
@@ -777,9 +781,9 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
                         </SelectContent>
                       </Select>
                       {(ob.result === "a_pagar" || ob.result === "a_favor") && (
-                        <Input 
-                          type="number" 
-                          placeholder="Monto" 
+                        <Input
+                          type="number"
+                          placeholder="Monto"
                           className="w-32"
                           value={ob.amount || ""}
                           onChange={(e) => updateObligationResult(ob.id, ob.result!, parseFloat(e.target.value))}
@@ -823,32 +827,32 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
                   </div>
                   <div>
                     <Label>Monto</Label>
-                    <Input 
-                      type="number" 
-                      value={paymentForm.amount} 
+                    <Input
+                      type="number"
+                      value={paymentForm.amount}
                       onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
                       placeholder="0.00"
                     />
                   </div>
                   <div>
                     <Label>Línea de Captura</Label>
-                    <Input 
-                      value={paymentForm.capture_line} 
+                    <Input
+                      value={paymentForm.capture_line}
                       onChange={(e) => setPaymentForm({ ...paymentForm, capture_line: e.target.value })}
                     />
                   </div>
                   <div>
                     <Label>Fecha de Pago</Label>
-                    <Input 
-                      type="date" 
-                      value={paymentForm.payment_date} 
+                    <Input
+                      type="date"
+                      value={paymentForm.payment_date}
                       onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
                     />
                   </div>
                   <div>
                     <Label>Comentarios</Label>
-                    <Textarea 
-                      value={paymentForm.comments} 
+                    <Textarea
+                      value={paymentForm.comments}
                       onChange={(e) => setPaymentForm({ ...paymentForm, comments: e.target.value })}
                     />
                   </div>
@@ -956,16 +960,16 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
                   </div>
                   <div>
                     <Label>Archivo</Label>
-                    <Input 
-                      type="file" 
+                    <Input
+                      type="file"
                       onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
                       accept=".pdf,.jpg,.jpeg,.png"
                     />
                   </div>
                   <div>
                     <Label>Comentarios</Label>
-                    <Textarea 
-                      value={documentForm.comments} 
+                    <Textarea
+                      value={documentForm.comments}
                       onChange={(e) => setDocumentForm({ ...documentForm, comments: e.target.value })}
                     />
                   </div>
@@ -1006,8 +1010,8 @@ export function FiscalFullSection({ clientId, clientName, clientEmail }: FiscalF
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <div className="flex items-center gap-1">
-                          <Checkbox 
-                            checked={doc.is_reviewed} 
+                          <Checkbox
+                            checked={doc.is_reviewed}
                             onCheckedChange={(c) => toggleDocumentReview(doc.id, !!c)}
                           />
                           <span className="text-xs text-muted-foreground">Revisado</span>
