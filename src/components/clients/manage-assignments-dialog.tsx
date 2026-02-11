@@ -49,10 +49,18 @@ export function ManageAssignmentsDialog({ client, children }: { client: Client; 
   }, [open])
 
   async function loadUsers() {
-    const supabase = createClient()
-    const { data } = await supabase.from("system_users").select("*").eq("is_active", true).order("full_name")
-
-    if (data) setUsers(data)
+    try {
+      const res = await fetch("/api/users/list")
+      if (res.ok) {
+        const data = await res.json()
+        if (data.users) {
+          // Filter to only active, non-client users
+          setUsers(data.users.filter((u: any) => u.is_active !== false && u.role !== "cliente"))
+        }
+      }
+    } catch (err) {
+      console.error("Error loading users:", err)
+    }
   }
 
   async function loadAssignments() {

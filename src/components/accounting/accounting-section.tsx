@@ -70,12 +70,18 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("monthly_declarations")
         .select("*")
         .eq("client_id", clientId)
-        .eq("user_id", user.id)
         .eq("year", selectedYear)
+
+      // Clients see all declarations for their account; accountants see only their own
+      if (!isClient) {
+        query = query.eq("user_id", user.id)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
 

@@ -22,7 +22,9 @@ export default function DashboardLayout({
                 <div className="container mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard" className="flex items-center gap-3">
-                            <Image src="/images/arycp-logo.jpg" alt="ARYCP Logo" width={40} height={40} className="h-10 w-10" />
+                            <div style={{ height: '48px', width: '64px', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                                <Image src="/images/arycp-logo.jpg" alt="ARYCP Logo" width={200} height={200} style={{ position: 'absolute', top: '-3px', left: '50%', transform: 'translateX(-50%)', width: '180%', height: 'auto', mixBlendMode: 'multiply' }} />
+                            </div>
                             <div className="flex flex-col">
                                 <span className="text-lg font-bold text-foreground">AR&CP</span>
                                 <span className="text-xs text-muted-foreground -mt-1">ERP System</span>

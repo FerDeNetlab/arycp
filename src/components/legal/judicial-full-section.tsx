@@ -78,6 +78,7 @@ const CASE_TYPES = [
   { value: "mercantil", label: "Mercantil" },
   { value: "administrativo", label: "Administrativo" },
   { value: "familiar", label: "Familiar" },
+  { value: "corporativo", label: "Corporativo" },
   { value: "otro", label: "Otro" },
 ]
 
@@ -116,6 +117,8 @@ const DOCUMENT_TYPES = [
   { value: "acuerdo", label: "Acuerdo" },
   { value: "sentencia", label: "Sentencia" },
   { value: "notificacion", label: "Notificación" },
+  { value: "acta_asamblea", label: "Acta de Asamblea" },
+  { value: "contrato", label: "Contrato" },
   { value: "otro", label: "Otro" },
 ]
 

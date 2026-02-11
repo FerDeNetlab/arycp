@@ -16,6 +16,7 @@ import {
   FileWarning,
   Scale,
   Briefcase,
+  MessageSquare,
 } from "lucide-react"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
@@ -123,6 +124,16 @@ const ADMIN_MODULES = [
     bgClass: "bg-primary/10",
     iconClass: "text-primary",
   },
+  {
+    key: "messages",
+    href: "/dashboard/messages",
+    icon: MessageSquare,
+    label: "Mensajes de Contacto",
+    description: "Ver mensajes del formulario web",
+    hoverBorder: "hover:border-violet-500",
+    bgClass: "bg-violet-100",
+    iconClass: "text-violet-600",
+  },
 ]
 
 // Client-specific extra modules (Tramitología as tracking)
@@ -189,7 +200,7 @@ export default function DashboardPage() {
         {/* Stats Overview - Only for admin/contador */}
         {!isClient && (
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="border-2 hover:border-primary/50 transition-colors">
+            <Card className="border-2 hover:border-primary/50 card-hover-glow animate-fade-in-up">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Trámites Activos</CardTitle>
                 <FileText className="h-5 w-5 text-primary" />
@@ -200,7 +211,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 hover:border-secondary/50 transition-colors">
+            <Card className="border-2 hover:border-secondary/50 card-hover-glow animate-fade-in-up delay-1">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Pendientes</CardTitle>
                 <ClipboardCheck className="h-5 w-5 text-secondary" />
@@ -211,7 +222,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 hover:border-accent/50 transition-colors">
+            <Card className="border-2 hover:border-accent/50 card-hover-glow animate-fade-in-up delay-2">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Eventos Próximos</CardTitle>
                 <Calendar className="h-5 w-5 text-accent" />
@@ -222,7 +233,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 hover:border-destructive/50 transition-colors">
+            <Card className="border-2 hover:border-destructive/50 card-hover-glow animate-fade-in-up delay-3">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Alertas</CardTitle>
                 <AlertCircle className="h-5 w-5 text-destructive" />
@@ -237,7 +248,7 @@ export default function DashboardPage() {
 
         {/* Client Welcome Banner */}
         {isClient && (
-          <Card className="border-2 border-primary/20 bg-primary/5 mb-8">
+          <Card className="border-2 border-primary/20 bg-primary/5 mb-8 animate-fade-in-up">
             <CardContent className="p-6">
               <h2 className="text-xl font-bold mb-2">Bienvenido, {fullName}</h2>
               <p className="text-muted-foreground">
@@ -250,7 +261,7 @@ export default function DashboardPage() {
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Módulos */}
-          <Card className="border-2">
+          <Card className="border-2 animate-fade-in-up delay-2">
             <CardHeader>
               <CardTitle>{isClient ? "Mis Servicios" : "Módulos del Sistema"}</CardTitle>
             </CardHeader>
@@ -261,10 +272,10 @@ export default function DashboardPage() {
                   <Link
                     key={mod.key}
                     href={mod.href}
-                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} transition-colors text-left`}
+                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} card-hover text-left`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center`}>
+                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center icon-hover`}>
                         <Icon className={`h-6 w-6 ${mod.iconClass}`} />
                       </div>
                       <div>
@@ -282,10 +293,10 @@ export default function DashboardPage() {
                   <Link
                     key={mod.key}
                     href={mod.href}
-                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} transition-colors text-left`}
+                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} card-hover text-left`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center`}>
+                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center icon-hover`}>
                         <Icon className={`h-6 w-6 ${mod.iconClass}`} />
                       </div>
                       <div>
@@ -299,9 +310,12 @@ export default function DashboardPage() {
 
               {/* Control de Procesos - solo admin/contador */}
               {!isClient && (
-                <button className="w-full p-4 rounded-lg border-2 hover:border-emerald-500 transition-colors text-left">
+                <Link
+                  href="/dashboard/process-control"
+                  className="block w-full p-4 rounded-lg border-2 hover:border-emerald-500 card-hover text-left"
+                >
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center icon-hover">
                       <ClipboardCheck className="h-6 w-6 text-emerald-600" />
                     </div>
                     <div>
@@ -309,13 +323,13 @@ export default function DashboardPage() {
                       <p className="text-sm text-muted-foreground">Seguimiento de flujos de trabajo</p>
                     </div>
                   </div>
-                </button>
+                </Link>
               )}
             </CardContent>
           </Card>
 
           {/* Actividad Reciente */}
-          <Card className="border-2">
+          <Card className="border-2 animate-fade-in-up delay-3">
             <CardHeader>
               <CardTitle>Actividad Reciente</CardTitle>
             </CardHeader>

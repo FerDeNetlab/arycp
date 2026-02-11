@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
             .eq("auth_user_id", user.id)
             .single()
 
-        if (userError || !currentUserData || currentUserData.role !== ROLES.ADMIN) {
+        if (userError || !currentUserData || (currentUserData.role !== ROLES.ADMIN && currentUserData.role !== ROLES.CONTADOR)) {
             return NextResponse.json({ error: "No tienes permisos para ver usuarios" }, { status: 403 })
         }
 

@@ -40,12 +40,18 @@ export function DocumentsSection({ clientId, userRole }: { clientId: string; use
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("client_documents")
         .select("*")
         .eq("client_id", clientId)
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
+
+      // Clients see all documents for their account; accountants see only their own uploads
+      if (!isClient) {
+        query = query.eq("user_id", user.id)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setDocuments(data || [])

@@ -65,6 +65,7 @@ interface FiscalPayment {
   obligation_id: string | null
   amount: number
   capture_line: string | null
+  complementary_number: string | null
   payment_date: string | null
   status: string
   receipt_url: string | null
@@ -154,9 +155,10 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
   })
 
   const [paymentForm, setPaymentForm] = useState({
-    obligation_id: "",
+    status: "pendiente",
     amount: "",
     capture_line: "",
+    complementary_number: "",
     payment_date: "",
     comments: ""
   })
@@ -352,21 +354,22 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
       .insert({
         client_id: clientId,
         user_id: userData.user.id,
-        obligation_id: paymentForm.obligation_id || null,
         amount: parseFloat(paymentForm.amount),
         capture_line: paymentForm.capture_line || null,
+        complementary_number: paymentForm.complementary_number || null,
         payment_date: paymentForm.payment_date || null,
         comments: paymentForm.comments || null,
-        status: "pendiente"
+        status: paymentForm.status
       })
 
     if (!error) {
       toast.success("Pago registrado")
       setShowPaymentDialog(false)
       setPaymentForm({
-        obligation_id: "",
+        status: "pendiente",
         amount: "",
         capture_line: "",
+        complementary_number: "",
         payment_date: "",
         comments: ""
       })
@@ -814,14 +817,12 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label>Obligación Relacionada (Opcional)</Label>
-                    <Select value={paymentForm.obligation_id} onValueChange={(v) => setPaymentForm({ ...paymentForm, obligation_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar obligación..." /></SelectTrigger>
+                    <Label>Estado de Pago</Label>
+                    <Select value={paymentForm.status} onValueChange={(v) => setPaymentForm({ ...paymentForm, status: v })}>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar estado..." /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Sin obligación</SelectItem>
-                        {obligations.filter(o => o.result === "a_pagar").map(o => (
-                          <SelectItem key={o.id} value={o.id}>{o.obligation_type} - {MONTHS[o.period_month - 1]} {o.period_year}</SelectItem>
-                        ))}
+                        <SelectItem value="pendiente">No Pagado</SelectItem>
+                        <SelectItem value="pagado">Pagado</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -839,6 +840,14 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                     <Input
                       value={paymentForm.capture_line}
                       onChange={(e) => setPaymentForm({ ...paymentForm, capture_line: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>No. Complementaria</Label>
+                    <Input
+                      value={paymentForm.complementary_number}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, complementary_number: e.target.value })}
+                      placeholder="Ej: 1, 2, 3..."
                     />
                   </div>
                   <div>
@@ -885,6 +894,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
                           {pay.capture_line && <p>Línea de captura: {pay.capture_line}</p>}
+                          {pay.complementary_number && <p>No. Complementaria: {pay.complementary_number}</p>}
                           {pay.payment_date && <p>Fecha: {new Date(pay.payment_date).toLocaleDateString()}</p>}
                         </div>
                       </div>
