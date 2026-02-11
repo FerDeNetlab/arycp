@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { CheckCircle2, ArrowRight } from "lucide-react"
+import { CheckCircle2, ArrowRight, Users, TrendingUp, Shield } from "lucide-react"
 
 export function Hero() {
   return (
@@ -62,14 +62,53 @@ export function Hero() {
             <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-secondary/20 rounded-xl -rotate-12 animate-float delay-2"></div>
             <div className="absolute top-1/2 -right-3 w-8 h-8 bg-primary/30 rounded-full animate-float delay-4"></div>
 
-            <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5 relative">
-              <img
-                src="/images/office-bg.jpg"
-                alt="Equipo de trabajo ARYCP"
-                className="object-cover w-full h-full"
-              />
-              {/* Overlay gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+            {/* Main image with premium frame */}
+            <div className="relative group">
+              {/* Glow effect behind the image */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/10 to-secondary/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500 opacity-60 group-hover:opacity-100"></div>
+
+              <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20">
+                <img
+                  src="/images/office-bg.jpg"
+                  alt="Equipo de trabajo ARYCP"
+                  className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
+                />
+                {/* Overlay gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent"></div>
+                {/* Brand color overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent mix-blend-overlay"></div>
+              </div>
+
+              {/* Floating stat cards */}
+              <div className="absolute -bottom-5 -left-5 bg-white/95 backdrop-blur-md rounded-xl shadow-lg p-4 flex items-center gap-3 animate-fade-in-up delay-4 border border-white/50 hover:shadow-xl transition-shadow">
+                <div className="h-11 w-11 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground leading-none">500+</p>
+                  <p className="text-xs text-muted-foreground">Clientes activos</p>
+                </div>
+              </div>
+
+              <div className="absolute -top-4 -right-4 bg-white/95 backdrop-blur-md rounded-xl shadow-lg p-4 flex items-center gap-3 animate-fade-in-up delay-5 border border-white/50 hover:shadow-xl transition-shadow">
+                <div className="h-11 w-11 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground leading-none">15+</p>
+                  <p className="text-xs text-muted-foreground">Años experiencia</p>
+                </div>
+              </div>
+
+              <div className="absolute top-1/2 -translate-y-1/2 -right-6 bg-white/95 backdrop-blur-md rounded-xl shadow-lg px-4 py-3 flex items-center gap-2 animate-fade-in-up delay-6 border border-white/50 hover:shadow-xl transition-shadow">
+                <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-foreground leading-none">99%</p>
+                  <p className="text-[10px] text-muted-foreground">Satisfacción</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
