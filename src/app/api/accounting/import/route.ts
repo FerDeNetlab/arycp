@@ -3,20 +3,22 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import * as XLSX from "xlsx"
 
+type FileType = "emitidos" | "recibidos" | "iva_trasladado" | "iva_acreditable"
+
 interface ParsedExcelData {
-    type: "emitidos" | "recibidos"
+    type: FileType
     total: number
     subtotal: number
     iva: number
     count: number
-    rows: Array<{
-        fecha: string
-        rfc: string
-        nombre: string
-        total: number
-        subtotal: number
-        iva: number
-    }>
+}
+
+function detectFileType(fileName: string): FileType {
+    const lower = fileName.toLowerCase()
+    if (lower.includes("trasladado")) return "iva_trasladado"
+    if (lower.includes("acreditable")) return "iva_acreditable"
+    if (lower.includes("emitido")) return "emitidos"
+    return "recibidos"
 }
 
 function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelData {
@@ -25,36 +27,20 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
     const sheet = workbook.Sheets[sheetName]
     const data = XLSX.utils.sheet_to_json<Record<string, any>>(sheet)
 
-    // Determine type from filename
-    const isEmitidos = fileName.toLowerCase().includes("emitido")
-    const type: "emitidos" | "recibidos" = isEmitidos ? "emitidos" : "recibidos"
-
-    // Column names from EZAudita exports
-    const rfcCol = isEmitidos ? "RFC receptor" : "RFC emisor"
-    const nameCol = isEmitidos ? "Receptor" : "Emisor"
+    const type = detectFileType(fileName)
 
     let totalSum = 0
     let subtotalSum = 0
     let ivaSum = 0
-    const rows: ParsedExcelData["rows"] = []
 
     for (const row of data) {
         const total = parseFloat(row["Total"]) || 0
         const subtotal = parseFloat(row["Neto"]) || parseFloat(row["Subtotal"]) || 0
-        const iva = parseFloat(row["Traslado IVA"]) || 0
+        const iva = parseFloat(row["Traslado IVA"]) || parseFloat(row["IVA"]) || 0
 
         totalSum += total
         subtotalSum += subtotal
         ivaSum += iva
-
-        rows.push({
-            fecha: row["Fecha expedición"] || "",
-            rfc: row[rfcCol] || "",
-            nombre: row[nameCol] || "",
-            total,
-            subtotal,
-            iva,
-        })
     }
 
     return {
@@ -62,8 +48,7 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
         total: Math.round(totalSum * 100) / 100,
         subtotal: Math.round(subtotalSum * 100) / 100,
         iva: Math.round(ivaSum * 100) / 100,
-        count: rows.length,
-        rows,
+        count: data.length,
     }
 }
 
@@ -116,34 +101,50 @@ export async function POST(request: Request) {
         let ivaRecibidos = 0
         let numEmitidas = 0
         let numRecibidas = 0
+        let ivaTrasladado = 0
+        let ivaAcreditable = 0
+        let hasIvaFiles = false
 
         for (const file of files) {
             const buffer = await file.arrayBuffer()
             const parsed = parseEZAuditaExcel(buffer, file.name)
 
-            if (parsed.type === "emitidos") {
-                totalEmitidos += parsed.total
-                ivaEmitidos += parsed.iva
-                numEmitidas += parsed.count
-            } else {
-                totalRecibidos += parsed.total
-                ivaRecibidos += parsed.iva
-                numRecibidas += parsed.count
+            switch (parsed.type) {
+                case "emitidos":
+                    totalEmitidos += parsed.total
+                    ivaEmitidos += parsed.iva
+                    numEmitidas += parsed.count
+                    break
+                case "recibidos":
+                    totalRecibidos += parsed.total
+                    ivaRecibidos += parsed.iva
+                    numRecibidas += parsed.count
+                    break
+                case "iva_trasladado":
+                    ivaTrasladado += parsed.total || parsed.iva
+                    hasIvaFiles = true
+                    break
+                case "iva_acreditable":
+                    ivaAcreditable += parsed.total || parsed.iva
+                    hasIvaFiles = true
+                    break
             }
         }
 
         const grossProfit = Math.round((totalEmitidos - totalRecibidos) * 100) / 100
-        const ivaBalance = Math.round((ivaEmitidos - ivaRecibidos) * 100) / 100
+        // If dedicated IVA files are uploaded, use those for the balance; otherwise use IVA from income files
+        const ivaBalance = hasIvaFiles
+            ? Math.round((ivaTrasladado - ivaAcreditable) * 100) / 100
+            : Math.round((ivaEmitidos - ivaRecibidos) * 100) / 100
 
         // Check if declaration already exists for this month
         const { data: existing } = await supabase
             .from("monthly_declarations")
             .select("id")
             .eq("client_id", clientId)
-            .eq("user_id", userId)
             .eq("year", year)
             .eq("month", month)
-            .single()
+            .maybeSingle()
 
         const declarationData = {
             client_id: clientId,
@@ -152,8 +153,8 @@ export async function POST(request: Request) {
             month,
             invoiced_amount: totalEmitidos,
             expenses_amount: totalRecibidos,
-            iva_emitidos: ivaEmitidos,
-            iva_recibidos: ivaRecibidos,
+            iva_emitidos: hasIvaFiles ? ivaTrasladado : ivaEmitidos,
+            iva_recibidos: hasIvaFiles ? ivaAcreditable : ivaRecibidos,
             num_facturas_emitidas: numEmitidas,
             num_facturas_recibidas: numRecibidas,
             gross_profit: grossProfit,
@@ -180,8 +181,10 @@ export async function POST(request: Request) {
             data: {
                 totalEmitidos,
                 totalRecibidos,
-                ivaEmitidos,
-                ivaRecibidos,
+                ivaEmitidos: hasIvaFiles ? ivaTrasladado : ivaEmitidos,
+                ivaRecibidos: hasIvaFiles ? ivaAcreditable : ivaRecibidos,
+                ivaTrasladado,
+                ivaAcreditable,
                 numEmitidas,
                 numRecibidas,
                 grossProfit,

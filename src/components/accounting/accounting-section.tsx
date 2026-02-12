@@ -346,9 +346,12 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
   }
 
   function getFileTypeLabel(fileName: string) {
-    if (fileName.toLowerCase().includes("emitido")) return { label: "Emitidos", color: "text-emerald-600 bg-emerald-100" }
-    if (fileName.toLowerCase().includes("recibido")) return { label: "Recibidos", color: "text-orange-600 bg-orange-100" }
-    return { label: "Excel", color: "text-blue-600 bg-blue-100" }
+    const lower = fileName.toLowerCase()
+    if (lower.includes("trasladado")) return { label: "IVA Trasladado", color: "text-blue-600 bg-blue-100" }
+    if (lower.includes("acreditable")) return { label: "IVA Acreditable", color: "text-purple-600 bg-purple-100" }
+    if (lower.includes("emitido")) return { label: "Emitidos", color: "text-emerald-600 bg-emerald-100" }
+    if (lower.includes("recibido")) return { label: "Recibidos", color: "text-orange-600 bg-orange-100" }
+    return { label: "Excel", color: "text-gray-600 bg-gray-100" }
   }
 
   return (
@@ -609,8 +612,8 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
               </DialogHeader>
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Sube los archivos Excel exportados desde EZAudita. El sistema identifica automáticamente si son
-                  <strong> emitidos</strong> o <strong>recibidos</strong> por el nombre del archivo.
+                  Sube los archivos Excel exportados desde EZAudita. El sistema identifica automáticamente el tipo por el nombre:
+                  <strong> emitidos</strong>, <strong>recibidos</strong>, <strong>IVA trasladado</strong> y <strong>IVA acreditable</strong>.
                 </p>
 
                 {/* File drop zone */}
