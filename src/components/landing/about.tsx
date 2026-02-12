@@ -14,7 +14,7 @@ export function About() {
 
       <div className="container mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="relative order-2 lg:order-1 scroll-hidden-left">
+          <div className="relative order-2 lg:order-1 scroll-hidden-left mx-4 lg:mx-0">
             {/* Image composition */}
             <div className="relative group">
               {/* Glow effect */}
@@ -43,24 +43,24 @@ export function About() {
               </div>
 
               {/* Floating badge — top left */}
-              <div className="absolute -top-4 -left-4 bg-white/95 backdrop-blur-md rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 border border-white/50 animate-fade-in-up delay-2 hover:shadow-xl transition-shadow">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-primary" />
+              <div className="absolute top-3 left-3 lg:-top-4 lg:-left-4 bg-white/95 backdrop-blur-md rounded-xl shadow-lg px-3 py-2 lg:px-4 lg:py-3 flex items-center gap-2 lg:gap-3 border border-white/50 animate-fade-in-up delay-2 hover:shadow-xl transition-shadow">
+                <div className="h-8 w-8 lg:h-10 lg:w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Building2 className="h-4 w-4 lg:h-5 lg:w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-foreground leading-none">Guadalajara</p>
-                  <p className="text-[11px] text-muted-foreground">Jalisco, México</p>
+                  <p className="text-xs lg:text-sm font-bold text-foreground leading-none">Guadalajara</p>
+                  <p className="text-[10px] lg:text-[11px] text-muted-foreground">Jalisco, México</p>
                 </div>
               </div>
 
               {/* Floating badge — bottom right */}
-              <div className="absolute -bottom-4 -right-4 bg-white/95 backdrop-blur-md rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 border border-white/50 animate-fade-in-up delay-3 hover:shadow-xl transition-shadow">
-                <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <Handshake className="h-5 w-5 text-emerald-600" />
+              <div className="absolute bottom-3 right-3 lg:-bottom-4 lg:-right-4 bg-white/95 backdrop-blur-md rounded-xl shadow-lg px-3 py-2 lg:px-4 lg:py-3 flex items-center gap-2 lg:gap-3 border border-white/50 animate-fade-in-up delay-3 hover:shadow-xl transition-shadow">
+                <div className="h-8 w-8 lg:h-10 lg:w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <Handshake className="h-4 w-4 lg:h-5 lg:w-5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-foreground leading-none">Atención</p>
-                  <p className="text-[11px] text-muted-foreground">Personalizada</p>
+                  <p className="text-xs lg:text-sm font-bold text-foreground leading-none">Atención</p>
+                  <p className="text-[10px] lg:text-[11px] text-muted-foreground">Personalizada</p>
                 </div>
               </div>
             </div>
