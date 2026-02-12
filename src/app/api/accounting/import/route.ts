@@ -131,32 +131,42 @@ export async function POST(request: Request) {
             }
         }
 
-        const grossProfit = Math.round((totalEmitidos - totalRecibidos) * 100) / 100
-        // If dedicated IVA files are uploaded, use those for the balance; otherwise use IVA from income files
-        const ivaBalance = hasIvaFiles
-            ? Math.round((ivaTrasladado - ivaAcreditable) * 100) / 100
-            : Math.round((ivaEmitidos - ivaRecibidos) * 100) / 100
-
         // Check if declaration already exists for this month
         const { data: existing } = await supabase
             .from("monthly_declarations")
-            .select("id")
+            .select("*")
             .eq("client_id", clientId)
             .eq("year", year)
             .eq("month", month)
             .maybeSingle()
+
+        // Track which file types were uploaded
+        const hasEmitidos = numEmitidas > 0
+        const hasRecibidos = numRecibidas > 0
+
+        // Merge with existing data — only overwrite fields that were actually imported
+        const mergedInvoiced = hasEmitidos ? totalEmitidos : (existing?.invoiced_amount || 0)
+        const mergedExpenses = hasRecibidos ? totalRecibidos : (existing?.expenses_amount || 0)
+        const mergedIvaEmitidos = hasIvaFiles ? ivaTrasladado : (hasEmitidos ? ivaEmitidos : (existing?.iva_emitidos || 0))
+        const mergedIvaRecibidos = hasIvaFiles ? ivaAcreditable : (hasRecibidos ? ivaRecibidos : (existing?.iva_recibidos || 0))
+        const mergedNumEmitidas = hasEmitidos ? numEmitidas : (existing?.num_facturas_emitidas || 0)
+        const mergedNumRecibidas = hasRecibidos ? numRecibidas : (existing?.num_facturas_recibidas || 0)
+
+        // Recalculate derived values from merged data
+        const grossProfit = Math.round((mergedInvoiced - mergedExpenses) * 100) / 100
+        const ivaBalance = Math.round((mergedIvaEmitidos - mergedIvaRecibidos) * 100) / 100
 
         const declarationData = {
             client_id: clientId,
             user_id: userId,
             year,
             month,
-            invoiced_amount: totalEmitidos,
-            expenses_amount: totalRecibidos,
-            iva_emitidos: hasIvaFiles ? ivaTrasladado : ivaEmitidos,
-            iva_recibidos: hasIvaFiles ? ivaAcreditable : ivaRecibidos,
-            num_facturas_emitidas: numEmitidas,
-            num_facturas_recibidas: numRecibidas,
+            invoiced_amount: mergedInvoiced,
+            expenses_amount: mergedExpenses,
+            iva_emitidos: mergedIvaEmitidos,
+            iva_recibidos: mergedIvaRecibidos,
+            num_facturas_emitidas: mergedNumEmitidas,
+            num_facturas_recibidas: mergedNumRecibidas,
             gross_profit: grossProfit,
             iva_balance: ivaBalance,
         }

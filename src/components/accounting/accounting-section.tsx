@@ -76,28 +76,13 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
 
   async function loadDeclarations() {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
+      const res = await fetch(`/api/accounting/declarations?clientId=${clientId}&year=${selectedYear}`)
+      const result = await res.json()
 
-      let query = supabase
-        .from("monthly_declarations")
-        .select("*")
-        .eq("client_id", clientId)
-        .eq("year", selectedYear)
-
-      // Clients see all declarations for their account; accountants see only their own
-      if (!isClient) {
-        query = query.eq("user_id", user.id)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
+      if (!res.ok) throw new Error(result.error)
 
       const declarationsMap: Record<number, MonthlyDeclaration> = {}
-      data?.forEach((decl: any) => {
+      result.data?.forEach((decl: any) => {
         declarationsMap[decl.month] = decl
       })
       setDeclarations(declarationsMap)
