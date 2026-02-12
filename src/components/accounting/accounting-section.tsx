@@ -2,11 +2,11 @@
 
 import type React from "react"
 import { sendDeclarationEmail } from "@/app/actions/send-email"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Plus, Mail, Upload, X } from "lucide-react"
+import { FileText, Plus, Mail, Upload, X, FileSpreadsheet, ArrowUpDown, TrendingUp, TrendingDown, Receipt } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,6 +38,12 @@ interface MonthlyDeclaration {
   tax_payment?: number
   invoiced_amount?: number
   expenses_amount?: number
+  iva_emitidos?: number
+  iva_recibidos?: number
+  num_facturas_emitidas?: number
+  num_facturas_recibidas?: number
+  gross_profit?: number
+  iva_balance?: number
   notes?: string
 }
 
@@ -54,6 +60,11 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
   const [emailRecipient, setEmailRecipient] = useState("")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [importFiles, setImportFiles] = useState<File[]>([])
+  const [isImporting, setIsImporting] = useState(false)
+  const [importMonth, setImportMonth] = useState<number | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -228,9 +239,10 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                 <p>Hola!</p>
                 <p>Soy Robot Contador de AR&CP, te dejo a la mano tu declaración de <strong>${monthName}</strong> del año <strong>${declaration.year}</strong>.</p>
                 ${declaration.declaration_pdf_url ? `<p><a href="${declaration.declaration_pdf_url}" style="color: #0066cc; text-decoration: none;">📄 Descargar Declaración PDF</a></p>` : ""}
-                ${declaration.tax_payment ? `<p><strong>Impuestos:</strong> $${declaration.tax_payment.toLocaleString()}</p>` : ""}
                 ${declaration.invoiced_amount ? `<p><strong>Facturado:</strong> $${declaration.invoiced_amount.toLocaleString()}</p>` : ""}
                 ${declaration.expenses_amount ? `<p><strong>Gastos:</strong> $${declaration.expenses_amount.toLocaleString()}</p>` : ""}
+                ${declaration.tax_payment ? `<p><strong>Impuestos:</strong> $${declaration.tax_payment.toLocaleString()}</p>` : ""}
+                ${declaration.gross_profit ? `<p><strong>Utilidad bruta:</strong> $${declaration.gross_profit.toLocaleString()}</p>` : ""}
               </div>
               <div class="signature">
                 <img src="${window.location.origin}/images/robot-contador-firma.jpg" alt="Robot Contador - AR&CP" />
@@ -268,6 +280,77 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
     setIsEmailDialogOpen(true)
   }
 
+  // === Import Excel Logic ===
+  function openImportDialog(monthIndex: number) {
+    setImportMonth(monthIndex + 1)
+    setImportFiles([])
+    setIsImportDialogOpen(true)
+  }
+
+  function handleImportFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    setImportFiles((prev) => [...prev, ...files])
+    if (importInputRef.current) {
+      importInputRef.current.value = ""
+    }
+  }
+
+  function removeImportFile(index: number) {
+    setImportFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleImportExcel() {
+    if (!importMonth || importFiles.length === 0) return
+
+    setIsImporting(true)
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      const formData = new FormData()
+      formData.append("clientId", clientId)
+      formData.append("year", selectedYear.toString())
+      formData.append("month", importMonth.toString())
+      formData.append("userId", user.id)
+
+      importFiles.forEach((file, i) => {
+        formData.append(`file${i}`, file)
+      })
+
+      const res = await fetch("/api/accounting/import", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        throw new Error(result.error || "Error al importar")
+      }
+
+      toast({
+        title: "✅ Datos importados correctamente",
+        description: `Emitidos: $${result.data.totalEmitidos.toLocaleString()} | Recibidos: $${result.data.totalRecibidos.toLocaleString()}`,
+      })
+
+      setIsImportDialogOpen(false)
+      setImportFiles([])
+      loadDeclarations()
+    } catch (error: any) {
+      toast({ title: "Error al importar", description: error.message, variant: "destructive" })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  function getFileTypeLabel(fileName: string) {
+    if (fileName.toLowerCase().includes("emitido")) return { label: "Emitidos", color: "text-emerald-600 bg-emerald-100" }
+    if (fileName.toLowerCase().includes("recibido")) return { label: "Recibidos", color: "text-orange-600 bg-orange-100" }
+    return { label: "Excel", color: "text-blue-600 bg-blue-100" }
+  }
+
   return (
     <Card className="border-2">
       <CardHeader>
@@ -292,6 +375,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
           {months.map((month, index) => {
             const declaration = declarations[index + 1]
             const hasData = !!declaration
+            const hasImportedData = hasData && (declaration.num_facturas_emitidas || declaration.num_facturas_recibidas)
 
             return (
               <div
@@ -314,17 +398,57 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                     />
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Impuestos:</span>
-                    <span className="font-medium">${(declaration?.tax_payment || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Facturado:</span>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3 text-emerald-500" />
+                      Facturado:
+                    </span>
                     <span className="font-medium">${(declaration?.invoiced_amount || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Gastos:</span>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <TrendingDown className="h-3 w-3 text-red-500" />
+                      Gastos:
+                    </span>
                     <span className="font-medium">${(declaration?.expenses_amount || 0).toLocaleString()}</span>
                   </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Impuestos:</span>
+                    <span className="font-medium">${(declaration?.tax_payment || 0).toLocaleString()}</span>
+                  </div>
+
+                  {/* EZAudita imported data */}
+                  {hasImportedData && (
+                    <>
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <ArrowUpDown className="h-3 w-3 text-blue-500" />
+                            IVA Balance:
+                          </span>
+                          <span className={`font-medium ${(declaration.iva_balance || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            ${(declaration.iva_balance || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Receipt className="h-3 w-3 text-purple-500" />
+                            Utilidad:
+                          </span>
+                          <span className={`font-medium ${(declaration.gross_profit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            ${(declaration.gross_profit || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground">
+                            📄 {declaration.num_facturas_emitidas || 0} emitidas
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            📥 {declaration.num_facturas_recibidas || 0} recibidas
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {!isClient && (
@@ -339,7 +463,19 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                       }}
                     >
                       <Plus className="h-3 w-3 mr-1" />
-                      {hasData ? "Editar" : "Agregar Datos"}
+                      {hasData ? "Editar" : "Agregar"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-transparent"
+                      title="Importar Excel de EZAudita"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openImportDialog(index)
+                      }}
+                    >
+                      <FileSpreadsheet className="h-3 w-3" />
                     </Button>
                     {hasData && declaration.declaration_pdf_url && (
                       <Button
@@ -361,6 +497,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
           })}
         </div>
 
+        {/* Manual Edit Dialog */}
         {!isClient && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="max-w-md">
@@ -460,6 +597,82 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
           </Dialog>
         )}
 
+        {/* Import Excel Dialog */}
+        {!isClient && (
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+                  Importar Excel - {importMonth && `${months[importMonth - 1]} ${selectedYear}`}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Sube los archivos Excel exportados desde EZAudita. El sistema identifica automáticamente si son
+                  <strong> emitidos</strong> o <strong>recibidos</strong> por el nombre del archivo.
+                </p>
+
+                {/* File drop zone */}
+                <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-emerald-400 transition-colors">
+                  <Input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    multiple
+                    className="hidden"
+                    id="import-excel"
+                    onChange={handleImportFileChange}
+                  />
+                  <Label htmlFor="import-excel" className="cursor-pointer flex flex-col items-center gap-2">
+                    <FileSpreadsheet className="h-10 w-10 text-emerald-500" />
+                    <span className="text-sm font-medium">Seleccionar archivos Excel</span>
+                    <span className="text-xs text-muted-foreground">Puedes subir múltiples archivos a la vez</span>
+                  </Label>
+                </div>
+
+                {/* Selected files list */}
+                {importFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm">Archivos seleccionados:</Label>
+                    {importFiles.map((file, i) => {
+                      const typeInfo = getFileTypeLabel(file.name)
+                      return (
+                        <div key={i} className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
+                          <FileSpreadsheet className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                          <span className="text-sm flex-1 truncate">{file.name}</span>
+                          <Badge variant="outline" className={`text-[10px] ${typeInfo.color} border-0`}>
+                            {typeInfo.label}
+                          </Badge>
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => removeImportFile(i)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleImportExcel}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  disabled={importFiles.length === 0 || isImporting}
+                >
+                  {isImporting ? (
+                    "Importando..."
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Importar {importFiles.length > 0 ? `(${importFiles.length} archivo${importFiles.length > 1 ? "s" : ""})` : ""}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Email Dialog */}
         {!isClient && (
           <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
             <DialogContent className="max-w-md">
