@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { AssignToSelector } from "@/components/activity/assign-to-selector"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,8 @@ interface Procedure {
   comments?: string
   is_reviewed: boolean
   specific_data: Record<string, unknown>
+  assigned_to?: string
+  assigned_to_name?: string
   created_at: string
 }
 
@@ -329,6 +332,24 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
 
                                 {procedure.comments && (
                                   <p className="text-sm text-muted-foreground">{procedure.comments}</p>
+                                )}
+
+                                {/* Assignment selector */}
+                                {!isClient && (
+                                  <div className="pt-1">
+                                    <AssignToSelector
+                                      entityType="procedure"
+                                      entityId={procedure.id}
+                                      module="procedures"
+                                      currentAssignedTo={procedure.assigned_to}
+                                      currentAssignedToName={procedure.assigned_to_name}
+                                      onAssigned={(userId, userName) => {
+                                        setProcedures(prev => prev.map(p =>
+                                          p.id === procedure.id ? { ...p, assigned_to: userId, assigned_to_name: userName } : p
+                                        ))
+                                      }}
+                                    />
+                                  </div>
                                 )}
 
                                 {!isClient && (

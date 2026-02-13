@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
+import { ActivityFeed } from "@/components/activity/activity-feed"
 
 // Module definitions with their service flags
 const ALL_MODULES = [
@@ -329,54 +330,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Actividad Reciente */}
-          <Card className="border-2 animate-fade-in-up delay-3">
-            <CardHeader>
-              <CardTitle>Actividad Reciente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start gap-4 pb-4 border-b border-border">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Trámite fiscal completado</p>
-                    <p className="text-xs text-muted-foreground">Hace 2 horas</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4 pb-4 border-b border-border">
-                  <div className="h-8 w-8 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
-                    <FileText className="h-4 w-4 text-secondary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Nuevo documento subido</p>
-                    <p className="text-xs text-muted-foreground">Hace 5 horas</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4 pb-4 border-b border-border">
-                  <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <Calendar className="h-4 w-4 text-accent" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Reunión programada</p>
-                    <p className="text-xs text-muted-foreground">Hace 1 día</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Alerta: Vencimiento próximo</p>
-                    <p className="text-xs text-muted-foreground">Hace 2 días</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ActivityFeed />
         </div>
       </main>
     </div>

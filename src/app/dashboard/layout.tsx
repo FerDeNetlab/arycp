@@ -4,6 +4,7 @@ import { UserCircle } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 
 export default function DashboardLayout({
     children,
@@ -37,6 +38,10 @@ export default function DashboardLayout({
                         )}
                     </div>
                     <div className="flex items-center gap-4">
+                        {/* Notifications bell - only for admin/contador */}
+                        {!isClient && !loading && (
+                            <NotificationBell />
+                        )}
                         {/* Admin button - only for admin/contador */}
                         {!isClient && !loading && (
                             <Link href="/dashboard/users">

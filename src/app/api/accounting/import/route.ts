@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import * as XLSX from "xlsx"
+import { logActivity } from "@/lib/activity"
 
 type FileType = "emitidos" | "recibidos" | "iva_trasladado" | "iva_acreditable"
 
@@ -185,6 +186,22 @@ export async function POST(request: Request) {
 
             if (error) throw error
         }
+
+        // Log activity
+        const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        const { data: sysUser } = await supabase.from("system_users").select("full_name").eq("auth_user_id", userId).single()
+        const { data: client } = await supabase.from("clients").select("business_name").eq("id", clientId).single()
+        await logActivity({
+            userId,
+            userName: sysUser?.full_name || "Usuario",
+            clientId,
+            clientName: client?.business_name || "",
+            module: "accounting",
+            action: "imported",
+            entityType: "declaration",
+            description: `${sysUser?.full_name || "Usuario"} importó datos de contabilidad para ${MONTHS[month - 1]} ${year} (${files.length} archivo${files.length > 1 ? "s" : ""})`,
+            metadata: { fileNames: files.map(f => f.name), totalEmitidos, totalRecibidos, ivaBalance },
+        })
 
         return NextResponse.json({
             success: true,
