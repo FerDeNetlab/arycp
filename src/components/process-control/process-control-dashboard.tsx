@@ -20,7 +20,13 @@ import {
     FileCheck,
     Gavel,
     Users,
+    ChevronDown,
+    ChevronRight,
+    ArrowRight,
+    CircleDot,
+    AlertCircle,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface ActivityItem {
     id: string
@@ -40,6 +46,24 @@ interface ModuleStats {
     icon: React.ElementType
     color: string
     bgColor: string
+}
+
+interface PendingItem {
+    id: string
+    module: string
+    moduleLabel: string
+    moduleColor: string
+    moduleBgColor: string
+    moduleIcon: React.ElementType
+    clientId: string
+    clientName: string
+    title: string
+    description: string
+    actionNeeded: string
+    status: string
+    urgency: "high" | "medium" | "low"
+    createdAt: string
+    dueDate?: string
 }
 
 interface ClientSummary {
@@ -69,6 +93,8 @@ export function ProcessControlDashboard() {
     const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
     const [moduleStats, setModuleStats] = useState<ModuleStats[]>([])
     const [clientSummaries, setClientSummaries] = useState<ClientSummary[]>([])
+    const [pendingItems, setPendingItems] = useState<PendingItem[]>([])
+    const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({ fiscal: true, legal: true, procedures: true, labor: true, accounting: true })
 
     // Totals
     const [totalPending, setTotalPending] = useState(0)
@@ -100,6 +126,7 @@ export function ProcessControlDashboard() {
             loadRecentActivity(),
             loadModuleStats(),
             loadClientSummaries(),
+            loadPendingItems(),
         ])
         setLoading(false)
     }
@@ -265,6 +292,195 @@ export function ProcessControlDashboard() {
         setTotalPending(pending)
         setTotalCompleted(completed)
         setTotalThisMonth(thisMonth)
+    }
+
+    const loadPendingItems = async () => {
+        if (!userId) return
+        const items: PendingItem[] = []
+
+        // --- Fiscal Obligations ---
+        const { data: fiscalPending } = await supabase
+            .from("fiscal_obligations")
+            .select("id, obligation_type, status, due_date, created_at, client_id")
+            .eq("user_id", userId)
+            .in("status", ["pendiente", "en_proceso"])
+            .order("due_date", { ascending: true })
+
+        if (fiscalPending) {
+            for (const ob of fiscalPending) {
+                const clientName = await getClientName(ob.client_id)
+                const dueDate = ob.due_date ? new Date(ob.due_date) : null
+                const now = new Date()
+                const daysUntilDue = dueDate ? Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null
+                let urgency: "high" | "medium" | "low" = "low"
+                if (daysUntilDue !== null && daysUntilDue <= 3) urgency = "high"
+                else if (daysUntilDue !== null && daysUntilDue <= 7) urgency = "medium"
+                else if (ob.status === "pendiente") urgency = "medium"
+
+                const actionNeeded = ob.status === "pendiente"
+                    ? `Presentar ${ob.obligation_type}${dueDate ? ` antes del ${dueDate.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}` : ""}`
+                    : `Completar ${ob.obligation_type} (en proceso)`
+
+                items.push({
+                    id: `fo-${ob.id}`, module: "fiscal", moduleLabel: "Fiscal", moduleColor: "text-orange-600",
+                    moduleBgColor: "bg-orange-100", moduleIcon: FileText, clientId: ob.client_id, clientName,
+                    title: ob.obligation_type, description: `Obligación fiscal para ${clientName}`,
+                    actionNeeded, status: ob.status, urgency, createdAt: ob.created_at, dueDate: ob.due_date,
+                })
+            }
+        }
+
+        // --- Fiscal Payments ---
+        const { data: paymentsPending } = await supabase
+            .from("fiscal_payments")
+            .select("id, amount, tax_type, status, due_date, created_at, client_id")
+            .eq("user_id", userId)
+            .eq("status", "pendiente")
+            .order("due_date", { ascending: true })
+
+        if (paymentsPending) {
+            for (const pay of paymentsPending) {
+                const clientName = await getClientName(pay.client_id)
+                const dueDate = pay.due_date ? new Date(pay.due_date) : null
+                const daysUntilDue = dueDate ? Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null
+                let urgency: "high" | "medium" | "low" = "medium"
+                if (daysUntilDue !== null && daysUntilDue <= 3) urgency = "high"
+
+                items.push({
+                    id: `fp-${pay.id}`, module: "fiscal", moduleLabel: "Fiscal", moduleColor: "text-orange-600",
+                    moduleBgColor: "bg-orange-100", moduleIcon: DollarSign, clientId: pay.client_id, clientName,
+                    title: `Pago ${pay.tax_type || "fiscal"} - $${(pay.amount || 0).toLocaleString()}`,
+                    description: `Pago pendiente para ${clientName}`,
+                    actionNeeded: `Realizar pago de $${(pay.amount || 0).toLocaleString()}${dueDate ? ` antes del ${dueDate.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}` : ""}`,
+                    status: pay.status, urgency, createdAt: pay.created_at, dueDate: pay.due_date,
+                })
+            }
+        }
+
+        // --- Judicial Cases ---
+        const { data: casesPending } = await supabase
+            .from("judicial_cases")
+            .select("id, case_type, case_number, status, next_hearing_date, created_at, client_id")
+            .eq("user_id", userId)
+            .in("status", ["activo", "en_proceso"])
+            .order("created_at", { ascending: false })
+
+        if (casesPending) {
+            for (const c of casesPending) {
+                const clientName = await getClientName(c.client_id)
+                const hearingDate = c.next_hearing_date ? new Date(c.next_hearing_date) : null
+                const daysUntilHearing = hearingDate ? Math.ceil((hearingDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null
+                let urgency: "high" | "medium" | "low" = "medium"
+                if (daysUntilHearing !== null && daysUntilHearing <= 5) urgency = "high"
+
+                const actionNeeded = hearingDate
+                    ? `Próxima audiencia: ${hearingDate.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })} — Preparar expediente`
+                    : c.status === "activo" ? "Dar seguimiento al caso y actualizar estatus" : "Continuar con el proceso legal"
+
+                items.push({
+                    id: `jc-${c.id}`, module: "legal", moduleLabel: "Jurídico", moduleColor: "text-purple-600",
+                    moduleBgColor: "bg-purple-100", moduleIcon: Scale, clientId: c.client_id, clientName,
+                    title: `${c.case_type}${c.case_number ? " #" + c.case_number : ""}`,
+                    description: `Caso jurídico de ${clientName}`, actionNeeded,
+                    status: c.status, urgency, createdAt: c.created_at, dueDate: c.next_hearing_date,
+                })
+            }
+        }
+
+        // --- Procedures ---
+        const { data: procsPending } = await supabase
+            .from("procedures")
+            .select("id, procedure_type, status, start_date, created_at, client_id")
+            .eq("user_id", userId)
+            .in("status", ["pendiente", "en_proceso"])
+            .order("created_at", { ascending: false })
+
+        if (procsPending) {
+            for (const p of procsPending) {
+                const clientName = await getClientName(p.client_id)
+                const typeName = formatProcedureType(p.procedure_type)
+                let urgency: "high" | "medium" | "low" = p.status === "pendiente" ? "medium" : "low"
+                const startDate = new Date(p.start_date || p.created_at)
+                const daysSinceStart = Math.floor((new Date().getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                if (daysSinceStart > 15) urgency = "high"
+                else if (daysSinceStart > 7) urgency = "medium"
+
+                const actionNeeded = p.status === "pendiente"
+                    ? `Iniciar trámite de ${typeName}${daysSinceStart > 7 ? " (lleva " + daysSinceStart + " días sin avance)" : ""}`
+                    : `Completar y marcar como terminado el trámite de ${typeName}`
+
+                items.push({
+                    id: `pr-${p.id}`, module: "procedures", moduleLabel: "Tramitología", moduleColor: "text-cyan-600",
+                    moduleBgColor: "bg-cyan-100", moduleIcon: ClipboardCheck, clientId: p.client_id, clientName,
+                    title: typeName, description: `Trámite de ${clientName}`, actionNeeded,
+                    status: p.status, urgency, createdAt: p.created_at,
+                })
+            }
+        }
+
+        // --- Labor Payroll ---
+        const { data: laborPending } = await supabase
+            .from("labor_payroll")
+            .select("id, period_type, period_number, status, created_at, client_id")
+            .eq("user_id", userId)
+            .in("status", ["pendiente", "en_proceso"])
+            .order("created_at", { ascending: false })
+
+        if (laborPending) {
+            for (const lr of laborPending) {
+                const clientName = await getClientName(lr.client_id)
+                const urgency: "high" | "medium" | "low" = lr.status === "pendiente" ? "medium" : "low"
+
+                const actionNeeded = lr.status === "pendiente"
+                    ? `Procesar y timbrar nómina ${lr.period_type || ""} #${lr.period_number || ""}`
+                    : `Completar proceso de nómina ${lr.period_type || ""} (en proceso)`
+
+                items.push({
+                    id: `lp-${lr.id}`, module: "labor", moduleLabel: "Laboral", moduleColor: "text-green-600",
+                    moduleBgColor: "bg-green-100", moduleIcon: Briefcase, clientId: lr.client_id, clientName,
+                    title: `Nómina ${lr.period_type || ""} ${lr.period_number ? "#" + lr.period_number : ""}`,
+                    description: `Nómina de ${clientName}`, actionNeeded,
+                    status: lr.status, urgency, createdAt: lr.created_at,
+                })
+            }
+        }
+
+        // --- Accounting Declarations ---
+        const { data: declPending } = await supabase
+            .from("monthly_declarations")
+            .select("id, month, year, status, created_at, client_id")
+            .eq("user_id", userId)
+            .in("status", ["pendiente", "en_proceso"])
+            .order("year", { ascending: false })
+
+        if (declPending) {
+            for (const d of declPending) {
+                const clientName = await getClientName(d.client_id)
+                const urgency: "high" | "medium" | "low" = "medium"
+
+                const actionNeeded = d.status === "pendiente"
+                    ? `Presentar declaración de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`
+                    : `Finalizar declaración de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""} (en proceso)`
+
+                items.push({
+                    id: `md-${d.id}`, module: "accounting", moduleLabel: "Contabilidad", moduleColor: "text-blue-600",
+                    moduleBgColor: "bg-blue-100", moduleIcon: Calculator, clientId: d.client_id, clientName,
+                    title: `Declaración ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`,
+                    description: `Declaración mensual de ${clientName}`, actionNeeded,
+                    status: d.status, urgency, createdAt: d.created_at,
+                })
+            }
+        }
+
+        // Sort: high urgency first, then medium, then low
+        const urgencyOrder = { high: 0, medium: 1, low: 2 }
+        items.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency])
+
+        setPendingItems(items)
+    }
+
+    const toggleModule = (module: string) => {
+        setExpandedModules(prev => ({ ...prev, [module]: !prev[module] }))
     }
 
     const loadModuleStats = async () => {
@@ -632,12 +848,115 @@ export function ProcessControlDashboard() {
                 </Card>
             </div>
 
-            {/* Progreso por Módulo */}
+            {/* Resumen de Pendientes - Detallado y Accionable */}
+            <Card className="border-2">
+                <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-emerald-600" />
+                            Pendientes por Resolver
+                            {pendingItems.length > 0 && (
+                                <Badge className="bg-red-100 text-red-700 ml-2">{pendingItems.length}</Badge>
+                            )}
+                        </CardTitle>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block"></span>Urgente</span>
+                            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-yellow-500 inline-block"></span>Medio</span>
+                            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500 inline-block"></span>Normal</span>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {pendingItems.length === 0 ? (
+                        <div className="text-center py-8">
+                            <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                            <p className="text-sm font-medium text-green-700">¡Todo al día!</p>
+                            <p className="text-xs text-muted-foreground">No tienes pendientes por resolver</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {/* Group by module */}
+                            {["fiscal", "procedures", "legal", "labor", "accounting"].map(mod => {
+                                const moduleItems = pendingItems.filter(i => i.module === mod)
+                                if (moduleItems.length === 0) return null
+                                const isExpanded = expandedModules[mod]
+                                const firstItem = moduleItems[0]
+                                const highCount = moduleItems.filter(i => i.urgency === "high").length
+
+                                return (
+                                    <div key={mod} className="border rounded-xl overflow-hidden">
+                                        {/* Module header - clickable */}
+                                        <button
+                                            className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                                            onClick={() => toggleModule(mod)}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div className={`h-8 w-8 rounded-lg ${firstItem.moduleBgColor} flex items-center justify-center`}>
+                                                    <firstItem.moduleIcon className={`h-4 w-4 ${firstItem.moduleColor}`} />
+                                                </div>
+                                                <span className="font-semibold text-sm">{firstItem.moduleLabel}</span>
+                                                <Badge variant="outline" className="text-xs">{moduleItems.length} pendiente{moduleItems.length > 1 ? "s" : ""}</Badge>
+                                                {highCount > 0 && (
+                                                    <Badge className="bg-red-100 text-red-700 text-xs">{highCount} urgente{highCount > 1 ? "s" : ""}</Badge>
+                                                )}
+                                            </div>
+                                            {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                                        </button>
+
+                                        {/* Expanded items */}
+                                        {isExpanded && (
+                                            <div className="border-t divide-y">
+                                                {moduleItems.map(item => (
+                                                    <div key={item.id} className="p-3 hover:bg-muted/30 transition-colors">
+                                                        <div className="flex items-start gap-3">
+                                                            {/* Urgency indicator */}
+                                                            <div className={`mt-1 h-2.5 w-2.5 rounded-full flex-shrink-0 ${item.urgency === "high" ? "bg-red-500 animate-pulse" :
+                                                                    item.urgency === "medium" ? "bg-yellow-500" : "bg-green-500"
+                                                                }`} />
+
+                                                            <div className="flex-1 min-w-0">
+                                                                {/* Title and client */}
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className="font-medium text-sm">{item.title}</span>
+                                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{item.clientName}</Badge>
+                                                                    {item.status === "en_proceso" && (
+                                                                        <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">En proceso</Badge>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Action needed - the key info */}
+                                                                <div className="flex items-start gap-1.5 mt-1.5">
+                                                                    <ArrowRight className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                                                    <span className="text-sm text-emerald-700 font-medium">{item.actionNeeded}</span>
+                                                                </div>
+
+                                                                {/* Due date if applicable */}
+                                                                {item.dueDate && (
+                                                                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                                                        <Calendar className="h-3 w-3" />
+                                                                        <span>Vence: {new Date(item.dueDate).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Progreso por Módulo - Barras */}
             <Card className="border-2">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-lg flex items-center gap-2">
                         <TrendingUp className="h-5 w-5 text-emerald-600" />
-                        Progreso por Módulo
+                        Progreso General
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -672,9 +991,9 @@ export function ProcessControlDashboard() {
                                         <div className="w-full bg-gray-100 rounded-full h-2.5">
                                             <div
                                                 className={`h-2.5 rounded-full transition-all duration-500 ${percentage === 100 ? "bg-green-500" :
-                                                        percentage >= 50 ? "bg-emerald-500" :
-                                                            percentage >= 25 ? "bg-yellow-500" :
-                                                                "bg-red-400"
+                                                    percentage >= 50 ? "bg-emerald-500" :
+                                                        percentage >= 25 ? "bg-yellow-500" :
+                                                            "bg-red-400"
                                                     }`}
                                                 style={{ width: `${percentage}%` }}
                                             ></div>
