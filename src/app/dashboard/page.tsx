@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -176,6 +176,17 @@ export default function DashboardPage() {
   const router = useRouter()
   const isClient = isClientRole(role)
 
+  const [stats, setStats] = useState({ totalActive: 0, totalPending: 0, upcomingEvents: 0, alerts: 0 })
+
+  useEffect(() => {
+    if (!isClient && !loading) {
+      fetch("/api/dashboard/stats")
+        .then(res => res.json())
+        .then(data => setStats(data))
+        .catch(() => { })
+    }
+  }, [isClient, loading])
+
   // Filter modules for client based on contracted services
   const visibleServiceModules = isClient
     ? ALL_MODULES.filter((m) => services?.[m.serviceFlag])
@@ -207,8 +218,8 @@ export default function DashboardPage() {
                 <FileText className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">12</div>
-                <p className="text-xs text-muted-foreground mt-1">+2 desde la semana pasada</p>
+                <div className="text-3xl font-bold">{stats.totalActive}</div>
+                <p className="text-xs text-muted-foreground mt-1">Trámites, fiscal y legal</p>
               </CardContent>
             </Card>
 
@@ -218,7 +229,7 @@ export default function DashboardPage() {
                 <ClipboardCheck className="h-5 w-5 text-secondary" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">8</div>
+                <div className="text-3xl font-bold">{stats.totalPending}</div>
                 <p className="text-xs text-muted-foreground mt-1">Requieren atención</p>
               </CardContent>
             </Card>
@@ -229,7 +240,7 @@ export default function DashboardPage() {
                 <Calendar className="h-5 w-5 text-accent" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">5</div>
+                <div className="text-3xl font-bold">{stats.upcomingEvents}</div>
                 <p className="text-xs text-muted-foreground mt-1">Esta semana</p>
               </CardContent>
             </Card>
@@ -240,8 +251,8 @@ export default function DashboardPage() {
                 <AlertCircle className="h-5 w-5 text-destructive" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">3</div>
-                <p className="text-xs text-muted-foreground mt-1">Requieren acción inmediata</p>
+                <div className="text-3xl font-bold">{stats.alerts}</div>
+                <p className="text-xs text-muted-foreground mt-1">Notificaciones sin leer</p>
               </CardContent>
             </Card>
           </div>
