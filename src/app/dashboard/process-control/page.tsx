@@ -21,7 +21,7 @@ export default function ProcessControlPage() {
 
     if (roleLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="flex items-center justify-center py-20">
                 <p className="text-muted-foreground">Cargando...</p>
             </div>
         )
@@ -30,31 +30,25 @@ export default function ProcessControlPage() {
     if (isClientRole(role)) return null
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-background to-teal-100/50">
-            <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
-                <div className="container mx-auto px-6 py-4">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard">
-                            <Button variant="ghost" size="icon">
-                                <ArrowLeft className="h-5 w-5" />
-                            </Button>
-                        </Link>
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                                <ClipboardCheck className="h-5 w-5 text-emerald-600" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold text-emerald-700">Control de Procesos</h1>
-                                <p className="text-sm text-muted-foreground">Tu panel de seguimiento y flujo de trabajo</p>
-                            </div>
-                        </div>
+        <div>
+            <div className="flex items-center gap-4 mb-6">
+                <Link href="/dashboard">
+                    <Button variant="ghost" size="icon">
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                </Link>
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                        <ClipboardCheck className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-emerald-700">Control de Procesos</h1>
+                        <p className="text-sm text-muted-foreground">Tu panel de seguimiento y flujo de trabajo</p>
                     </div>
                 </div>
-            </header>
+            </div>
 
-            <main className="container mx-auto px-6 py-8">
-                <ProcessControlDashboard />
-            </main>
+            <ProcessControlDashboard />
         </div>
     )
 }

@@ -42,42 +42,36 @@ export default function MessagesPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-violet-50 via-background to-purple-100/50">
-            <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
-                <div className="container mx-auto px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Link href="/dashboard">
-                                <Button variant="ghost" size="icon">
-                                    <ArrowLeft className="h-5 w-5" />
-                                </Button>
-                            </Link>
-                            <div>
-                                <h1 className="text-2xl font-bold">Mensajes de Contacto</h1>
-                                <p className="text-sm text-muted-foreground">
-                                    Mensajes recibidos desde el formulario de contacto
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <MessageSquare className="h-5 w-5 text-violet-600" />
-                            <span className="text-sm font-medium text-muted-foreground">
-                                {messages.filter((m) => !m.is_read).length} sin leer
-                            </span>
-                        </div>
+        <div>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                    <Link href="/dashboard">
+                        <Button variant="ghost" size="icon">
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                    </Link>
+                    <div>
+                        <h1 className="text-2xl font-bold">Mensajes de Contacto</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Mensajes recibidos desde el formulario de contacto
+                        </p>
                     </div>
                 </div>
-            </header>
+                <div className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-violet-600" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                        {messages.filter((m) => !m.is_read).length} sin leer
+                    </span>
+                </div>
+            </div>
 
-            <main className="container mx-auto px-6 py-8">
-                {loading && (
-                    <p className="text-center text-muted-foreground">Cargando mensajes...</p>
-                )}
-                {error && <p className="text-center text-destructive">{error}</p>}
-                {!loading && !error && (
-                    <MessagesList messages={messages} onUpdate={fetchMessages} />
-                )}
-            </main>
+            {loading && (
+                <p className="text-center text-muted-foreground">Cargando mensajes...</p>
+            )}
+            {error && <p className="text-center text-destructive">{error}</p>}
+            {!loading && !error && (
+                <MessagesList messages={messages} onUpdate={fetchMessages} />
+            )}
         </div>
     )
 }

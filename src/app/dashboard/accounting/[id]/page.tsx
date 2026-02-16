@@ -75,7 +75,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <p className="text-muted-foreground">Cargando cliente...</p>
       </div>
     )
@@ -83,28 +83,24 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
 
   if (error || !client) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <p className="text-destructive">{error || "Cliente no encontrado"}</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-background to-blue-100">
-      <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link href={role === "cliente" ? "/dashboard" : "/dashboard/accounting"}>
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <ClientHeader client={client} />
-          </div>
-        </div>
-      </header>
+    <div>
+      <div className="flex items-center gap-4 mb-6">
+        <Link href={role === "cliente" ? "/dashboard" : "/dashboard/accounting"}>
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <ClientHeader client={client} />
+      </div>
 
-      <main className="container mx-auto px-6 py-8 space-y-6">
+      <div className="space-y-6">
         {/* Sección de Documentos (siempre visible) */}
         <DocumentsSection clientId={client.id} userRole={role} />
 
@@ -113,8 +109,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
 
         {/* Sección Fiscal */}
         {client.has_fiscal && <FiscalSection clientId={client.id} clientData={client} userRole={role} />}
-      </main>
+      </div>
     </div>
   )
 }
-

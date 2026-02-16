@@ -73,7 +73,7 @@ export default function FiscalClientPage({ params }: { params: Promise<{ id: str
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <p className="text-muted-foreground">Cargando cliente...</p>
       </div>
     )
@@ -81,35 +81,30 @@ export default function FiscalClientPage({ params }: { params: Promise<{ id: str
 
   if (error || !client) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <p className="text-destructive">{error || "Cliente no encontrado"}</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-background to-orange-100/50">
-      <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link href={role === "cliente" ? "/dashboard" : "/dashboard/fiscal"}>
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-orange-700">Fiscal - {client.name}</h1>
-              <p className="text-sm text-muted-foreground">{client.company || "Sin empresa asignada"}</p>
-            </div>
-          </div>
+    <div>
+      <div className="flex items-center gap-4 mb-6">
+        <Link href={role === "cliente" ? "/dashboard" : "/dashboard/fiscal"}>
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-orange-700">Fiscal - {client.name}</h1>
+          <p className="text-sm text-muted-foreground">{client.company || "Sin empresa asignada"}</p>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-6 py-8 space-y-8">
+      <div className="space-y-8">
         <ClientHeader client={client} />
         <FiscalFullSection clientId={client.id} clientName={client.name} clientEmail={client.email} userRole={role} />
-      </main>
+      </div>
     </div>
   )
 }
-
