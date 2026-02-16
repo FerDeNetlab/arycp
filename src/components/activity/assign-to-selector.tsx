@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { UserPlus, Check, Loader2, X } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 
 interface AssignToSelectorProps {
@@ -35,7 +34,6 @@ export function AssignToSelector({
     const [loading, setLoading] = useState(false)
     const [assigning, setAssigning] = useState(false)
     const { toast } = useToast()
-    const supabase = createClient()
 
     useEffect(() => {
         if (isOpen && users.length === 0) {
@@ -46,14 +44,10 @@ export function AssignToSelector({
     async function loadUsers() {
         setLoading(true)
         try {
-            const { data } = await supabase
-                .from("system_users")
-                .select("id, auth_user_id, full_name, role")
-                .in("role", ["admin", "contador"])
-                .eq("is_active", true)
-                .order("full_name")
-
-            setUsers(data || [])
+            const res = await fetch("/api/users/contadores")
+            const result = await res.json()
+            if (!res.ok) throw new Error(result.error)
+            setUsers(result.data || [])
         } catch (err) {
             console.error("Error loading users:", err)
         } finally {
