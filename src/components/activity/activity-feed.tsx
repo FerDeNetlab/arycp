@@ -33,6 +33,9 @@ interface ActivityItem {
     description: string
     metadata?: Record<string, any>
     created_at: string
+    isNotification?: boolean
+    notifTitle?: string
+    isRead?: boolean
 }
 
 const moduleConfig: Record<string, { icon: any; color: string; bgColor: string; label: string }> = {
@@ -43,12 +46,14 @@ const moduleConfig: Record<string, { icon: any; color: string; bgColor: string; 
     procedures: { icon: FileText, color: "text-cyan-600", bgColor: "bg-cyan-100", label: "Trámites" },
     procedure: { icon: FileText, color: "text-cyan-600", bgColor: "bg-cyan-100", label: "Trámites" },
     process: { icon: ClipboardCheck, color: "text-emerald-600", bgColor: "bg-emerald-100", label: "Procesos" },
+    system: { icon: AlertCircle, color: "text-gray-600", bgColor: "bg-gray-100", label: "Sistema" },
 }
 
 const actionIcons: Record<string, any> = {
     created: FileText,
     updated: RefreshCw,
     assigned: UserPlus,
+    assignment: UserPlus,
     completed: CheckCircle2,
     uploaded: Upload,
     imported: TrendingUp,
@@ -147,22 +152,39 @@ export function ActivityFeed({ limit = 15 }: { limit?: number }) {
                     {activities.map((activity, index) => {
                         const modConfig = moduleConfig[activity.module] || moduleConfig.process
                         const ActionIcon = actionIcons[activity.action] || FileText
-                        const isAssignment = activity.action === "assigned"
+                        const isAssignment = activity.action === "assigned" || activity.action === "assignment"
+                        const isNotif = activity.isNotification
                         const isLast = index === activities.length - 1
 
                         return (
                             <div
                                 key={activity.id}
-                                className={`flex items-start gap-3 py-3 ${!isLast ? "border-b border-border" : ""} hover:bg-muted/30 rounded-lg px-2 -mx-2 transition-colors`}
+                                className={`flex items-start gap-3 py-3 ${!isLast ? "border-b border-border" : ""} ${isNotif && !activity.isRead
+                                        ? "bg-blue-50/80 border-l-2 border-l-blue-500 rounded-r-lg px-3 -mx-2"
+                                        : isNotif
+                                            ? "bg-muted/20 rounded-lg px-2 -mx-2"
+                                            : "hover:bg-muted/30 rounded-lg px-2 -mx-2"
+                                    } transition-colors`}
                             >
                                 {/* Icon */}
-                                <div className={`h-9 w-9 rounded-full ${isAssignment ? "bg-blue-100" : modConfig.bgColor} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                                    <ActionIcon className={`h-4 w-4 ${isAssignment ? "text-blue-600" : modConfig.color}`} />
+                                <div className={`h-9 w-9 rounded-full ${isNotif ? "bg-blue-100 ring-2 ring-blue-200" :
+                                        isAssignment ? "bg-blue-100" : modConfig.bgColor
+                                    } flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                    <ActionIcon className={`h-4 w-4 ${isNotif || isAssignment ? "text-blue-600" : modConfig.color}`} />
                                 </div>
 
                                 {/* Content */}
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm leading-snug">{activity.description}</p>
+                                    {/* Notification title if it's a notification */}
+                                    {isNotif && activity.notifTitle && (
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <p className="text-sm font-semibold text-blue-800">{activity.notifTitle}</p>
+                                            {!activity.isRead && (
+                                                <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                                            )}
+                                        </div>
+                                    )}
+                                    <p className={`text-sm leading-snug ${isNotif ? "text-blue-700" : ""}`}>{activity.description}</p>
                                     <div className="flex items-center gap-2 mt-1.5">
                                         <span className="text-[11px] text-muted-foreground">{formatTimeAgo(activity.created_at)}</span>
                                         {activity.client_name && (
@@ -174,6 +196,11 @@ export function ActivityFeed({ limit = 15 }: { limit?: number }) {
                                         <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${modConfig.color} border-current/20`}>
                                             {modConfig.label}
                                         </Badge>
+                                        {isNotif && (
+                                            <Badge className="text-[10px] px-1.5 py-0 h-4 bg-blue-100 text-blue-700 border-blue-200">
+                                                Para ti
+                                            </Badge>
+                                        )}
                                     </div>
                                 </div>
                             </div>
