@@ -185,7 +185,7 @@ export function ActivityFeed({ limit = 15 }: { limit?: number }) {
                 <CardTitle className="flex items-center gap-2">
                     Actividad Reciente
                     {unreadNotifs.length > 0 && (
-                        <Badge className="bg-red-100 text-red-700 text-xs">{unreadNotifs.length} nueva{unreadNotifs.length > 1 ? "s" : ""}</Badge>
+                        <Badge className="bg-orange-100 text-orange-700 text-xs">{unreadNotifs.length} nueva{unreadNotifs.length > 1 ? "s" : ""}</Badge>
                     )}
                 </CardTitle>
                 <Button variant="ghost" size="sm" onClick={loadData} className="h-8 w-8 p-0">
@@ -203,29 +203,29 @@ export function ActivityFeed({ limit = 15 }: { limit?: number }) {
                     </div>
                 ) : (
                     <div className="space-y-1">
-                        {/* ===== UNREAD NOTIFICATIONS - ALWAYS ON TOP, RED ALERT ===== */}
+                        {/* ===== UNREAD NOTIFICATIONS - ALWAYS ON TOP, ORANGE ALERT ===== */}
                         {unreadNotifs.map(notif => {
                             const modConfig = moduleConfig[notif.module] || moduleConfig.system
                             return (
                                 <div
                                     key={notif.id}
-                                    className="bg-red-50 border-l-4 border-l-red-500 rounded-r-xl p-3 mb-2 shadow-sm animate-fade-in-up"
+                                    className="bg-orange-50 border-l-4 border-l-orange-500 rounded-r-xl p-3 mb-2 shadow-sm animate-fade-in-up"
                                 >
                                     <div className="flex items-start gap-3">
-                                        <div className="h-9 w-9 rounded-full bg-red-100 ring-2 ring-red-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                                        <div className="h-9 w-9 rounded-full bg-orange-100 ring-2 ring-orange-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <AlertTriangle className="h-4 w-4 text-orange-600" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <p className="text-sm font-bold text-red-800">{notif.title}</p>
-                                                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0"></span>
+                                                <p className="text-sm font-bold text-orange-800">{notif.title}</p>
+                                                <span className="h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse flex-shrink-0"></span>
                                             </div>
-                                            <p className="text-sm text-red-700 mt-0.5 leading-snug">{notif.message}</p>
+                                            <p className="text-sm text-orange-700 mt-0.5 leading-snug">{notif.message}</p>
                                             <div className="flex items-center justify-between mt-2">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[11px] text-red-500">{formatTimeAgo(notif.created_at)}</span>
-                                                    <span className="text-[11px] text-red-400">•</span>
-                                                    <span className="text-[11px] text-red-500">De: {notif.from_user_name}</span>
+                                                    <span className="text-[11px] text-orange-500">{formatTimeAgo(notif.created_at)}</span>
+                                                    <span className="text-[11px] text-orange-400">•</span>
+                                                    <span className="text-[11px] text-orange-500">De: {notif.from_user_name}</span>
                                                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${modConfig.color} border-current/20`}>
                                                         {modConfig.label}
                                                     </Badge>

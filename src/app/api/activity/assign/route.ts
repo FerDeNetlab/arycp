@@ -80,7 +80,33 @@ export async function POST(request: Request) {
         }
 
         const entityLabel = entityType === "procedure" ? "trámite" : entityType === "fiscal_obligation" ? "obligación fiscal" : "proceso legal"
-        const entityDesc = entity?.type || entity?.description || entity?.title || entityLabel
+
+        // Get a human-readable name for the entity
+        const procedureTypeMap: Record<string, string> = {
+            alta_patronal_imss: "Alta patronal ante el IMSS",
+            alta_representante_legal: "Alta de representante legal",
+            efirma: "Generación de e.firma",
+            sello_digital: "Sello Digital",
+            opinion_cumplimiento: "Opinión de Cumplimiento",
+            registro_publico: "Registro Público",
+            constancia_situacion_fiscal: "Constancia de situación fiscal",
+            cambio_domicilio: "Cambio de domicilio fiscal",
+            aumento_disminucion: "Aumento/disminución de obligaciones",
+            reactivacion_buzon: "Reactivación de buzón tributario",
+            revisiones_sat: "Revisiones del SAT",
+            otro: "Otro trámite",
+        }
+
+        let entityDesc = entityLabel
+        if (entityType === "procedure" && entity?.procedure_type) {
+            entityDesc = procedureTypeMap[entity.procedure_type] || entity.procedure_type
+        } else if (entity?.obligation_type) {
+            entityDesc = entity.obligation_type
+        } else if (entity?.case_type) {
+            entityDesc = entity.case_type
+        } else if (entity?.description || entity?.title) {
+            entityDesc = entity.description || entity.title
+        }
 
         // Log activity
         await logActivity({
@@ -107,7 +133,7 @@ export async function POST(request: Request) {
             fromUserName: assigner?.full_name || "Un usuario",
             type: "assignment",
             title: `Nueva asignación: ${entityDesc}`,
-            message: `${assigner?.full_name || "Un usuario"} te asignó el ${entityLabel} "${entityDesc}"${clientName ? ` del cliente ${clientName}` : ""}. Haz clic para ver los detalles.`,
+            message: `${assigner?.full_name || "Un usuario"} te asignó el ${entityLabel} "${entityDesc}"${clientName ? ` del cliente ${clientName}` : ""}.`,
             module: module || entityType,
             entityType,
             entityId,
