@@ -134,6 +134,15 @@ export function ProcessControlDashboard() {
     const loadRecentActivity = async () => {
         if (!userId) return
         const activities: ActivityItem[] = []
+        const seenIds = new Set<string>()
+
+        // Helper: add activity, skip duplicates
+        const addActivity = (item: ActivityItem) => {
+            if (!seenIds.has(item.id)) {
+                seenIds.add(item.id)
+                activities.push(item)
+            }
+        }
 
         // Fiscal obligations
         const { data: obligations } = await supabase
@@ -146,14 +155,10 @@ export function ProcessControlDashboard() {
         if (obligations) {
             for (const ob of obligations) {
                 const clientName = await getClientName(ob.client_id)
-                activities.push({
-                    id: `fo-${ob.id}`,
-                    type: "obligation",
-                    module: "fiscal",
-                    description: `${ob.obligation_type}`,
-                    client_name: clientName,
-                    status: ob.status,
-                    date: ob.created_at,
+                addActivity({
+                    id: `fo-${ob.id}`, type: "obligation", module: "fiscal",
+                    description: `${ob.obligation_type}`, client_name: clientName,
+                    status: ob.status, date: ob.created_at,
                 })
             }
         }
@@ -169,14 +174,10 @@ export function ProcessControlDashboard() {
         if (payments) {
             for (const pay of payments) {
                 const clientName = await getClientName(pay.client_id)
-                activities.push({
-                    id: `fp-${pay.id}`,
-                    type: "payment",
-                    module: "fiscal",
-                    description: `Pago $${pay.amount?.toLocaleString() || 0}`,
-                    client_name: clientName,
-                    status: pay.status,
-                    date: pay.created_at,
+                addActivity({
+                    id: `fp-${pay.id}`, type: "payment", module: "fiscal",
+                    description: `Pago $${pay.amount?.toLocaleString() || 0}`, client_name: clientName,
+                    status: pay.status, date: pay.created_at,
                 })
             }
         }
@@ -192,37 +193,29 @@ export function ProcessControlDashboard() {
         if (cases) {
             for (const c of cases) {
                 const clientName = await getClientName(c.client_id)
-                activities.push({
-                    id: `jc-${c.id}`,
-                    type: "case",
-                    module: "legal",
-                    description: `Caso ${c.case_type} ${c.case_number || ""}`,
-                    client_name: clientName,
-                    status: c.status,
-                    date: c.created_at,
+                addActivity({
+                    id: `jc-${c.id}`, type: "case", module: "legal",
+                    description: `Caso ${c.case_type} ${c.case_number || ""}`, client_name: clientName,
+                    status: c.status, date: c.created_at,
                 })
             }
         }
 
-        // Procedures  
+        // Procedures (user_id OR assigned_to)
         const { data: procs } = await supabase
             .from("procedures")
             .select("id, procedure_type, status, created_at, client_id")
-            .eq("user_id", userId)
+            .or(`user_id.eq.${userId},assigned_to.eq.${userId}`)
             .order("created_at", { ascending: false })
-            .limit(10)
+            .limit(15)
 
         if (procs) {
             for (const p of procs) {
                 const clientName = await getClientName(p.client_id)
-                activities.push({
-                    id: `pr-${p.id}`,
-                    type: "procedure",
-                    module: "procedures",
-                    description: `Trámite: ${formatProcedureType(p.procedure_type)}`,
-                    client_name: clientName,
-                    status: p.status,
-                    date: p.created_at,
+                addActivity({
+                    id: `pr-${p.id}`, type: "procedure", module: "procedures",
+                    description: `Trámite: ${formatProcedureType(p.procedure_type)}`, client_name: clientName,
+                    status: p.status, date: p.created_at,
                 })
             }
         }
@@ -238,14 +231,10 @@ export function ProcessControlDashboard() {
         if (payrolls) {
             for (const lr of payrolls) {
                 const clientName = await getClientName(lr.client_id)
-                activities.push({
-                    id: `lp-${lr.id}`,
-                    type: "payroll",
-                    module: "labor",
-                    description: `Nómina ${lr.period_type || ""}`,
-                    client_name: clientName,
-                    status: lr.status,
-                    date: lr.created_at,
+                addActivity({
+                    id: `lp-${lr.id}`, type: "payroll", module: "labor",
+                    description: `Nómina ${lr.period_type || ""}`, client_name: clientName,
+                    status: lr.status, date: lr.created_at,
                 })
             }
         }
@@ -261,14 +250,10 @@ export function ProcessControlDashboard() {
         if (declarations) {
             for (const d of declarations) {
                 const clientName = await getClientName(d.client_id)
-                activities.push({
-                    id: `md-${d.id}`,
-                    type: "declaration",
-                    module: "accounting",
-                    description: `Declaración ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`,
-                    client_name: clientName,
-                    status: d.status,
-                    date: d.created_at,
+                addActivity({
+                    id: `md-${d.id}`, type: "declaration", module: "accounting",
+                    description: `Declaración ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`, client_name: clientName,
+                    status: d.status, date: d.created_at,
                 })
             }
         }
@@ -277,7 +262,7 @@ export function ProcessControlDashboard() {
         activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         setRecentActivity(activities.slice(0, 30))
 
-        // Calculate totals
+        // Calculate totals (pending count comes from pending items, but recalculate here too)
         const pending = activities.filter(a =>
             a.status === "pendiente" || a.status === "en_proceso" || a.status === "activo"
         ).length
@@ -297,6 +282,50 @@ export function ProcessControlDashboard() {
     const loadPendingItems = async () => {
         if (!userId) return
         const items: PendingItem[] = []
+        const seenIds = new Set<string>()
+
+        // Helper to avoid duplicates
+        const addItem = (item: PendingItem) => {
+            if (!seenIds.has(item.id)) {
+                seenIds.add(item.id)
+                items.push(item)
+            }
+        }
+
+        // --- Unread Notifications (Assignments) ---
+        // These are the most important: things assigned TO this user
+        const { data: unreadNotifs } = await supabase
+            .from("notifications")
+            .select("*")
+            .eq("user_id", userId)
+            .eq("is_read", false)
+            .order("created_at", { ascending: false })
+
+        if (unreadNotifs) {
+            for (const notif of unreadNotifs) {
+                const moduleMap: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
+                    procedure: { label: "Tramitología", color: "text-cyan-600", bgColor: "bg-cyan-100", icon: ClipboardCheck },
+                    fiscal_obligation: { label: "Fiscal", color: "text-orange-600", bgColor: "bg-orange-100", icon: FileText },
+                    legal_process: { label: "Jurídico", color: "text-purple-600", bgColor: "bg-purple-100", icon: Scale },
+                    fiscal: { label: "Fiscal", color: "text-orange-600", bgColor: "bg-orange-100", icon: FileText },
+                    legal: { label: "Jurídico", color: "text-purple-600", bgColor: "bg-purple-100", icon: Scale },
+                    labor: { label: "Laboral", color: "text-green-600", bgColor: "bg-green-100", icon: Briefcase },
+                    accounting: { label: "Contabilidad", color: "text-blue-600", bgColor: "bg-blue-100", icon: Calculator },
+                    procedures: { label: "Tramitología", color: "text-cyan-600", bgColor: "bg-cyan-100", icon: ClipboardCheck },
+                }
+                const mod = moduleMap[notif.module || notif.entity_type || ""] || moduleMap.procedure
+                const modKey = notif.module === "procedure" ? "procedures" : (notif.module || "procedures")
+
+                addItem({
+                    id: `notif-${notif.id}`, module: modKey, moduleLabel: mod.label, moduleColor: mod.color,
+                    moduleBgColor: mod.bgColor, moduleIcon: mod.icon, clientId: "", clientName: notif.from_user_name || "",
+                    title: notif.title || "Nueva asignación",
+                    description: notif.message || "Se te asignó una nueva tarea",
+                    actionNeeded: notif.message || "Revisar y atender la asignación",
+                    status: "pendiente", urgency: "high", createdAt: notif.created_at,
+                })
+            }
+        }
 
         // --- Fiscal Obligations ---
         const { data: fiscalPending } = await supabase
@@ -321,7 +350,7 @@ export function ProcessControlDashboard() {
                     ? `Presentar ${ob.obligation_type}${dueDate ? ` antes del ${dueDate.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}` : ""}`
                     : `Completar ${ob.obligation_type} (en proceso)`
 
-                items.push({
+                addItem({
                     id: `fo-${ob.id}`, module: "fiscal", moduleLabel: "Fiscal", moduleColor: "text-orange-600",
                     moduleBgColor: "bg-orange-100", moduleIcon: FileText, clientId: ob.client_id, clientName,
                     title: ob.obligation_type, description: `Obligación fiscal para ${clientName}`,
@@ -346,7 +375,7 @@ export function ProcessControlDashboard() {
                 let urgency: "high" | "medium" | "low" = "medium"
                 if (daysUntilDue !== null && daysUntilDue <= 3) urgency = "high"
 
-                items.push({
+                addItem({
                     id: `fp-${pay.id}`, module: "fiscal", moduleLabel: "Fiscal", moduleColor: "text-orange-600",
                     moduleBgColor: "bg-orange-100", moduleIcon: DollarSign, clientId: pay.client_id, clientName,
                     title: `Pago ${pay.tax_type || "fiscal"} - $${(pay.amount || 0).toLocaleString()}`,
@@ -377,7 +406,7 @@ export function ProcessControlDashboard() {
                     ? `Próxima audiencia: ${hearingDate.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })} — Preparar expediente`
                     : c.status === "activo" ? "Dar seguimiento al caso y actualizar estatus" : "Continuar con el proceso legal"
 
-                items.push({
+                addItem({
                     id: `jc-${c.id}`, module: "legal", moduleLabel: "Jurídico", moduleColor: "text-purple-600",
                     moduleBgColor: "bg-purple-100", moduleIcon: Scale, clientId: c.client_id, clientName,
                     title: `${c.case_type}${c.case_number ? " #" + c.case_number : ""}`,
@@ -387,11 +416,11 @@ export function ProcessControlDashboard() {
             }
         }
 
-        // --- Procedures ---
+        // --- Procedures (user_id OR assigned_to) ---
         const { data: procsPending } = await supabase
             .from("procedures")
             .select("id, procedure_type, status, start_date, created_at, client_id")
-            .eq("user_id", userId)
+            .or(`user_id.eq.${userId},assigned_to.eq.${userId}`)
             .in("status", ["pendiente", "en_proceso"])
             .order("created_at", { ascending: false })
 
@@ -409,7 +438,7 @@ export function ProcessControlDashboard() {
                     ? `Iniciar trámite de ${typeName}${daysSinceStart > 7 ? " (lleva " + daysSinceStart + " días sin avance)" : ""}`
                     : `Completar y marcar como terminado el trámite de ${typeName}`
 
-                items.push({
+                addItem({
                     id: `pr-${p.id}`, module: "procedures", moduleLabel: "Tramitología", moduleColor: "text-cyan-600",
                     moduleBgColor: "bg-cyan-100", moduleIcon: ClipboardCheck, clientId: p.client_id, clientName,
                     title: typeName, description: `Trámite de ${clientName}`, actionNeeded,
@@ -435,7 +464,7 @@ export function ProcessControlDashboard() {
                     ? `Procesar y timbrar nómina ${lr.period_type || ""} #${lr.period_number || ""}`
                     : `Completar proceso de nómina ${lr.period_type || ""} (en proceso)`
 
-                items.push({
+                addItem({
                     id: `lp-${lr.id}`, module: "labor", moduleLabel: "Laboral", moduleColor: "text-green-600",
                     moduleBgColor: "bg-green-100", moduleIcon: Briefcase, clientId: lr.client_id, clientName,
                     title: `Nómina ${lr.period_type || ""} ${lr.period_number ? "#" + lr.period_number : ""}`,
@@ -462,7 +491,7 @@ export function ProcessControlDashboard() {
                     ? `Presentar declaración de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`
                     : `Finalizar declaración de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""} (en proceso)`
 
-                items.push({
+                addItem({
                     id: `md-${d.id}`, module: "accounting", moduleLabel: "Contabilidad", moduleColor: "text-blue-600",
                     moduleBgColor: "bg-blue-100", moduleIcon: Calculator, clientId: d.client_id, clientName,
                     title: `Declaración ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`,
@@ -477,6 +506,9 @@ export function ProcessControlDashboard() {
         items.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency])
 
         setPendingItems(items)
+
+        // Update totalPending to reflect real pending count
+        setTotalPending(items.length)
     }
 
     const toggleModule = (module: string) => {
@@ -548,18 +580,20 @@ export function ProcessControlDashboard() {
             })
         }
 
-        // Procedures
+        // Procedures (user_id OR assigned_to)
         const { data: procsAll } = await supabase
             .from("procedures")
             .select("id, status")
-            .eq("user_id", userId)
+            .or(`user_id.eq.${userId},assigned_to.eq.${userId}`)
 
         if (procsAll) {
-            const pending = procsAll.filter(p => p.status === "pendiente" || p.status === "en_proceso").length
-            const completed = procsAll.filter(p => p.status === "completado").length
+            // Deduplicate by id
+            const uniqueProcs = Array.from(new Map(procsAll.map((p: any) => [p.id, p])).values()) as any[]
+            const pending = uniqueProcs.filter((p: any) => p.status === "pendiente" || p.status === "en_proceso").length
+            const completed = uniqueProcs.filter((p: any) => p.status === "completado").length
             stats.push({
                 label: "Tramitología",
-                total: procsAll.length,
+                total: uniqueProcs.length,
                 completed,
                 pending,
                 icon: ClipboardCheck,
@@ -597,16 +631,15 @@ export function ProcessControlDashboard() {
         // Get distinct client_ids from all modules for this user
         const clientIds = new Set<string>()
 
-        const tables = [
+        const tablesUserOnly = [
             "fiscal_obligations",
             "fiscal_payments",
             "judicial_cases",
-            "procedures",
             "labor_payroll",
             "monthly_declarations",
         ]
 
-        for (const table of tables) {
+        for (const table of tablesUserOnly) {
             const { data } = await supabase
                 .from(table)
                 .select("client_id")
@@ -615,6 +648,16 @@ export function ProcessControlDashboard() {
             if (data) {
                 data.forEach((d: { client_id: string }) => clientIds.add(d.client_id))
             }
+        }
+
+        // Procedures: also check assigned_to
+        const { data: procClients } = await supabase
+            .from("procedures")
+            .select("client_id")
+            .or(`user_id.eq.${userId},assigned_to.eq.${userId}`)
+
+        if (procClients) {
+            procClients.forEach((d: { client_id: string }) => clientIds.add(d.client_id))
         }
 
         setTotalClients(clientIds.size)
@@ -649,7 +692,7 @@ export function ProcessControlDashboard() {
             const { data: pr } = await supabase
                 .from("procedures")
                 .select("id")
-                .eq("user_id", userId)
+                .or(`user_id.eq.${userId},assigned_to.eq.${userId}`)
                 .eq("client_id", cid)
                 .in("status", ["pendiente", "en_proceso"])
 
@@ -911,7 +954,7 @@ export function ProcessControlDashboard() {
                                                         <div className="flex items-start gap-3">
                                                             {/* Urgency indicator */}
                                                             <div className={`mt-1 h-2.5 w-2.5 rounded-full flex-shrink-0 ${item.urgency === "high" ? "bg-red-500 animate-pulse" :
-                                                                    item.urgency === "medium" ? "bg-yellow-500" : "bg-green-500"
+                                                                item.urgency === "medium" ? "bg-yellow-500" : "bg-green-500"
                                                                 }`} />
 
                                                             <div className="flex-1 min-w-0">
