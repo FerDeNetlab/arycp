@@ -1,0 +1,77 @@
+{
+    "meta": {
+        "brand_name": "ARyCP",
+        "description": "Corporate Fintech Design System 2.0 — Premium institutional design tokens."
+    },
+    "colors": {
+        "primary": {
+            "DEFAULT": "#1E3A8A",
+            "hover": "#1E40AF",
+            "light": "#3B82F6",
+            "foreground": "#FFFFFF"
+        },
+        "secondary": {
+            "DEFAULT": "#065F46",
+            "light": "#10B981",
+            "foreground": "#FFFFFF"
+        },
+        "background": {
+            "light": "#F4F6F9",
+            "dark": "#0F172A"
+        },
+        "card": {
+            "light": "#FFFFFF",
+            "dark": "#1E293B"
+        },
+        "sidebar": "#111827",
+        "border": {
+            "light": "#E5E7EB",
+            "dark": "#334155"
+        },
+        "text": {
+            "primary_light": "#09090B",
+            "primary_dark": "#F8FAFC",
+            "secondary_light": "#6B7280",
+            "secondary_dark": "#94A3B8"
+        },
+        "destructive": "#DC2626",
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "modules": {
+            "accounting": "#3B82F6",
+            "fiscal": "#F59E0B",
+            "legal": "#8B5CF6",
+            "labor": "#10B981",
+            "procedures": "#06B6D4"
+        }
+    },
+    "typography": {
+        "font_family_headings": [
+            "Geist Sans",
+            "Inter",
+            "sans-serif"
+        ],
+        "font_family_body": [
+            "Geist Sans",
+            "Inter",
+            "sans-serif"
+        ],
+        "font_weight_bold": "700",
+        "font_weight_semibold": "600",
+        "font_weight_normal": "400"
+    },
+    "ui": {
+        "border_radius_default": "0.75rem",
+        "border_radius_small": "0.5rem",
+        "border_radius_large": "1rem",
+        "spacing_base_unit": "4px",
+        "card_shadow": "0 1px 3px rgba(0,0,0,0.06)",
+        "card_hover_shadow": "0 8px 25px rgba(0,0,0,0.08)",
+        "transition_fast": "150ms",
+        "transition_default": "200ms",
+        "transition_slow": "220ms",
+        "sidebar_width": "256px",
+        "sidebar_collapsed_width": "68px",
+        "topbar_height": "64px"
+    }
+}

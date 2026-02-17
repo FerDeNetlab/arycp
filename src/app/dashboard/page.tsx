@@ -17,6 +17,7 @@ import {
   Scale,
   Briefcase,
   MessageSquare,
+  ArrowUpRight,
 } from "lucide-react"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
@@ -30,10 +31,9 @@ const ALL_MODULES = [
     icon: Calculator,
     label: "Contabilidad",
     description: "Gestión contable, declaraciones y documentos",
-    color: "primary",
-    hoverBorder: "hover:border-primary",
-    bgClass: "bg-primary/10",
-    iconClass: "text-primary",
+    accent: "bg-blue-50 text-blue-700 border-blue-100",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
     serviceFlag: "has_accounting" as const,
   },
   {
@@ -42,10 +42,9 @@ const ALL_MODULES = [
     icon: FileWarning,
     label: "Fiscal",
     description: "Observaciones y asesoría fiscal",
-    color: "orange",
-    hoverBorder: "hover:border-orange-500",
-    bgClass: "bg-orange-100",
-    iconClass: "text-orange-600",
+    accent: "bg-amber-50 text-amber-700 border-amber-100",
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-600",
     serviceFlag: "has_fiscal" as const,
   },
   {
@@ -54,10 +53,9 @@ const ALL_MODULES = [
     icon: Scale,
     label: "Jurídico",
     description: "Procesos legales y tramitología",
-    color: "purple",
-    hoverBorder: "hover:border-purple-500",
-    bgClass: "bg-purple-100",
-    iconClass: "text-purple-600",
+    accent: "bg-violet-50 text-violet-700 border-violet-100",
+    iconBg: "bg-violet-100",
+    iconColor: "text-violet-600",
     serviceFlag: "has_legal" as const,
   },
   {
@@ -66,10 +64,9 @@ const ALL_MODULES = [
     icon: Briefcase,
     label: "Laboral",
     description: "Nóminas y asuntos laborales",
-    color: "green",
-    hoverBorder: "hover:border-green-500",
-    bgClass: "bg-green-100",
-    iconClass: "text-green-600",
+    accent: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    iconBg: "bg-emerald-100",
+    iconColor: "text-emerald-600",
     serviceFlag: "has_labor" as const,
   },
 ]
@@ -81,19 +78,8 @@ const ADMIN_MODULES = [
     icon: Users,
     label: "Clientes",
     description: "Administrar datos de clientes",
-    hoverBorder: "hover:border-blue-500",
-    bgClass: "bg-blue-100",
-    iconClass: "text-blue-600",
-  },
-  {
-    key: "users",
-    href: "/dashboard/users",
-    icon: UserCircle,
-    label: "Usuarios del Sistema",
-    description: "Administrar usuarios y responsables",
-    hoverBorder: "hover:border-indigo-500",
-    bgClass: "bg-indigo-100",
-    iconClass: "text-indigo-600",
+    iconBg: "bg-sky-100",
+    iconColor: "text-sky-600",
   },
   {
     key: "procedures",
@@ -101,9 +87,17 @@ const ADMIN_MODULES = [
     icon: FileText,
     label: "Tramitología",
     description: "Gestión de trámites y documentos",
-    hoverBorder: "hover:border-cyan-500",
-    bgClass: "bg-cyan-100",
-    iconClass: "text-cyan-600",
+    iconBg: "bg-cyan-100",
+    iconColor: "text-cyan-600",
+  },
+  {
+    key: "process-control",
+    href: "/dashboard/process-control",
+    icon: ClipboardCheck,
+    label: "Control de Procesos",
+    description: "Seguimiento de flujos de trabajo",
+    iconBg: "bg-teal-100",
+    iconColor: "text-teal-600",
   },
   {
     key: "calendar",
@@ -111,33 +105,38 @@ const ADMIN_MODULES = [
     icon: Calendar,
     label: "Calendario",
     description: "Agenda y recordatorios",
-    hoverBorder: "hover:border-red-500",
-    bgClass: "bg-red-100",
-    iconClass: "text-red-600",
+    iconBg: "bg-rose-100",
+    iconColor: "text-rose-600",
   },
   {
     key: "emails",
     href: "/dashboard/emails",
     icon: Mail,
-    label: "Correos Electrónicos",
+    label: "Correos",
     description: "Plantillas y envío de correos",
-    hoverBorder: "hover:border-primary",
-    bgClass: "bg-primary/10",
-    iconClass: "text-primary",
+    iconBg: "bg-indigo-100",
+    iconColor: "text-indigo-600",
   },
   {
     key: "messages",
     href: "/dashboard/messages",
     icon: MessageSquare,
-    label: "Mensajes de Contacto",
-    description: "Ver mensajes del formulario web",
-    hoverBorder: "hover:border-violet-500",
-    bgClass: "bg-violet-100",
-    iconClass: "text-violet-600",
+    label: "Mensajes",
+    description: "Mensajes del formulario web",
+    iconBg: "bg-purple-100",
+    iconColor: "text-purple-600",
+  },
+  {
+    key: "users",
+    href: "/dashboard/users",
+    icon: UserCircle,
+    label: "Usuarios",
+    description: "Administrar usuarios del sistema",
+    iconBg: "bg-slate-100",
+    iconColor: "text-slate-600",
   },
 ]
 
-// Client-specific extra modules (Tramitología as tracking)
 const CLIENT_EXTRA_MODULES = [
   {
     key: "procedures",
@@ -145,9 +144,8 @@ const CLIENT_EXTRA_MODULES = [
     icon: FileText,
     label: "Mis Trámites",
     description: "Seguimiento de tus trámites",
-    hoverBorder: "hover:border-cyan-500",
-    bgClass: "bg-cyan-100",
-    iconClass: "text-cyan-600",
+    iconBg: "bg-cyan-100",
+    iconColor: "text-cyan-600",
   },
   {
     key: "calendar",
@@ -155,19 +153,8 @@ const CLIENT_EXTRA_MODULES = [
     icon: Calendar,
     label: "Calendario",
     description: "Próximos eventos y citas",
-    hoverBorder: "hover:border-red-500",
-    bgClass: "bg-red-100",
-    iconClass: "text-red-600",
-  },
-  {
-    key: "emails",
-    href: "/dashboard/emails",
-    icon: Mail,
-    label: "Correos",
-    description: "Comunicaciones recibidas",
-    hoverBorder: "hover:border-primary",
-    bgClass: "bg-primary/10",
-    iconClass: "text-primary",
+    iconBg: "bg-rose-100",
+    iconColor: "text-rose-600",
   },
 ]
 
@@ -187,7 +174,6 @@ export default function DashboardPage() {
     }
   }, [isClient, loading])
 
-  // Filter modules for client based on contracted services
   const visibleServiceModules = isClient
     ? ALL_MODULES.filter((m) => services?.[m.serviceFlag])
     : ALL_MODULES
@@ -198,152 +184,160 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground text-sm">Cargando...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div>
-      <main className="container mx-auto px-6 py-8">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">
+          {isClient ? `Hola, ${fullName}` : "Dashboard"}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isClient
+            ? "Consulta el resumen de actividad de tus servicios."
+            : "Vista general de operaciones y módulos del sistema."
+          }
+        </p>
+      </div>
 
-        {/* Stats Overview - Only for admin/contador */}
-        {!isClient && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="border-2 hover:border-primary/50 card-hover-glow animate-fade-in-up">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Trámites Activos</CardTitle>
-                <FileText className="h-5 w-5 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.totalActive}</div>
-                <p className="text-xs text-muted-foreground mt-1">Trámites, fiscal y legal</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 hover:border-secondary/50 card-hover-glow animate-fade-in-up delay-1">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pendientes</CardTitle>
-                <ClipboardCheck className="h-5 w-5 text-secondary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.totalPending}</div>
-                <p className="text-xs text-muted-foreground mt-1">Requieren atención</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 hover:border-accent/50 card-hover-glow animate-fade-in-up delay-2">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Eventos Próximos</CardTitle>
-                <Calendar className="h-5 w-5 text-accent" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.upcomingEvents}</div>
-                <p className="text-xs text-muted-foreground mt-1">Esta semana</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 hover:border-destructive/50 card-hover-glow animate-fade-in-up delay-3">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Alertas</CardTitle>
-                <AlertCircle className="h-5 w-5 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.alerts}</div>
-                <p className="text-xs text-muted-foreground mt-1">Notificaciones sin leer</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Client Welcome Banner */}
-        {isClient && (
-          <Card className="border-2 border-primary/20 bg-primary/5 mb-8 animate-fade-in-up">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-bold mb-2">Bienvenido, {fullName}</h2>
-              <p className="text-muted-foreground">
-                Aquí puedes consultar el resumen de actividad de tus servicios contratados.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Módulos */}
-          <Card className="border-2 animate-fade-in-up delay-2">
-            <CardHeader>
-              <CardTitle>{isClient ? "Mis Servicios" : "Módulos del Sistema"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {visibleServiceModules.map((mod) => {
-                const Icon = mod.icon
-                return (
-                  <Link
-                    key={mod.key}
-                    href={mod.href}
-                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} card-hover text-left`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center icon-hover`}>
-                        <Icon className={`h-6 w-6 ${mod.iconClass}`} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{mod.label}</h3>
-                        <p className="text-sm text-muted-foreground">{mod.description}</p>
-                      </div>
-                    </div>
-                  </Link>
-                )
-              })}
-
-              {visibleExtraModules.map((mod) => {
-                const Icon = mod.icon
-                return (
-                  <Link
-                    key={mod.key}
-                    href={mod.href}
-                    className={`block w-full p-4 rounded-lg border-2 ${mod.hoverBorder} card-hover text-left`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`h-12 w-12 rounded-lg ${mod.bgClass} flex items-center justify-center icon-hover`}>
-                        <Icon className={`h-6 w-6 ${mod.iconClass}`} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{mod.label}</h3>
-                        <p className="text-sm text-muted-foreground">{mod.description}</p>
-                      </div>
-                    </div>
-                  </Link>
-                )
-              })}
-
-              {/* Control de Procesos - solo admin/contador */}
-              {!isClient && (
-                <Link
-                  href="/dashboard/process-control"
-                  className="block w-full p-4 rounded-lg border-2 hover:border-emerald-500 card-hover text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center icon-hover">
-                      <ClipboardCheck className="h-6 w-6 text-emerald-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Control de Procesos</h3>
-                      <p className="text-sm text-muted-foreground">Seguimiento de flujos de trabajo</p>
-                    </div>
+      {/* KPI Cards — Admin only */}
+      {!isClient && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Trámites Activos",
+              value: stats.totalActive,
+              icon: FileText,
+              color: "text-primary",
+              bgColor: "bg-primary/5",
+              borderColor: "border-primary/10",
+            },
+            {
+              label: "Pendientes",
+              value: stats.totalPending,
+              icon: ClipboardCheck,
+              color: "text-amber-600",
+              bgColor: "bg-amber-50",
+              borderColor: "border-amber-100",
+            },
+            {
+              label: "Eventos Próximos",
+              value: stats.upcomingEvents,
+              icon: Calendar,
+              color: "text-secondary",
+              bgColor: "bg-emerald-50",
+              borderColor: "border-emerald-100",
+            },
+            {
+              label: "Alertas",
+              value: stats.alerts,
+              icon: AlertCircle,
+              color: "text-destructive",
+              bgColor: "bg-red-50",
+              borderColor: "border-red-100",
+            },
+          ].map((kpi, i) => {
+            const Icon = kpi.icon
+            return (
+              <Card
+                key={kpi.label}
+                className={`kpi-card border ${kpi.borderColor} ${kpi.bgColor} animate-fade-in-up`}
+                style={{ animationDelay: `${i * 0.05}s` }}
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
+                    <Icon className={`h-4 w-4 ${kpi.color}`} />
                   </div>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
+                  <p className="text-3xl font-bold text-foreground">{kpi.value}</p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
 
-          {/* Actividad Reciente */}
+      {/* Main Content */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Modules — 2 columns */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Service Modules */}
+          <div>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              {isClient ? "Mis Servicios" : "Módulos Principales"}
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {visibleServiceModules.map((mod, i) => {
+                const Icon = mod.icon
+                return (
+                  <Link key={mod.key} href={mod.href}>
+                    <Card
+                      className="card-hover border border-border hover:border-primary/30 cursor-pointer group animate-fade-in-up"
+                      style={{ animationDelay: `${i * 0.05}s` }}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-10 w-10 rounded-lg ${mod.iconBg} flex items-center justify-center icon-hover flex-shrink-0`}>
+                            <Icon className={`h-5 w-5 ${mod.iconColor}`} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-semibold text-foreground">{mod.label}</h3>
+                            <p className="text-xs text-muted-foreground truncate">{mod.description}</p>
+                          </div>
+                          <ArrowUpRight className="h-4 w-4 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Extra Modules */}
+          <div>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              {isClient ? "Herramientas" : "Gestión y Herramientas"}
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {visibleExtraModules.map((mod, i) => {
+                const Icon = mod.icon
+                return (
+                  <Link key={mod.key} href={mod.href}>
+                    <Card
+                      className="card-hover border border-border hover:border-primary/30 cursor-pointer group animate-fade-in-up"
+                      style={{ animationDelay: `${(i + 4) * 0.05}s` }}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-9 w-9 rounded-lg ${mod.iconBg} flex items-center justify-center icon-hover flex-shrink-0`}>
+                            <Icon className={`h-4 w-4 ${mod.iconColor}`} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-medium text-foreground">{mod.label}</h3>
+                            <p className="text-[11px] text-muted-foreground truncate">{mod.description}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Feed — Right column */}
+        <div className="lg:col-span-1">
           <ActivityFeed />
         </div>
-      </main>
+      </div>
     </div>
   )
 }

@@ -1,10 +1,13 @@
 "use client"
 
-import { UserCircle } from "lucide-react"
+import { useState } from "react"
+import { Search, Bell, LogOut, UserCircle } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { Sidebar } from "@/components/layout/sidebar"
+import { cn } from "@/lib/utils"
 
 export default function DashboardLayout({
     children,
@@ -13,56 +16,73 @@ export default function DashboardLayout({
 }) {
     const { role, fullName, loading } = useUserRole()
     const isClient = isClientRole(role)
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
     const displayName = fullName || "Usuario"
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-            {/* Header */}
-            <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10">
-                <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard" className="flex items-center gap-3">
-                            <div style={{ height: '48px', width: '64px', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-                                <Image src="/images/arycp-logo.jpg" alt="ARYCP Logo" width={200} height={200} style={{ position: 'absolute', top: '-3px', left: '50%', transform: 'translateX(-50%)', width: '180%', height: 'auto', mixBlendMode: 'multiply' }} />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-lg font-bold text-foreground">AR&CP</span>
-                                <span className="text-xs text-muted-foreground -mt-1">ERP System</span>
-                            </div>
-                        </Link>
-                        {!loading && (
-                            <div className="ml-4 pl-4 border-l border-border">
-                                <p className="text-sm text-muted-foreground">Bienvenido, {displayName}</p>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-4">
-                        {/* Notifications bell - only for admin/contador */}
-                        {!isClient && !loading && (
-                            <NotificationBell />
-                        )}
-                        {/* Admin button - only for admin/contador */}
-                        {!isClient && !loading && (
-                            <Link href="/dashboard/users">
-                                <button className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent/10 transition-colors flex items-center gap-2">
-                                    <UserCircle className="h-4 w-4" />
-                                    Administrador
-                                </button>
-                            </Link>
-                        )}
-                        <form action="/auth/logout" method="post">
-                            <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                                Cerrar Sesión
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen bg-background">
+            {/* Sidebar */}
+            {!loading && (
+                <Sidebar
+                    isClient={isClient}
+                    collapsed={sidebarCollapsed}
+                    onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                />
+            )}
 
-            <main className="container mx-auto px-6 py-8">
-                {children}
-            </main>
+            {/* Main Content Area */}
+            <div
+                className={cn(
+                    "sidebar-transition",
+                    loading ? "ml-0" : sidebarCollapsed ? "ml-[68px]" : "ml-[256px]"
+                )}
+            >
+                {/* Topbar */}
+                <header className="sticky top-0 z-20 h-16 border-b border-border bg-card/80 backdrop-blur-md">
+                    <div className="flex items-center justify-between h-full px-6">
+                        {/* Left: Welcome */}
+                        <div className="flex items-center gap-3">
+                            {!loading && (
+                                <p className="text-sm text-muted-foreground">
+                                    Bienvenido, <span className="font-medium text-foreground">{displayName}</span>
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Right: Actions */}
+                        <div className="flex items-center gap-2">
+                            {/* Notifications bell — admin/contador only */}
+                            {!isClient && !loading && (
+                                <NotificationBell />
+                            )}
+
+                            {/* Admin link — admin/contador only */}
+                            {!isClient && !loading && (
+                                <Link href="/dashboard/users">
+                                    <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                                        <UserCircle className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Admin</span>
+                                    </button>
+                                </Link>
+                            )}
+
+                            {/* Logout */}
+                            <form action="/auth/logout" method="post">
+                                <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                                    <LogOut className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Salir</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Page Content */}
+                <main className="p-6">
+                    {children}
+                </main>
+            </div>
         </div>
     )
 }
