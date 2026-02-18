@@ -67,7 +67,13 @@ export async function POST(request: NextRequest) {
 
         if (createError) {
             console.error("Error creating client:", createError)
-            return NextResponse.json({ error: "Error al crear cliente" }, { status: 500 })
+            // Surface specific DB error for debugging
+            const errorMsg = createError.message?.includes("duplicate")
+                ? "Ya existe un cliente con ese email"
+                : createError.message?.includes("violates")
+                    ? `Error de validación: ${createError.message}`
+                    : `Error al crear cliente: ${createError.message || "Error desconocido"}`
+            return NextResponse.json({ error: errorMsg }, { status: 500 })
         }
 
         return NextResponse.json(
