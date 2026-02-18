@@ -16,6 +16,16 @@ export async function GET(request: Request) {
 
         const supabase = createAdminClient()
 
+        // Get user role and client info
+        const { data: sysUser } = await supabase
+            .from("system_users")
+            .select("role, client_id")
+            .eq("auth_user_id", user.id)
+            .single()
+
+        const role = sysUser?.role || ""
+        const userClientId = sysUser?.client_id || null
+
         let query = supabase
             .from("activity_log")
             .select("*")
@@ -25,6 +35,36 @@ export async function GET(request: Request) {
         if (module) {
             query = query.eq("module", module)
         }
+
+        // Role-based filtering
+        if (role === "cliente") {
+            // Clients only see activity related to their own client record
+            if (userClientId) {
+                query = query.eq("client_id", userClientId)
+            } else {
+                // No client linked — show nothing
+                return NextResponse.json({ data: [] })
+            }
+        } else if (role === "contador") {
+            // Contadores see:
+            // 1. Activities they performed (user_id = their auth id)
+            // 2. Activities on clients assigned to them (via client_assignments)
+            const { data: assignments } = await supabase
+                .from("client_assignments")
+                .select("client_id")
+                .eq("user_id", user.id)
+
+            const assignedClientIds = (assignments || []).map(a => a.client_id).filter(Boolean)
+
+            if (assignedClientIds.length > 0) {
+                // user_id matches OR client_id is one of their assigned clients
+                query = query.or(`user_id.eq.${user.id},client_id.in.(${assignedClientIds.join(",")})`)
+            } else {
+                // No assigned clients — only show their own activity
+                query = query.eq("user_id", user.id)
+            }
+        }
+        // Admin: no filter, sees everything
 
         const { data, error } = await query
 
