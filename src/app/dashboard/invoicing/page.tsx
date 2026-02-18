@@ -39,7 +39,7 @@ export default function InvoicingPage() {
 
     async function fetchClients() {
         try {
-            const response = await fetch("/api/clients")
+            const response = await fetch("/api/clients/list")
             const data = await response.json()
             if (response.ok) {
                 setClients(data.data || data.clients || [])

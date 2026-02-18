@@ -22,7 +22,7 @@ export default function InvoicingClientPage() {
 
     async function fetchClientInfo() {
         try {
-            const res = await fetch(`/api/clients`)
+            const res = await fetch(`/api/clients/list`)
             const data = await res.json()
             if (res.ok) {
                 const clients = data.data || data.clients || []
