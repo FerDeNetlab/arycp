@@ -18,6 +18,7 @@ import {
   Briefcase,
   MessageSquare,
   ArrowUpRight,
+  Receipt,
 } from "lucide-react"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
@@ -125,6 +126,15 @@ const ADMIN_MODULES = [
     description: "Mensajes del formulario web",
     iconBg: "bg-purple-100",
     iconColor: "text-purple-600",
+  },
+  {
+    key: "invoicing",
+    href: "/dashboard/invoicing",
+    icon: Receipt,
+    label: "Facturación",
+    description: "Facturas, cancelaciones y plantillas",
+    iconBg: "bg-teal-100",
+    iconColor: "text-teal-600",
   },
   {
     key: "users",
