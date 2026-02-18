@@ -2,6 +2,17 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function updateSession(request: NextRequest) {
+  // Intercept Supabase recovery/auth redirects with ?code= param
+  // and route them to /auth/callback for proper session exchange
+  const code = request.nextUrl.searchParams.get("code")
+  if (code && !request.nextUrl.pathname.startsWith("/auth/callback")) {
+    const callbackUrl = request.nextUrl.clone()
+    callbackUrl.pathname = "/auth/callback"
+    // Keep code param, clear others
+    callbackUrl.search = `?code=${code}`
+    return NextResponse.redirect(callbackUrl)
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -45,7 +56,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If user is logged in and tries to access login/register, redirect to dashboard
-  if (user && (request.nextUrl.pathname.startsWith("/auth/login") || request.nextUrl.pathname.startsWith("/auth/register"))) {
+  // (but allow reset-password and callback since those are part of the recovery flow)
+  if (user && (request.nextUrl.pathname.startsWith("/auth/login") || request.nextUrl.pathname.startsWith("/auth/register") || request.nextUrl.pathname.startsWith("/auth/sign-up"))
+    && !request.nextUrl.pathname.startsWith("/auth/reset-password")
+    && !request.nextUrl.pathname.startsWith("/auth/callback")) {
     const url = request.nextUrl.clone()
     url.pathname = "/dashboard"
     return NextResponse.redirect(url)

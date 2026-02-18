@@ -8,14 +8,28 @@ export async function GET(request: NextRequest) {
 
     if (code) {
         const supabase = await createClient()
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
         if (!error) {
+            // Check if this is a recovery flow — user came from password reset email
+            // After exchanging code, the session type indicates recovery
+            const { data: { user } } = await supabase.auth.getUser()
+
+            // If user has a recovery session (aud = "authenticated" after recovery),
+            // check the session's AMR (Authentication Methods Reference)
+            if (data?.session) {
+                const amr = (data.session as any)?.amr
+                const isRecovery = amr?.some?.((m: any) => m.method === "recovery")
+                if (isRecovery) {
+                    return NextResponse.redirect(`${origin}/auth/reset-password`)
+                }
+            }
+
             return NextResponse.redirect(`${origin}${next}`)
         }
     }
 
-    // Check for recovery flow (type=recovery in hash is handled client-side,
-    // but the email link may include token_hash and type as query params)
+    // Handle token_hash flow (older email templates)
     const tokenHash = searchParams.get("token_hash")
     const type = searchParams.get("type")
 
