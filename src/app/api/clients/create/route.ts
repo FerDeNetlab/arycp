@@ -56,7 +56,6 @@ export async function POST(request: NextRequest) {
                 name,
                 email,
                 phone: phone || null,
-                status: "active",
                 has_accounting: has_accounting || false,
                 has_fiscal: has_fiscal || false,
                 has_legal: has_legal || false,
