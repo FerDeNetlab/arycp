@@ -45,6 +45,7 @@ export function AddClientSimpleDialog({ children, onClientCreated }: { children:
           has_fiscal: formData.get("has_fiscal") === "on",
           has_legal: formData.get("has_legal") === "on",
           has_labor: formData.get("has_labor") === "on",
+          has_invoicing: formData.get("has_invoicing") === "on",
         }),
       })
 
@@ -116,6 +117,12 @@ export function AddClientSimpleDialog({ children, onClientCreated }: { children:
               <Checkbox id="has_labor" name="has_labor" />
               <label htmlFor="has_labor" className="text-sm cursor-pointer">
                 Laboral
+              </label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="has_invoicing" name="has_invoicing" />
+              <label htmlFor="has_invoicing" className="text-sm cursor-pointer">
+                Facturación
               </label>
             </div>
           </div>

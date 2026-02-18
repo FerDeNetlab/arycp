@@ -19,6 +19,7 @@ import {
     ChevronLeft,
     ChevronRight,
     LayoutDashboard,
+    Receipt,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -36,6 +37,7 @@ const NAV_SECTIONS = [
             { href: "/dashboard/fiscal", icon: FileWarning, label: "Fiscal" },
             { href: "/dashboard/legal", icon: Scale, label: "Jurídico" },
             { href: "/dashboard/labor", icon: Briefcase, label: "Laboral" },
+            { href: "/dashboard/invoicing", icon: Receipt, label: "Facturación" },
             { href: "/dashboard/procedures", icon: FileText, label: "Tramitología" },
         ],
     },
@@ -77,6 +79,7 @@ const CLIENT_NAV = [
             { href: "/dashboard/fiscal", icon: FileWarning, label: "Fiscal" },
             { href: "/dashboard/legal", icon: Scale, label: "Jurídico" },
             { href: "/dashboard/labor", icon: Briefcase, label: "Laboral" },
+            { href: "/dashboard/invoicing", icon: Receipt, label: "Facturación" },
             { href: "/dashboard/procedures", icon: FileText, label: "Mis Trámites" },
             { href: "/dashboard/calendar", icon: Calendar, label: "Calendario" },
         ],

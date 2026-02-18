@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
         // 3. Obtener datos del body
         const body = await request.json()
-        const { name, email, phone, has_accounting, has_fiscal, has_legal, has_labor } = body
+        const { name, email, phone, has_accounting, has_fiscal, has_legal, has_labor, has_invoicing } = body
 
         // 4. Validar datos requeridos
         if (!name || !email) {
@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
                 has_fiscal: has_fiscal || false,
                 has_legal: has_legal || false,
                 has_labor: has_labor || false,
+                has_invoicing: has_invoicing || false,
             })
             .select()
             .single()

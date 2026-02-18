@@ -16,6 +16,7 @@ interface Client {
   has_fiscal: boolean
   has_legal: boolean
   has_labor: boolean
+  has_invoicing?: boolean
   created_at: string
   client_assignments?: Array<{
     system_users: {
@@ -54,6 +55,7 @@ export function ClientsSimpleList({ clients }: { clients: Client[] }) {
                     {client.has_fiscal && <Badge variant="secondary">Fiscal</Badge>}
                     {client.has_legal && <Badge variant="secondary">Jurídico</Badge>}
                     {client.has_labor && <Badge variant="secondary">Laboral</Badge>}
+                    {client.has_invoicing && <Badge variant="secondary">Facturación</Badge>}
                   </div>
                 </div>
               </div>

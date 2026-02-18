@@ -27,6 +27,7 @@ interface Client {
   has_fiscal: boolean
   has_legal: boolean
   has_labor: boolean
+  has_invoicing?: boolean
 }
 
 export function EditClientDialog({ client, children }: { client: Client; children: React.ReactNode }) {
@@ -51,6 +52,7 @@ export function EditClientDialog({ client, children }: { client: Client; childre
         has_fiscal: formData.get("has_fiscal") === "on",
         has_legal: formData.get("has_legal") === "on",
         has_labor: formData.get("has_labor") === "on",
+        has_invoicing: formData.get("has_invoicing") === "on",
       })
       .eq("id", client.id)
 
@@ -111,6 +113,12 @@ export function EditClientDialog({ client, children }: { client: Client; childre
               <Checkbox id="has_labor" name="has_labor" defaultChecked={client.has_labor} />
               <label htmlFor="has_labor" className="text-sm cursor-pointer">
                 Laboral
+              </label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="has_invoicing" name="has_invoicing" defaultChecked={client.has_invoicing} />
+              <label htmlFor="has_invoicing" className="text-sm cursor-pointer">
+                Facturación
               </label>
             </div>
           </div>
