@@ -35,13 +35,23 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
     let ivaSum = 0
 
     for (const row of data) {
-        const total = parseFloat(row["Total"]) || 0
-        const subtotal = parseFloat(row["Neto"]) || parseFloat(row["Subtotal"]) || 0
-        const iva = parseFloat(row["Traslado IVA"]) || parseFloat(row["IVA"]) || 0
-
-        totalSum += total
-        subtotalSum += subtotal
-        ivaSum += iva
+        if (type === "iva_trasladado") {
+            // IVA Trasladado file: use "IVA total" or "IVA 16%" for IVA, "Base IVA 16%" for base
+            ivaSum += parseFloat(row["IVA total"]) || parseFloat(row["IVA 16%"]) || 0
+            subtotalSum += parseFloat(row["Base IVA 16%"]) || 0
+            totalSum += parseFloat(row["Total"]) || 0
+        } else if (type === "iva_acreditable") {
+            // IVA Acreditable file: use "IVA acreditable total" or "IVA 16%" for IVA, "Base IVA 16%" for base
+            ivaSum += parseFloat(row["IVA acreditable total"]) || parseFloat(row["IVA 16%"]) || 0
+            subtotalSum += parseFloat(row["Base IVA 16%"]) || parseFloat(row["Base IVA 8%"]) || 0
+            totalSum += parseFloat(row["Total"]) || 0
+        } else {
+            // Emitidos/Recibidos files
+            totalSum += parseFloat(row["Total"]) || 0
+            // "Base de IVA traslado" is the net income that matches EZAudita's "Ingresos netos"
+            subtotalSum += parseFloat(row["Base de IVA traslado"]) || parseFloat(row["Neto"]) || parseFloat(row["Subtotal"]) || 0
+            ivaSum += parseFloat(row["Importe IVA traslado"]) || parseFloat(row["Traslado IVA"]) || 0
+        }
     }
 
     return {
@@ -112,21 +122,25 @@ export async function POST(request: Request) {
 
             switch (parsed.type) {
                 case "emitidos":
-                    totalEmitidos += parsed.total
+                    // Use subtotal ("Base de IVA traslado") = net income matching EZAudita
+                    totalEmitidos += parsed.subtotal
                     ivaEmitidos += parsed.iva
                     numEmitidas += parsed.count
                     break
                 case "recibidos":
-                    totalRecibidos += parsed.total
+                    // Use subtotal ("Neto") for expenses
+                    totalRecibidos += parsed.subtotal
                     ivaRecibidos += parsed.iva
                     numRecibidas += parsed.count
                     break
                 case "iva_trasladado":
-                    ivaTrasladado += parsed.total || parsed.iva
+                    // Use iva ("IVA total") from the IVA trasladado file
+                    ivaTrasladado += parsed.iva
                     hasIvaFiles = true
                     break
                 case "iva_acreditable":
-                    ivaAcreditable += parsed.total || parsed.iva
+                    // Use iva ("IVA acreditable total") from the IVA acreditable file
+                    ivaAcreditable += parsed.iva
                     hasIvaFiles = true
                     break
             }
