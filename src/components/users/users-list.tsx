@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { UserCircle, Mail, Phone, Edit, Trash2 } from "lucide-react"
 import { EditUserDialog } from "./edit-user-dialog"
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
 interface SystemUser {
@@ -24,9 +23,15 @@ export function UsersList({ users }: { users: SystemUser[] }) {
   async function handleDelete(userId: string) {
     if (!confirm("¿Estás seguro de eliminar este usuario?")) return
 
-    const supabase = createClient()
-    await supabase.from("system_users").delete().eq("id", userId)
-    router.refresh()
+    try {
+      const res = await fetch(`/api/users/update?id=${userId}`, { method: "DELETE" })
+      if (res.ok) {
+        router.refresh()
+        window.location.reload()
+      }
+    } catch (err) {
+      console.error("Error deleting user:", err)
+    }
   }
 
   if (users.length === 0) {

@@ -56,3 +56,47 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Error interno" }, { status: 500 })
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const serverClient = await createClient()
+        const { data: { user }, error: authError } = await serverClient.auth.getUser()
+
+        if (authError || !user) {
+            return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        }
+
+        const adminClient = createAdminClient()
+        const { data: currentUser } = await adminClient
+            .from("system_users")
+            .select("role")
+            .eq("auth_user_id", user.id)
+            .single()
+
+        if (!currentUser || currentUser.role !== "admin") {
+            return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
+        }
+
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get("id")
+
+        if (!id) {
+            return NextResponse.json({ error: "ID requerido" }, { status: 400 })
+        }
+
+        const { error: deleteError } = await adminClient
+            .from("system_users")
+            .delete()
+            .eq("id", id)
+
+        if (deleteError) {
+            console.error("Error deleting user:", deleteError)
+            return NextResponse.json({ error: "Error al eliminar usuario" }, { status: 500 })
+        }
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        console.error("Unexpected error:", error)
+        return NextResponse.json({ error: "Error interno" }, { status: 500 })
+    }
+}

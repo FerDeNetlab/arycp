@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { createClient } from "@/lib/supabase/client"
 
 interface SystemUser {
   id: string
@@ -72,29 +71,27 @@ export function ManageAssignmentsDialog({ client, children }: { client: Client; 
 
   async function handleSave() {
     setLoading(true)
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
 
-    // Eliminar asignaciones existentes
-    await supabase.from("client_assignments").delete().eq("client_id", client.id)
+    try {
+      const response = await fetch("/api/clients/assignments", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: client.id,
+          user_ids: Array.from(selectedUsers),
+        }),
+      })
 
-    // Crear nuevas asignaciones
-    if (selectedUsers.size > 0) {
-      const assignments = Array.from(selectedUsers).map((userId) => ({
-        client_id: client.id,
-        system_user_id: userId,
-        assigned_by: user.id,
-      }))
-
-      await supabase.from("client_assignments").insert(assignments)
+      if (response.ok) {
+        setOpen(false)
+        router.refresh()
+        window.location.reload()
+      }
+    } catch (err) {
+      console.error("Error saving assignments:", err)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
-    setOpen(false)
-    router.refresh()
   }
 
   function toggleUser(userId: string) {
