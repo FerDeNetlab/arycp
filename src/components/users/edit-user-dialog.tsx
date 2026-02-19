@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/client"
 
 interface SystemUser {
   id: string
@@ -50,25 +49,32 @@ export function EditUserDialog({ user, children }: { user: SystemUser; children:
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    const supabase = createClient()
 
-    const { error } = await supabase
-      .from("system_users")
-      .update({
-        full_name: formData.get("full_name") as string,
-        email: formData.get("email") as string,
-        phone: (formData.get("phone") as string) || null,
-        role: role,
-        is_active: formData.get("is_active") === "on",
-        module_permissions: permissions,
+    try {
+      const response = await fetch("/api/users/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: user.id,
+          full_name: formData.get("full_name") as string,
+          email: formData.get("email") as string,
+          phone: (formData.get("phone") as string) || null,
+          role: role,
+          is_active: formData.get("is_active") === "on",
+          module_permissions: permissions,
+        }),
       })
-      .eq("id", user.id)
 
-    setLoading(false)
+      setLoading(false)
 
-    if (!error) {
-      setOpen(false)
-      router.refresh()
+      if (response.ok) {
+        setOpen(false)
+        router.refresh()
+        window.location.reload()
+      }
+    } catch (err) {
+      console.error("Error:", err)
+      setLoading(false)
     }
   }
 
