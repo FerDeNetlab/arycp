@@ -49,10 +49,20 @@ export async function GET(request: Request) {
             // Contadores see:
             // 1. Activities they performed (user_id = their auth id)
             // 2. Activities on clients assigned to them (via client_assignments)
+
+            // First get the system_user id for this auth user
+            const { data: sysUserRecord } = await supabase
+                .from("system_users")
+                .select("id")
+                .eq("auth_user_id", user.id)
+                .single()
+
+            const systemUserId = sysUserRecord?.id
+
             const { data: assignments } = await supabase
                 .from("client_assignments")
                 .select("client_id")
-                .eq("user_id", user.id)
+                .eq("system_user_id", systemUserId)
 
             const assignedClientIds = (assignments || []).map(a => a.client_id).filter(Boolean)
 
