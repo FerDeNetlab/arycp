@@ -15,14 +15,23 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { createClient } from "@/lib/supabase/client"
 
 export function AddClientSimpleDialog({ children, onClientCreated }: { children: React.ReactNode; onClientCreated?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [services, setServices] = useState({
+    has_accounting: false,
+    has_fiscal: false,
+    has_legal: false,
+    has_labor: false,
+    has_invoicing: false,
+  })
   const router = useRouter()
+
+  function toggleService(key: keyof typeof services) {
+    setServices(prev => ({ ...prev, [key]: !prev[key] }))
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -41,11 +50,7 @@ export function AddClientSimpleDialog({ children, onClientCreated }: { children:
           name: formData.get("name") as string,
           email: formData.get("email") as string,
           phone: (formData.get("phone") as string) || null,
-          has_accounting: formData.get("has_accounting") === "on",
-          has_fiscal: formData.get("has_fiscal") === "on",
-          has_legal: formData.get("has_legal") === "on",
-          has_labor: formData.get("has_labor") === "on",
-          has_invoicing: formData.get("has_invoicing") === "on",
+          ...services,
         }),
       })
 
@@ -59,14 +64,30 @@ export function AddClientSimpleDialog({ children, onClientCreated }: { children:
 
       // Éxito
       setOpen(false)
+      setServices({
+        has_accounting: false,
+        has_fiscal: false,
+        has_legal: false,
+        has_labor: false,
+        has_invoicing: false,
+      })
       onClientCreated?.()
       router.refresh()
+      window.location.reload()
     } catch (err) {
       console.error("Error:", err)
       setError("Error de conexión. Intenta nuevamente.")
       setLoading(false)
     }
   }
+
+  const serviceOptions = [
+    { key: "has_accounting" as const, label: "Contabilidad" },
+    { key: "has_fiscal" as const, label: "Fiscal" },
+    { key: "has_legal" as const, label: "Jurídico" },
+    { key: "has_labor" as const, label: "Laboral" },
+    { key: "has_invoicing" as const, label: "Facturación" },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -95,36 +116,20 @@ export function AddClientSimpleDialog({ children, onClientCreated }: { children:
 
           <div className="space-y-3">
             <Label>Servicios Contratados</Label>
-            <div className="flex items-center space-x-2">
-              <Checkbox id="has_accounting" name="has_accounting" />
-              <label htmlFor="has_accounting" className="text-sm cursor-pointer">
-                Contabilidad
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox id="has_fiscal" name="has_fiscal" />
-              <label htmlFor="has_fiscal" className="text-sm cursor-pointer">
-                Fiscal
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox id="has_legal" name="has_legal" />
-              <label htmlFor="has_legal" className="text-sm cursor-pointer">
-                Jurídico
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox id="has_labor" name="has_labor" />
-              <label htmlFor="has_labor" className="text-sm cursor-pointer">
-                Laboral
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox id="has_invoicing" name="has_invoicing" />
-              <label htmlFor="has_invoicing" className="text-sm cursor-pointer">
-                Facturación
-              </label>
-            </div>
+            {serviceOptions.map(({ key, label }) => (
+              <div key={key} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`add_${key}`}
+                  checked={services[key]}
+                  onChange={() => toggleService(key)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+                />
+                <label htmlFor={`add_${key}`} className="text-sm cursor-pointer select-none">
+                  {label}
+                </label>
+              </div>
+            ))}
           </div>
 
           {error && (
