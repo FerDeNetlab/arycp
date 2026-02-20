@@ -45,6 +45,69 @@ export async function POST(request: Request) {
             legal_process: "legal_processes",
         }
 
+        // Special handling for DIOT assignments (no DB table to update)
+        if (entityType === "diot_assignment") {
+            // entityId format: "clientId-year-month"
+            const parts = entityId.split("-")
+            const diotClientId = parts.slice(0, -2).join("-") // handle UUID with dashes
+            const diotYear = parts[parts.length - 2]
+            const diotMonth = parts[parts.length - 1]
+
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            const monthName = monthNames[parseInt(diotMonth) - 1] || diotMonth
+
+            // Get client name
+            let clientName = ""
+            if (diotClientId) {
+                const { data: client } = await supabase
+                    .from("clients")
+                    .select("business_name, name")
+                    .eq("id", diotClientId)
+                    .single()
+                clientName = client?.business_name || client?.name || ""
+            }
+
+            const diotDesc = `DIOT ${monthName} ${diotYear}`
+
+            // Log activity
+            await logActivity({
+                userId: user.id,
+                userName: assigner?.full_name || "Usuario",
+                clientId: diotClientId,
+                clientName,
+                module: "accounting",
+                action: "assigned",
+                entityType: "diot_assignment",
+                entityId,
+                description: `${assigner?.full_name || "Un usuario"} asignó ${diotDesc} a ${assignee.full_name}${clientName ? ` (${clientName})` : ""}`,
+                metadata: {
+                    assigned_from: user.id,
+                    assigned_to: assignToUserId,
+                    assigned_to_name: assignee.full_name,
+                    diot_year: diotYear,
+                    diot_month: diotMonth,
+                },
+            })
+
+            // Create notification for the assignee
+            await createNotification({
+                userId: assignToUserId,
+                fromUserId: user.id,
+                fromUserName: assigner?.full_name || "Un usuario",
+                type: "assignment",
+                title: `DIOT listo: ${monthName} ${diotYear}`,
+                message: `${assigner?.full_name || "Un usuario"} te asignó el DIOT de ${monthName} ${diotYear}${clientName ? ` del cliente ${clientName}` : ""}. La contabilidad del mes está lista.`,
+                module: "accounting",
+                entityType: "diot_assignment",
+                entityId,
+            })
+
+            return NextResponse.json({
+                success: true,
+                assignedTo: assignee.full_name,
+            })
+        }
+
         const tableName = tableMap[entityType]
         if (!tableName) {
             return NextResponse.json({ error: "Tipo de entidad inválido" }, { status: 400 })
