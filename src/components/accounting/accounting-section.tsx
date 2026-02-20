@@ -504,7 +504,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 bg-transparent"
+                      className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                       onClick={(e) => {
                         e.stopPropagation()
                         openMonthDialog(index)
@@ -516,7 +516,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                     <Button
                       size="sm"
                       variant="outline"
-                      className="bg-transparent"
+                      className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                       title="Importar Excel de EZAudita"
                       onClick={(e) => {
                         e.stopPropagation()
@@ -529,7 +529,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                       <Button
                         size="sm"
                         variant="outline"
-                        className={`bg-transparent ${diotAssignedMonth[index + 1] ? 'border-emerald-300 text-emerald-700' : ''}`}
+                        className={`${diotAssignedMonth[index + 1] ? 'border-purple-400 bg-purple-50 text-purple-800' : 'border-purple-300 text-purple-700 hover:bg-purple-50 hover:text-purple-800'}`}
                         title={diotAssignedMonth[index + 1] ? `DIOT: ${diotAssignedMonth[index + 1]}` : "Asignar DIOT"}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -543,7 +543,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                       <Button
                         size="sm"
                         variant="outline"
-                        className="bg-transparent"
+                        className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
                         onClick={(e) => {
                           e.stopPropagation()
                           openEmailDialog(declaration)
