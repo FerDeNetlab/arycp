@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
             const diotDesc = `DIOT ${monthName} ${diotYear}`
 
-            // Log activity directly
+            // Log activity directly (entity_id is UUID column, so use null for DIOT)
             const { error: activityErr } = await supabase.from("activity_log").insert({
                 user_id: user.id,
                 user_name: assigner?.full_name || "Usuario",
@@ -88,17 +88,19 @@ export async function POST(request: Request) {
                 module: "accounting",
                 action: "assigned",
                 entity_type: "diot_assignment",
-                entity_id: entityId,
+                entity_id: null,
                 description: `${assigner?.full_name || "Un usuario"} asignó ${diotDesc} a ${assignee.full_name}${clientName ? ` (${clientName})` : ""}`,
                 metadata: {
                     assigned_from: user.id,
                     assigned_to: assignToUserId,
                     assigned_to_name: assignee.full_name,
+                    diot_year: diotYear,
+                    diot_month: diotMonth,
                 },
             })
             debug.activityInsert = activityErr ? { error: activityErr.message, code: activityErr.code, details: activityErr.details } : "OK"
 
-            // Create notification directly
+            // Create notification directly (entity_id is UUID column, so use null for DIOT)
             const { error: notifError } = await supabase.from("notifications").insert({
                 user_id: assignToUserId,
                 from_user_id: user.id,
@@ -108,7 +110,7 @@ export async function POST(request: Request) {
                 message: `${assigner?.full_name || "Un usuario"} te asignó el DIOT de ${monthName} ${diotYear}${clientName ? ` del cliente ${clientName}` : ""}. La contabilidad del mes está lista.`,
                 module: "accounting",
                 entity_type: "diot_assignment",
-                entity_id: entityId,
+                entity_id: null,
             })
             debug.notificationInsert = notifError ? { error: notifError.message, code: notifError.code, details: notifError.details } : "OK"
 
