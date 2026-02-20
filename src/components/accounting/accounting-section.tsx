@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Plus, Mail, Upload, X, FileSpreadsheet, ArrowUpDown, TrendingUp, TrendingDown, Receipt } from "lucide-react"
+import { FileText, Plus, Mail, Upload, X, FileSpreadsheet, ArrowUpDown, TrendingUp, TrendingDown, Receipt, UserPlus, Check, Loader2, ClipboardList } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -65,6 +65,13 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
   const [isImporting, setIsImporting] = useState(false)
   const [importMonth, setImportMonth] = useState<number | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  // DIOT state
+  const [isDiotDialogOpen, setIsDiotDialogOpen] = useState(false)
+  const [diotMonth, setDiotMonth] = useState<number | null>(null)
+  const [diotContadores, setDiotContadores] = useState<Array<{ id: string; auth_user_id: string; full_name: string; role: string }>>([])
+  const [diotLoading, setDiotLoading] = useState(false)
+  const [diotAssigning, setDiotAssigning] = useState(false)
+  const [diotAssignedMonth, setDiotAssignedMonth] = useState<Record<number, string>>({})
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -263,6 +270,59 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
   function openEmailDialog(declaration: MonthlyDeclaration) {
     setFormData(declaration)
     setIsEmailDialogOpen(true)
+  }
+
+  // === DIOT Logic ===
+  async function openDiotDialog(monthIndex: number) {
+    setDiotMonth(monthIndex + 1)
+    setIsDiotDialogOpen(true)
+    if (diotContadores.length === 0) {
+      setDiotLoading(true)
+      try {
+        const res = await fetch("/api/users/contadores")
+        const result = await res.json()
+        if (res.ok) {
+          setDiotContadores(result.data || [])
+        }
+      } catch (err) {
+        console.error("Error loading contadores:", err)
+      } finally {
+        setDiotLoading(false)
+      }
+    }
+  }
+
+  async function assignDiot(contador: { id: string; auth_user_id: string; full_name: string }) {
+    if (!diotMonth) return
+    setDiotAssigning(true)
+    try {
+      const res = await fetch("/api/activity/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityType: "diot_assignment",
+          entityId: `${clientId}-${selectedYear}-${diotMonth}`,
+          assignToUserId: contador.auth_user_id,
+          module: "accounting",
+        }),
+      })
+
+      if (res.ok) {
+        setDiotAssignedMonth(prev => ({ ...prev, [diotMonth]: contador.full_name }))
+        toast({
+          title: "DIOT asignado",
+          description: `Se asignó DIOT de ${months[diotMonth - 1]} a ${contador.full_name}`,
+        })
+        setIsDiotDialogOpen(false)
+      } else {
+        const result = await res.json()
+        throw new Error(result.error)
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    } finally {
+      setDiotAssigning(false)
+    }
   }
 
   // === Import Excel Logic ===
@@ -465,6 +525,20 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                     >
                       <FileSpreadsheet className="h-3 w-3" />
                     </Button>
+                    {hasData && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`bg-transparent ${diotAssignedMonth[index + 1] ? 'border-emerald-300 text-emerald-700' : ''}`}
+                        title={diotAssignedMonth[index + 1] ? `DIOT: ${diotAssignedMonth[index + 1]}` : "Asignar DIOT"}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openDiotDialog(index)
+                        }}
+                      >
+                        <ClipboardList className="h-3 w-3" />
+                      </Button>
+                    )}
                     {hasData && declaration.declaration_pdf_url && (
                       <Button
                         size="sm"
@@ -694,6 +768,54 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                   </Button>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* DIOT Assignment Dialog */}
+        {!isClient && (
+          <Dialog open={isDiotDialogOpen} onOpenChange={setIsDiotDialogOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-primary" />
+                  Asignar DIOT - {diotMonth && `${months[diotMonth - 1]} ${selectedYear}`}
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Selecciona al contador que realizará el DIOT de este mes.
+              </p>
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {diotLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : diotContadores.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No hay contadores disponibles</p>
+                ) : (
+                  diotContadores.map((contador) => (
+                    <button
+                      key={contador.id}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                      onClick={() => assignDiot(contador)}
+                      disabled={diotAssigning}
+                    >
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-primary">
+                          {contador.full_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{contador.full_name}</p>
+                        <p className="text-[11px] text-muted-foreground capitalize">{contador.role}</p>
+                      </div>
+                      {diotMonth && diotAssignedMonth[diotMonth] === contador.full_name && (
+                        <Check className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
             </DialogContent>
           </Dialog>
         )}
