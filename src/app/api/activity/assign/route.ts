@@ -47,11 +47,20 @@ export async function POST(request: Request) {
 
         // Special handling for DIOT assignments (no DB table to update)
         if (entityType === "diot_assignment") {
+            const debug: Record<string, any> = {}
+
             // entityId format: "clientId-year-month"
             const parts = entityId.split("-")
-            const diotClientId = parts.slice(0, -2).join("-") // handle UUID with dashes
+            const diotClientId = parts.slice(0, -2).join("-")
             const diotYear = parts[parts.length - 2]
             const diotMonth = parts[parts.length - 1]
+
+            debug.entityId = entityId
+            debug.parsedClientId = diotClientId
+            debug.parsedYear = diotYear
+            debug.parsedMonth = diotMonth
+            debug.assignToUserId = assignToUserId
+            debug.currentUserId = user.id
 
             const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
             const monthName = monthNames[parseInt(diotMonth) - 1] || diotMonth
@@ -59,61 +68,56 @@ export async function POST(request: Request) {
             // Get client name
             let clientName = ""
             if (diotClientId) {
-                const { data: client } = await supabase
+                const { data: client, error: clientErr } = await supabase
                     .from("clients")
                     .select("business_name, name")
                     .eq("id", diotClientId)
                     .single()
                 clientName = client?.business_name || client?.name || ""
+                debug.clientLookup = { found: !!client, name: clientName, error: clientErr?.message }
             }
 
             const diotDesc = `DIOT ${monthName} ${diotYear}`
 
-            // Log activity
-            await logActivity({
-                userId: user.id,
-                userName: assigner?.full_name || "Usuario",
-                clientId: diotClientId,
-                clientName,
+            // Log activity directly
+            const { error: activityErr } = await supabase.from("activity_log").insert({
+                user_id: user.id,
+                user_name: assigner?.full_name || "Usuario",
+                client_id: diotClientId || null,
+                client_name: clientName || null,
                 module: "accounting",
                 action: "assigned",
-                entityType: "diot_assignment",
-                entityId,
+                entity_type: "diot_assignment",
+                entity_id: entityId,
                 description: `${assigner?.full_name || "Un usuario"} asignó ${diotDesc} a ${assignee.full_name}${clientName ? ` (${clientName})` : ""}`,
                 metadata: {
                     assigned_from: user.id,
                     assigned_to: assignToUserId,
                     assigned_to_name: assignee.full_name,
-                    diot_year: diotYear,
-                    diot_month: diotMonth,
                 },
             })
+            debug.activityInsert = activityErr ? { error: activityErr.message, code: activityErr.code, details: activityErr.details } : "OK"
 
-            // Create notification for the assignee directly (not using helper, to catch errors)
-            console.log("[DIOT] Creating notification for userId:", assignToUserId, "from:", user.id)
-            const { error: notifError } = await supabase
-                .from("notifications")
-                .insert({
-                    user_id: assignToUserId,
-                    from_user_id: user.id,
-                    from_user_name: assigner?.full_name || "Un usuario",
-                    type: "assignment",
-                    title: `DIOT listo: ${monthName} ${diotYear}`,
-                    message: `${assigner?.full_name || "Un usuario"} te asignó el DIOT de ${monthName} ${diotYear}${clientName ? ` del cliente ${clientName}` : ""}. La contabilidad del mes está lista.`,
-                    module: "accounting",
-                    entity_type: "diot_assignment",
-                    entity_id: entityId,
-                })
+            // Create notification directly
+            const { error: notifError } = await supabase.from("notifications").insert({
+                user_id: assignToUserId,
+                from_user_id: user.id,
+                from_user_name: assigner?.full_name || "Un usuario",
+                type: "assignment",
+                title: `DIOT listo: ${monthName} ${diotYear}`,
+                message: `${assigner?.full_name || "Un usuario"} te asignó el DIOT de ${monthName} ${diotYear}${clientName ? ` del cliente ${clientName}` : ""}. La contabilidad del mes está lista.`,
+                module: "accounting",
+                entity_type: "diot_assignment",
+                entity_id: entityId,
+            })
+            debug.notificationInsert = notifError ? { error: notifError.message, code: notifError.code, details: notifError.details } : "OK"
 
-            if (notifError) {
-                console.error("[DIOT] Notification insert error:", notifError)
-            } else {
-                console.log("[DIOT] Notification created successfully")
-            }
+            console.log("[DIOT DEBUG]", JSON.stringify(debug, null, 2))
 
             return NextResponse.json({
                 success: true,
                 assignedTo: assignee.full_name,
+                debug,
             })
         }
 

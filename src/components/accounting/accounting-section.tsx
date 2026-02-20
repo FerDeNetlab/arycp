@@ -307,6 +307,9 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
         }),
       })
 
+      const result = await res.json()
+      console.log("[DIOT Response]", result)
+
       if (res.ok) {
         setDiotAssignedMonth(prev => ({ ...prev, [diotMonth]: contador.full_name }))
         toast({
@@ -315,7 +318,6 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
         })
         setIsDiotDialogOpen(false)
       } else {
-        const result = await res.json()
         throw new Error(result.error)
       }
     } catch (err: any) {
