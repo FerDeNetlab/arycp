@@ -89,18 +89,27 @@ export async function POST(request: Request) {
                 },
             })
 
-            // Create notification for the assignee
-            await createNotification({
-                userId: assignToUserId,
-                fromUserId: user.id,
-                fromUserName: assigner?.full_name || "Un usuario",
-                type: "assignment",
-                title: `DIOT listo: ${monthName} ${diotYear}`,
-                message: `${assigner?.full_name || "Un usuario"} te asignó el DIOT de ${monthName} ${diotYear}${clientName ? ` del cliente ${clientName}` : ""}. La contabilidad del mes está lista.`,
-                module: "accounting",
-                entityType: "diot_assignment",
-                entityId,
-            })
+            // Create notification for the assignee directly (not using helper, to catch errors)
+            console.log("[DIOT] Creating notification for userId:", assignToUserId, "from:", user.id)
+            const { error: notifError } = await supabase
+                .from("notifications")
+                .insert({
+                    user_id: assignToUserId,
+                    from_user_id: user.id,
+                    from_user_name: assigner?.full_name || "Un usuario",
+                    type: "assignment",
+                    title: `DIOT listo: ${monthName} ${diotYear}`,
+                    message: `${assigner?.full_name || "Un usuario"} te asignó el DIOT de ${monthName} ${diotYear}${clientName ? ` del cliente ${clientName}` : ""}. La contabilidad del mes está lista.`,
+                    module: "accounting",
+                    entity_type: "diot_assignment",
+                    entity_id: entityId,
+                })
+
+            if (notifError) {
+                console.error("[DIOT] Notification insert error:", notifError)
+            } else {
+                console.log("[DIOT] Notification created successfully")
+            }
 
             return NextResponse.json({
                 success: true,
