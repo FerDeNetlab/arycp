@@ -12,9 +12,11 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Briefcase, Plus, Trash2, Edit2, Users, FileText, Calendar,
-  DollarSign, UserPlus, UserMinus, AlertCircle, Check, Clock
+  DollarSign, UserPlus, UserMinus, AlertCircle, Check, Clock,
+  CheckCircle2, XCircle, ArrowUpDown
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 interface Payroll {
   id: string
@@ -23,6 +25,10 @@ interface Payroll {
   status: string
   completed_date: string | null
   comments: string | null
+  stamping_day: string | null
+  has_subsidy: boolean
+  has_aguinaldo: boolean
+  aguinaldo_sent: boolean
   created_at: string
 }
 
@@ -49,6 +55,16 @@ interface IMSSMovement {
   comments: string | null
   month: number
   year: number
+  performed_by: string | null
+  confirmed: boolean
+  request_date: string | null
+  patron_registration: string | null
+  incapacity_type: string | null
+  folios: string | null
+  confirmation_date: string | null
+  integrated_salary: number | null
+  requested_by: string | null
+  request_medium: string | null
   created_at: string
 }
 
@@ -74,7 +90,6 @@ const MONTHS = [
 export function LaborSection({ clientId, userRole }: { clientId: string; userRole?: string }) {
   const isClient = userRole === "cliente"
   const [activeTab, setActiveTab] = useState("payroll")
-  const supabase = createClient()
 
   return (
     <Card className="border-2 border-green-200 shadow-sm">
@@ -97,7 +112,7 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
             </TabsTrigger>
             <TabsTrigger value="imss" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Altas/Bajas IMSS
+              Movimientos IMSS
             </TabsTrigger>
             <TabsTrigger value="taxes" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
@@ -106,19 +121,19 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
           </TabsList>
 
           <TabsContent value="payroll" className="mt-6">
-            <PayrollSection clientId={clientId} supabase={supabase} isClient={isClient} />
+            <PayrollSection clientId={clientId} isClient={isClient} />
           </TabsContent>
 
           <TabsContent value="incidents" className="mt-6">
-            <IncidentsSection clientId={clientId} supabase={supabase} isClient={isClient} />
+            <IncidentsSection clientId={clientId} isClient={isClient} />
           </TabsContent>
 
           <TabsContent value="imss" className="mt-6">
-            <IMSSSection clientId={clientId} supabase={supabase} isClient={isClient} />
+            <IMSSSection clientId={clientId} isClient={isClient} />
           </TabsContent>
 
           <TabsContent value="taxes" className="mt-6">
-            <TaxesSection clientId={clientId} supabase={supabase} isClient={isClient} />
+            <TaxesSection clientId={clientId} isClient={isClient} />
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -126,16 +141,23 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
   )
 }
 
-// Sección de Nóminas
-function PayrollSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
+// ===========================================
+// Sección de Nóminas (Enhanced)
+// ===========================================
+function PayrollSection({ clientId, isClient }: { clientId: string; isClient: boolean }) {
+  const { toast } = useToast()
   const [payrolls, setPayrolls] = useState<Payroll[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [formData, setFormData] = useState({
-    payroll_type: "quincenal",
+    payroll_type: "semanal",
     period: "",
     status: "pendiente",
-    comments: ""
+    comments: "",
+    stamping_day: "",
+    has_subsidy: false,
+    has_aguinaldo: false,
+    aguinaldo_sent: false,
   })
 
   useEffect(() => {
@@ -144,50 +166,58 @@ function PayrollSection({ clientId, supabase, isClient }: { clientId: string; su
 
   const loadPayrolls = async () => {
     setIsLoading(true)
-    const { data } = await supabase
-      .from("labor_payroll")
-      .select("*")
-      .eq("client_id", clientId)
-      .order("created_at", { ascending: false })
-
-    if (data) setPayrolls(data)
+    try {
+      const res = await fetch(`/api/labor/payroll?clientId=${clientId}`)
+      const result = await res.json()
+      if (result.data) setPayrolls(result.data)
+    } catch (err) {
+      console.error("Error loading payrolls:", err)
+    }
     setIsLoading(false)
   }
 
   const handleSave = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !formData.period.trim()) return
-
-    await supabase.from("labor_payroll").insert({
-      client_id: clientId,
-      user_id: user.id,
-      payroll_type: formData.payroll_type,
-      period: formData.period,
-      status: formData.status,
-      comments: formData.comments || null
-    })
-
-    setFormData({ payroll_type: "quincenal", period: "", status: "pendiente", comments: "" })
-    setIsDialogOpen(false)
-    loadPayrolls()
+    if (!formData.period.trim()) return
+    try {
+      const res = await fetch("/api/labor/payroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId, ...formData }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
+      toast({ title: "Nómina registrada" })
+      setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_subsidy: false, has_aguinaldo: false, aguinaldo_sent: false })
+      setIsDialogOpen(false)
+      loadPayrolls()
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    }
   }
 
-  const handleUpdateStatus = async (id: string, status: string) => {
-    await supabase
-      .from("labor_payroll")
-      .update({
-        status,
-        completed_date: status === "realizada" ? new Date().toISOString().split("T")[0] : null
+  const handleUpdate = async (id: string, updates: Record<string, any>) => {
+    try {
+      await fetch("/api/labor/payroll", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
       })
-      .eq("id", id)
-    loadPayrolls()
+      loadPayrolls()
+    } catch (err) {
+      console.error("Error updating payroll:", err)
+    }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar esta nómina?")) return
-    await supabase.from("labor_payroll").delete().eq("id", id)
-    loadPayrolls()
+    try {
+      await fetch(`/api/labor/payroll?id=${id}`, { method: "DELETE" })
+      loadPayrolls()
+    } catch (err) {
+      console.error("Error deleting payroll:", err)
+    }
   }
+
+  const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
 
   return (
     <div className="space-y-4">
@@ -201,23 +231,39 @@ function PayrollSection({ clientId, supabase, isClient }: { clientId: string; su
                 Nueva Nómina
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Registrar Nómina</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Tipo de Nómina</label>
-                  <Select value={formData.payroll_type} onValueChange={(v) => setFormData({ ...formData, payroll_type: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="semanal">Semanal</SelectItem>
-                      <SelectItem value="quincenal">Quincenal</SelectItem>
-                      <SelectItem value="mensual">Mensual</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Tipo de Nómina</label>
+                    <Select value={formData.payroll_type} onValueChange={(v) => setFormData({ ...formData, payroll_type: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="semanal">Semanal</SelectItem>
+                        <SelectItem value="quincenal">Quincenal</SelectItem>
+                        <SelectItem value="mensual">Mensual</SelectItem>
+                        <SelectItem value="asimilados">Asimilados</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Día de Timbrado</label>
+                    <Select value={formData.stamping_day} onValueChange={(v) => setFormData({ ...formData, stamping_day: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAYS.map((day) => (
+                          <SelectItem key={day} value={day}>{day}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Período</label>
@@ -227,8 +273,31 @@ function PayrollSection({ clientId, supabase, isClient }: { clientId: string; su
                     onChange={(e) => setFormData({ ...formData, period: e.target.value })}
                   />
                 </div>
+                <div className="flex flex-wrap gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={formData.has_subsidy}
+                      onCheckedChange={(c) => setFormData({ ...formData, has_subsidy: !!c })}
+                    />
+                    <span className="text-sm">Subsidio</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={formData.has_aguinaldo}
+                      onCheckedChange={(c) => setFormData({ ...formData, has_aguinaldo: !!c })}
+                    />
+                    <span className="text-sm">Aguinaldo</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={formData.aguinaldo_sent}
+                      onCheckedChange={(c) => setFormData({ ...formData, aguinaldo_sent: !!c })}
+                    />
+                    <span className="text-sm">Aguinaldo Enviado</span>
+                  </label>
+                </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                  <label className="text-sm font-medium mb-2 block">Observaciones</label>
                   <Textarea
                     placeholder="Notas adicionales..."
                     value={formData.comments}
@@ -264,15 +333,30 @@ function PayrollSection({ clientId, supabase, isClient }: { clientId: string; su
                     <h4 className="font-medium">{payroll.period}</h4>
                     <p className="text-sm text-muted-foreground">
                       Nómina {payroll.payroll_type}
-                      {payroll.completed_date && ` - Realizada: ${new Date(payroll.completed_date).toLocaleDateString()}`}
+                      {payroll.stamping_day && ` · Timbrado: ${payroll.stamping_day}`}
+                      {payroll.completed_date && ` · Realizada: ${new Date(payroll.completed_date).toLocaleDateString()}`}
                     </p>
                     {payroll.comments && <p className="text-xs text-muted-foreground mt-1">{payroll.comments}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Status indicators */}
+                  <div className="flex items-center gap-3 mr-4">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.has_subsidy ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-400"}`}>
+                      Subsidio {payroll.has_subsidy ? "✓" : "—"}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.has_aguinaldo ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
+                      Aguinaldo {payroll.has_aguinaldo ? "✓" : "—"}
+                    </span>
+                    {payroll.has_aguinaldo && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.aguinaldo_sent ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                        {payroll.aguinaldo_sent ? "Enviado ✓" : "No enviado"}
+                      </span>
+                    )}
+                  </div>
                   {!isClient && (
                     <>
-                      <Select value={payroll.status} onValueChange={(v) => handleUpdateStatus(payroll.id, v)}>
+                      <Select value={payroll.status} onValueChange={(v) => handleUpdate(payroll.id, { status: v, completed_date: v === "realizada" ? new Date().toISOString().split("T")[0] : null })}>
                         <SelectTrigger className={`w-32 ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                           <SelectValue />
                         </SelectTrigger>
@@ -301,8 +385,11 @@ function PayrollSection({ clientId, supabase, isClient }: { clientId: string; su
   )
 }
 
-// Sección de Incidencias
-function IncidentsSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
+// ===========================================
+// Sección de Incidencias (unchanged)
+// ===========================================
+function IncidentsSection({ clientId, isClient }: { clientId: string; isClient: boolean }) {
+  const supabase = createClient()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -510,104 +597,170 @@ function IncidentsSection({ clientId, supabase, isClient }: { clientId: string; 
   )
 }
 
-// Sección de Altas/Bajas IMSS
-function IMSSSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
+// ===========================================
+// Sección de Movimientos IMSS (Full Rewrite)
+// ===========================================
+function IMSSSection({ clientId, isClient }: { clientId: string; isClient: boolean }) {
+  const { toast } = useToast()
   const [movements, setMovements] = useState<IMSSMovement[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [filterType, setFilterType] = useState<string>("todos")
   const [formData, setFormData] = useState({
     employee_name: "",
     movement_type: "alta",
-    comments: ""
+    performed_by: "",
+    patron_registration: "",
+    incapacity_type: "",
+    folios: "",
+    integrated_salary: "",
+    requested_by: "",
+    request_medium: "",
+    comments: "",
+    request_date: "",
   })
 
   useEffect(() => {
     loadMovements()
-  }, [clientId, selectedYear, selectedMonth])
+  }, [clientId])
 
   const loadMovements = async () => {
     setIsLoading(true)
-    const { data } = await supabase
-      .from("labor_imss")
-      .select("*")
-      .eq("client_id", clientId)
-      .eq("year", selectedYear)
-      .eq("month", selectedMonth)
-      .order("created_at", { ascending: false })
-
-    if (data) setMovements(data)
+    try {
+      const res = await fetch(`/api/labor/imss?clientId=${clientId}`)
+      const result = await res.json()
+      if (result.data) setMovements(result.data)
+    } catch (err) {
+      console.error("Error loading IMSS movements:", err)
+    }
     setIsLoading(false)
   }
 
   const handleSave = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !formData.employee_name.trim()) return
-
-    await supabase.from("labor_imss").insert({
-      client_id: clientId,
-      user_id: user.id,
-      employee_name: formData.employee_name,
-      movement_type: formData.movement_type,
-      month: selectedMonth,
-      year: selectedYear,
-      comments: formData.comments || null
-    })
-
-    setFormData({ employee_name: "", movement_type: "alta", comments: "" })
-    setIsDialogOpen(false)
-    loadMovements()
+    if (!formData.employee_name.trim()) return
+    const now = new Date()
+    try {
+      const res = await fetch("/api/labor/imss", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: clientId,
+          employee_name: formData.employee_name,
+          movement_type: formData.movement_type,
+          month: now.getMonth() + 1,
+          year: now.getFullYear(),
+          performed_by: formData.performed_by || null,
+          request_date: formData.request_date || now.toISOString().split("T")[0],
+          patron_registration: formData.patron_registration || null,
+          incapacity_type: formData.movement_type === "incapacidad" ? formData.incapacity_type : null,
+          folios: formData.folios || null,
+          integrated_salary: formData.integrated_salary ? parseFloat(formData.integrated_salary) : null,
+          requested_by: formData.requested_by || null,
+          request_medium: formData.request_medium || null,
+          comments: formData.comments || null,
+        }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
+      toast({ title: "Movimiento registrado" })
+      setFormData({
+        employee_name: "", movement_type: "alta", performed_by: "", patron_registration: "",
+        incapacity_type: "", folios: "", integrated_salary: "", requested_by: "", request_medium: "", comments: "", request_date: "",
+      })
+      setIsDialogOpen(false)
+      loadMovements()
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    }
   }
 
-  const handleCheckboxChange = async (id: string, field: string, value: boolean) => {
-    const updateData: any = { [field]: value }
-    if (field === "sent_to_imss" && value) {
-      updateData.sent_date = new Date().toISOString().split("T")[0]
+  const handleToggleConfirmed = async (mov: IMSSMovement) => {
+    const newConfirmed = !mov.confirmed
+    try {
+      await fetch("/api/labor/imss", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: mov.id,
+          confirmed: newConfirmed,
+          confirmation_date: newConfirmed ? new Date().toISOString().split("T")[0] : null,
+        }),
+      })
+      loadMovements()
+    } catch (err) {
+      console.error("Error toggling confirmed:", err)
     }
-    if (field === "registered_in_imss" && value) {
-      updateData.registration_date = new Date().toISOString().split("T")[0]
-    }
-
-    await supabase.from("labor_imss").update(updateData).eq("id", id)
-    loadMovements()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar este movimiento?")) return
-    await supabase.from("labor_imss").delete().eq("id", id)
-    loadMovements()
+    try {
+      await fetch(`/api/labor/imss?id=${id}`, { method: "DELETE" })
+      loadMovements()
+    } catch (err) {
+      console.error("Error deleting movement:", err)
+    }
   }
 
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
+  const getMovementLabel = (type: string) => {
+    const types: Record<string, string> = {
+      alta: "Alta",
+      baja: "Baja",
+      modificacion_salario: "Modificación Salario",
+      incapacidad: "Incapacidad",
+    }
+    return types[type] || type
+  }
+
+  const getMovementColor = (type: string) => {
+    switch (type) {
+      case "alta": return "bg-green-100 text-green-700 border-green-300"
+      case "baja": return "bg-red-100 text-red-700 border-red-300"
+      case "modificacion_salario": return "bg-blue-100 text-blue-700 border-blue-300"
+      case "incapacidad": return "bg-orange-100 text-orange-700 border-orange-300"
+      default: return "bg-gray-100 text-gray-700"
+    }
+  }
+
+  const getMovementIcon = (type: string) => {
+    switch (type) {
+      case "alta": return <UserPlus className="h-4 w-4" />
+      case "baja": return <UserMinus className="h-4 w-4" />
+      case "modificacion_salario": return <ArrowUpDown className="h-4 w-4" />
+      case "incapacidad": return <AlertCircle className="h-4 w-4" />
+      default: return <Users className="h-4 w-4" />
+    }
+  }
+
+  const filteredMovements = filterType === "todos"
+    ? movements
+    : movements.filter((m) => m.movement_type === filterType)
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          <h3 className="font-semibold">Altas y Bajas IMSS</h3>
+          <h3 className="font-semibold">Movimientos IMSS</h3>
           <div className="flex items-center gap-2">
-            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-              <SelectTrigger className="w-36">
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-48">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {MONTHS.map((month, idx) => (
-                  <SelectItem key={idx} value={(idx + 1).toString()}>{month}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                ))}
+                <SelectItem value="todos">Todos los movimientos</SelectItem>
+                <SelectItem value="alta">Solo Altas</SelectItem>
+                <SelectItem value="baja">Solo Bajas</SelectItem>
+                <SelectItem value="modificacion_salario">Modif. Salario</SelectItem>
+                <SelectItem value="incapacidad">Incapacidades</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {movements.length > 0 && (
+            <div className="flex gap-2">
+              <Badge variant="outline" className="bg-green-50 text-green-700">{movements.filter(m => m.movement_type === "alta").length} Altas</Badge>
+              <Badge variant="outline" className="bg-red-50 text-red-700">{movements.filter(m => m.movement_type === "baja").length} Bajas</Badge>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700">{movements.filter(m => m.movement_type === "modificacion_salario").length} MS</Badge>
+            </div>
+          )}
         </div>
         {!isClient && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -617,39 +770,141 @@ function IMSSSection({ clientId, supabase, isClient }: { clientId: string; supab
                 Nuevo Movimiento
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Registrar Movimiento IMSS</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Nombre del Empleado</label>
-                  <Input
-                    placeholder="Nombre completo"
-                    value={formData.employee_name}
-                    onChange={(e) => setFormData({ ...formData, employee_name: e.target.value })}
-                  />
+                {/* Row 1: Type and Date */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Tipo de Movimiento *</label>
+                    <Select value={formData.movement_type} onValueChange={(v) => setFormData({ ...formData, movement_type: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="baja">Baja</SelectItem>
+                        <SelectItem value="modificacion_salario">Modificación de Salario</SelectItem>
+                        <SelectItem value="incapacidad">Incapacidad</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Fecha de Solicitud</label>
+                    <Input
+                      type="date"
+                      value={formData.request_date}
+                      onChange={(e) => setFormData({ ...formData, request_date: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Tipo de Movimiento</label>
-                  <Select value={formData.movement_type} onValueChange={(v) => setFormData({ ...formData, movement_type: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="alta">Alta</SelectItem>
-                      <SelectItem value="baja">Baja</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                {/* Row 2: Employee and Registration */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Nombre del Empleado *</label>
+                    <Input
+                      placeholder="Nombre completo"
+                      value={formData.employee_name}
+                      onChange={(e) => setFormData({ ...formData, employee_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Registro Patronal</label>
+                    <Input
+                      placeholder="Ej: C-1247336104"
+                      value={formData.patron_registration}
+                      onChange={(e) => setFormData({ ...formData, patron_registration: e.target.value })}
+                    />
+                  </div>
                 </div>
+
+                {/* Conditional: Incapacity type */}
+                {formData.movement_type === "incapacidad" && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Tipo de Incapacidad</label>
+                    <Select value={formData.incapacity_type} onValueChange={(v) => setFormData({ ...formData, incapacity_type: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EG">EG (Enfermedad General)</SelectItem>
+                        <SelectItem value="RT">RT (Riesgo de Trabajo)</SelectItem>
+                        <SelectItem value="MA">MA (Maternidad)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Row 3: Salary and Folios */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Sueldo Integrado</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Ej: 292.55"
+                      value={formData.integrated_salary}
+                      onChange={(e) => setFormData({ ...formData, integrated_salary: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Folios</label>
+                    <Input
+                      placeholder="Ej: 018/030/042"
+                      value={formData.folios}
+                      onChange={(e) => setFormData({ ...formData, folios: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4: Requester info */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Quién Realiza</label>
+                    <Input
+                      placeholder="Nombre"
+                      value={formData.performed_by}
+                      onChange={(e) => setFormData({ ...formData, performed_by: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Quién Solicita</label>
+                    <Input
+                      placeholder="Nombre"
+                      value={formData.requested_by}
+                      onChange={(e) => setFormData({ ...formData, requested_by: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Medio de Solicitud</label>
+                    <Select value={formData.request_medium} onValueChange={(v) => setFormData({ ...formData, request_medium: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="oficina">Oficina</SelectItem>
+                        <SelectItem value="telefono">Teléfono</SelectItem>
+                        <SelectItem value="correo">Correo</SelectItem>
+                        <SelectItem value="otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Observations */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                  <label className="text-sm font-medium mb-2 block">Observaciones</label>
                   <Textarea
                     placeholder="Notas adicionales..."
                     value={formData.comments}
                     onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                   />
                 </div>
+
                 <Button onClick={handleSave} className="w-full" disabled={!formData.employee_name.trim()}>
                   Registrar Movimiento
                 </Button>
@@ -661,61 +916,67 @@ function IMSSSection({ clientId, supabase, isClient }: { clientId: string; supab
 
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-      ) : movements.length === 0 ? (
+      ) : filteredMovements.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No hay movimientos IMSS para {MONTHS[selectedMonth - 1]} {selectedYear}</p>
+          <p>No hay movimientos IMSS registrados</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {movements.map((movement) => (
-            <div key={movement.id} className="p-4 border rounded-lg hover:border-green-300 transition-colors">
+          {filteredMovements.map((mov) => (
+            <div key={mov.id} className={`p-4 border-2 rounded-lg transition-colors ${mov.confirmed ? "border-green-300 bg-green-50/30" : "border-gray-200 hover:border-yellow-300"}`}>
               <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded ${movement.movement_type === "alta" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                    {movement.movement_type === "alta" ? <UserPlus className="h-4 w-4" /> : <UserMinus className="h-4 w-4" />}
+                <div className="flex items-start gap-3 flex-1">
+                  <div className={`p-2 rounded ${getMovementColor(mov.movement_type)}`}>
+                    {getMovementIcon(mov.movement_type)}
                   </div>
-                  <div>
-                    <h4 className="font-medium">{movement.employee_name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {movement.movement_type === "alta" ? "Alta" : "Baja"} - {MONTHS[movement.month - 1]} {movement.year}
-                    </p>
-                    {movement.comments && <p className="text-xs text-muted-foreground mt-1">{movement.comments}</p>}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-medium">{mov.employee_name}</h4>
+                      <Badge variant="outline" className={getMovementColor(mov.movement_type)}>
+                        {getMovementLabel(mov.movement_type)}
+                      </Badge>
+                      {mov.incapacity_type && (
+                        <Badge variant="outline" className="bg-orange-50">{mov.incapacity_type}</Badge>
+                      )}
+                      {mov.confirmed ? (
+                        <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Confirmado</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-yellow-700 border-yellow-300"><Clock className="h-3 w-3 mr-1" /> Pendiente</Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+                      {mov.request_date && <span>📅 Solicitud: {new Date(mov.request_date).toLocaleDateString()}</span>}
+                      {mov.confirmation_date && <span>✅ Confirmado: {new Date(mov.confirmation_date).toLocaleDateString()}</span>}
+                      {mov.patron_registration && <span>🏢 Reg: {mov.patron_registration}</span>}
+                      {mov.integrated_salary && <span>💰 ${mov.integrated_salary.toLocaleString()}</span>}
+                      {mov.folios && <span>📋 Folios: {mov.folios}</span>}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
+                      {mov.performed_by && <span>Realizó: {mov.performed_by}</span>}
+                      {mov.requested_by && <span>Solicitó: {mov.requested_by}</span>}
+                      {mov.request_medium && <span>Vía: {mov.request_medium}</span>}
+                    </div>
+                    {mov.comments && <p className="text-xs text-muted-foreground mt-1 italic">{mov.comments}</p>}
                   </div>
                 </div>
-                {!isClient && (
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(movement.id)} className="text-red-500">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-6 pl-12">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={movement.sent_to_imss}
-                    onCheckedChange={(checked) => handleCheckboxChange(movement.id, "sent_to_imss", !!checked)}
-                    disabled={isClient}
-                  />
-                  <span className="text-sm">Enviado al IMSS</span>
-                  {movement.sent_date && <span className="text-xs text-muted-foreground">({new Date(movement.sent_date).toLocaleDateString()})</span>}
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={movement.registered_in_imss}
-                    onCheckedChange={(checked) => handleCheckboxChange(movement.id, "registered_in_imss", !!checked)}
-                    disabled={isClient}
-                  />
-                  <span className="text-sm">Registrado en IMSS</span>
-                  {movement.registration_date && <span className="text-xs text-muted-foreground">({new Date(movement.registration_date).toLocaleDateString()})</span>}
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={movement.reviewed}
-                    onCheckedChange={(checked) => handleCheckboxChange(movement.id, "reviewed", !!checked)}
-                    disabled={isClient}
-                  />
-                  <span className="text-sm">Revisado</span>
-                </label>
+                <div className="flex items-center gap-2 ml-4">
+                  {!isClient && (
+                    <>
+                      <Button
+                        variant={mov.confirmed ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleToggleConfirmed(mov)}
+                        className={mov.confirmed ? "bg-green-600 hover:bg-green-700" : ""}
+                      >
+                        {mov.confirmed ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(mov.id)} className="text-red-500">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -725,8 +986,11 @@ function IMSSSection({ clientId, supabase, isClient }: { clientId: string; supab
   )
 }
 
-// Sección de Impuestos Laborales
-function TaxesSection({ clientId, supabase, isClient }: { clientId: string; supabase: any; isClient: boolean }) {
+// ===========================================
+// Sección de Impuestos Laborales (unchanged)
+// ===========================================
+function TaxesSection({ clientId, isClient }: { clientId: string; isClient: boolean }) {
+  const supabase = createClient()
   const [taxes, setTaxes] = useState<LaborTax[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
