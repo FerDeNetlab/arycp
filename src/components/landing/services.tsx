@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Scale, Calculator, FileText, ClipboardCheck, Users, TrendingUp } from "lucide-react"
+import { Scale, Calculator, FileText, ClipboardCheck, TrendingUp, Briefcase, Receipt } from "lucide-react"
 import { useScrollAnimation } from "@/hooks/use-scroll-animation"
 
 const services = [
@@ -32,20 +32,28 @@ const services = [
     border: "hover:border-purple-400",
   },
   {
+    icon: Briefcase,
+    title: "Laboral",
+    description: "Administración de nómina, contratos laborales y cumplimiento de obligaciones patronales.",
+    color: "text-teal-600",
+    bg: "bg-teal-50",
+    border: "hover:border-teal-400",
+  },
+  {
+    icon: Receipt,
+    title: "Facturación",
+    description: "Emisión, gestión y control de facturas electrónicas con cumplimiento fiscal automatizado.",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "hover:border-amber-400",
+  },
+  {
     icon: ClipboardCheck,
-    title: "Gestoría",
+    title: "Tramitología",
     description: "Gestionamos todos tus trámites ante autoridades fiscales, laborales y gubernamentales.",
     color: "text-emerald-600",
     bg: "bg-emerald-50",
     border: "hover:border-emerald-400",
-  },
-  {
-    icon: Users,
-    title: "Recursos Humanos",
-    description: "Administración de nómina, contratos laborales y cumplimiento de obligaciones patronales.",
-    color: "text-green-600",
-    bg: "bg-green-50",
-    border: "hover:border-green-400",
   },
   {
     icon: TrendingUp,
@@ -77,7 +85,7 @@ export function Services() {
           {services.map((service, index) => (
             <Card
               key={index}
-              className={`border-2 ${service.border} card-hover scroll-hidden stagger-${Math.min(index + 1, 6)} group`}
+              className={`border-2 ${service.border} card-hover scroll-hidden stagger-${Math.min(index + 1, 6)} group ${index === services.length - 1 && services.length % 3 === 1 ? 'lg:col-start-2' : ''}`}
             >
               <CardHeader>
                 <div className={`h-14 w-14 rounded-xl ${service.bg} flex items-center justify-center mb-4 icon-hover`}>
