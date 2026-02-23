@@ -226,6 +226,81 @@
   }
 }
 
+@keyframes logoEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-20deg);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1.15) rotate(5deg);
+  }
+
+  60% {
+    transform: scale(0.9) rotate(-3deg);
+  }
+
+  80% {
+    transform: scale(1.05) rotate(1deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ===== LOGO ANIMATION ===== */
+.animate-logo {
+  animation: logoEntrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.logo-shine {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.logo-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.6) 45%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(255, 255, 255, 0.6) 55%,
+      transparent 70%);
+  background-size: 300% 100%;
+  background-position: -150% 0;
+  background-repeat: no-repeat;
+  -webkit-mask-image: url('/images/arycp-logo-symbol.png');
+  mask-image: url('/images/arycp-logo-symbol.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  animation: logoShineGradient 8s ease-in-out 1.5s infinite;
+  pointer-events: none;
+}
+
+@keyframes logoShineGradient {
+  0% {
+    background-position: -150% 0;
+  }
+
+  20% {
+    background-position: 300% 0;
+  }
+
+  100% {
+    background-position: 300% 0;
+  }
+}
+
 /* ===== ANIMATION UTILITY CLASSES ===== */
 .animate-fade-in-up {
   animation: fadeInUp 0.5s ease-out both;

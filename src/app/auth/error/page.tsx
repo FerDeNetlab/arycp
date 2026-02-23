@@ -17,8 +17,8 @@ export default async function ErrorPage({
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
             <Link href="/">
-              <div style={{ height: '80px', width: '120px', overflow: 'hidden', position: 'relative', margin: '0 auto' }}>
-                <Image src="/images/arycp-logo.jpg" alt="ARYCP Logo" width={200} height={200} style={{ position: 'absolute', top: '-5px', left: '50%', transform: 'translateX(-50%)', width: '180%', height: 'auto', mixBlendMode: 'multiply' }} />
+              <div className="logo-shine">
+                <Image src="/images/arycp-logo-symbol.png" alt="ARYCP Logo" width={100} height={100} />
               </div>
             </Link>
           </div>

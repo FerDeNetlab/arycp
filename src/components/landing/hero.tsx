@@ -4,7 +4,7 @@ import { CheckCircle2, ArrowRight, Users, TrendingUp, Shield } from "lucide-reac
 
 export function Hero() {
   return (
-    <section className="relative pt-32 pb-24 px-4 overflow-hidden">
+    <section className="relative pt-24 md:pt-32 pb-16 md:pb-24 px-4 overflow-hidden">
       {/* Background decorators */}
       <div className="absolute top-20 left-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-3xl -z-10"></div>
@@ -18,12 +18,12 @@ export function Hero() {
               </span>
             </div>
 
-            <h1 className="text-5xl lg:text-6xl font-bold leading-tight text-balance animate-fade-in-up delay-1">
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight text-balance animate-fade-in-up delay-1">
               Soluciones Corporativas para{" "}
               <span className="gradient-text">PYMEs en Crecimiento</span>
             </h1>
 
-            <p className="text-xl text-muted-foreground leading-relaxed animate-fade-in-up delay-2">
+            <p className="text-base md:text-xl text-muted-foreground leading-relaxed animate-fade-in-up delay-2">
               Despacho contable especializado en asesoría jurídica, contable, fiscal y gestoría. Te ayudamos a navegar
               los aspectos empresariales con poca educación pública disponible.
             </p>

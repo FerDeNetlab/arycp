@@ -69,14 +69,14 @@ export function Services() {
   const scrollRef = useScrollAnimation()
 
   return (
-    <section id="servicios" className="py-24 px-4 bg-muted/30 relative overflow-hidden" ref={scrollRef}>
+    <section id="servicios" className="py-16 md:py-24 px-4 bg-muted/30 relative overflow-hidden" ref={scrollRef}>
       {/* Background decorator */}
       <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-primary/5 rounded-full blur-3xl"></div>
 
       <div className="container mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl font-bold mb-4 text-balance scroll-hidden">Nuestros Servicios</h2>
-          <p className="text-xl text-muted-foreground leading-relaxed scroll-hidden stagger-1">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-balance scroll-hidden">Nuestros Servicios</h2>
+          <p className="text-base md:text-xl text-muted-foreground leading-relaxed scroll-hidden stagger-1">
             Soluciones integrales diseñadas para empresas que buscan crecer con bases sólidas
           </p>
         </div>

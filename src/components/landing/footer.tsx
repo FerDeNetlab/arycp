@@ -8,9 +8,7 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           <div className="md:col-span-2">
             <div className="flex items-center gap-3 mb-4">
-              <div style={{ height: '48px', width: '64px', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-                <Image src="/images/arycp-logo.jpg" alt="ARYCP Logo" width={200} height={200} style={{ position: 'absolute', top: '-3px', left: '50%', transform: 'translateX(-50%)', width: '180%', height: 'auto', mixBlendMode: 'multiply' }} />
-              </div>
+              <Image src="/images/arycp-logo-symbol.png" alt="ARYCP Logo" width={48} height={48} />
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-foreground">AR&CP</span>
                 <span className="text-xs text-muted-foreground -mt-1">Soluciones Corporativas</span>
