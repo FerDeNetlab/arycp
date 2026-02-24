@@ -114,12 +114,9 @@ export async function POST(request: Request) {
             })
             debug.notificationInsert = notifError ? { error: notifError.message, code: notifError.code, details: notifError.details } : "OK"
 
-            console.log("[DIOT DEBUG]", JSON.stringify(debug, null, 2))
-
             return NextResponse.json({
                 success: true,
                 assignedTo: assignee.full_name,
-                debug,
             })
         }
 

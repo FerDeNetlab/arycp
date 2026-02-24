@@ -46,8 +46,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Rol inválido" }, { status: 400 })
         }
 
-        // 5. Crear usuario en Supabase Auth usando cliente admin (ya creado arriba)
-        console.log("🔄 Intentando crear usuario en Auth con email:", email)
+        // 5. Crear usuario en Supabase Auth
 
         const { data: newAuthUser, error: createAuthError } = await adminClient.auth.admin.createUser({
             email,
@@ -59,23 +58,17 @@ export async function POST(request: NextRequest) {
         })
 
         if (createAuthError || !newAuthUser.user) {
-            console.error("❌ Error creating auth user:")
-            console.error("Error completo:", JSON.stringify(createAuthError, null, 2))
-            console.error("Error message:", createAuthError?.message)
-            console.error("Error code:", createAuthError?.code)
-            console.error("Error status:", createAuthError?.status)
+            console.error("Error creating auth user:", createAuthError?.message)
             return NextResponse.json(
                 { error: createAuthError?.message || "Error al crear usuario en autenticación" },
                 { status: 400 },
             )
         }
 
-        console.log("✅ Usuario creado en Auth exitosamente, ID:", newAuthUser.user.id)
 
-        // 6. Crear registro en system_users con el auth_user_id correcto
-        // IMPORTANTE: Usar adminClient para bypass RLS
+        // 6. Crear registro en system_users
         const { error: createUserError } = await adminClient.from("system_users").insert({
-            auth_user_id: newAuthUser.user.id, // ✅ ID correcto del nuevo usuario
+            auth_user_id: newAuthUser.user.id,
             full_name,
             email,
             phone: phone || null,

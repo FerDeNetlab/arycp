@@ -308,14 +308,12 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       })
 
       const result = await res.json()
-      console.log("[DIOT Response]", result)
 
       if (res.ok) {
         setDiotAssignedMonth(prev => ({ ...prev, [diotMonth]: contador.full_name }))
-        const debugInfo = result.debug || {}
         toast({
           title: "DIOT asignado",
-          description: `Actividad: ${debugInfo.activityInsert === "OK" ? "✅" : "❌ " + JSON.stringify(debugInfo.activityInsert)} | Notif: ${debugInfo.notificationInsert === "OK" ? "✅" : "❌ " + JSON.stringify(debugInfo.notificationInsert)}`,
+          description: `Se asignó el DIOT a ${contador.full_name}`,
         })
         setIsDiotDialogOpen(false)
       } else {

@@ -41,10 +41,12 @@ git commit -m "feat: descriptive message"
 - `docs:` — Documentation updates
 - `chore:` — Maintenance tasks
 
-### 3. Push to GitHub
+### 3. Push to GitHub (BOTH remotes)
 ```bash
-git push origin main
+# IMPORTANT: Always push to BOTH remotes
+git push origin main && git push vercel main
 ```
+> ⚠️ `origin` = FerDeNetlab/arycp (GitHub backup), `vercel` = pauldenetlab/arycp (Vercel deploys from here)
 
 ### 4. Verify Deployment
 - Vercel auto-deploys on push to `main`
