@@ -1,13 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast"
 import {
     Plus, FileText, Search, ChevronDown, ChevronUp,
-    Calendar, DollarSign, Hash, X
+    Calendar, DollarSign, Hash, X, Upload, FileSpreadsheet
 } from "lucide-react"
 
 interface Invoice {
@@ -42,6 +45,7 @@ interface InvoicesTabProps {
 }
 
 export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps) {
+    const { toast } = useToast()
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [loading, setLoading] = useState(true)
     const [showForm, setShowForm] = useState(false)
@@ -49,6 +53,12 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
     const [searchTerm, setSearchTerm] = useState("")
     const [filterYear, setFilterYear] = useState(new Date().getFullYear())
     const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1)
+
+    // Import state
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+    const [importFile, setImportFile] = useState<File | null>(null)
+    const [isImporting, setIsImporting] = useState(false)
+    const importInputRef = useRef<HTMLInputElement>(null)
 
     // Form state
     const [form, setForm] = useState({
@@ -133,6 +143,40 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
         }
     }
 
+    async function handleImportExcel() {
+        if (!importFile) return
+        setIsImporting(true)
+        try {
+            const formData = new FormData()
+            formData.append("clientId", clientId)
+            formData.append("file", importFile)
+
+            const res = await fetch("/api/invoicing/import", {
+                method: "POST",
+                body: formData,
+            })
+
+            const result = await res.json()
+
+            if (!res.ok) {
+                throw new Error(result.error || "Error al importar")
+            }
+
+            toast({
+                title: `✅ ${result.imported} facturas importadas`,
+                description: `Total: $${result.totalAmount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}${result.skipped > 0 ? ` | ${result.skipped} filas omitidas` : ""}`,
+            })
+
+            setIsImportDialogOpen(false)
+            setImportFile(null)
+            loadInvoices()
+        } catch (error: any) {
+            toast({ title: "Error al importar", description: error.message, variant: "destructive" })
+        } finally {
+            setIsImporting(false)
+        }
+    }
+
     const filtered = invoices.filter(inv =>
         inv.recipient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inv.folio?.toString().includes(searchTerm) ||
@@ -171,10 +215,21 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
                         ))}
                     </select>
                     {canEdit && (
-                        <Button onClick={() => setShowForm(!showForm)} size="sm" className="gap-1">
-                            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                            {showForm ? "Cancelar" : "Nueva Factura"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={() => setIsImportDialogOpen(true)}
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            >
+                                <FileSpreadsheet className="h-4 w-4" />
+                                Importar Excel
+                            </Button>
+                            <Button onClick={() => setShowForm(!showForm)} size="sm" className="gap-1">
+                                {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                                {showForm ? "Cancelar" : "Nueva Factura"}
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -408,6 +463,70 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
                         </CardContent>
                     </Card>
                 </div>
+            )}
+
+            {/* Import Excel Dialog */}
+            {canEdit && (
+                <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+                                Importar Facturas desde Excel
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                Sube el archivo Excel de CFDI. El sistema detecta automáticamente las columnas:
+                                <strong> Fecha, Serie, Folio, Cancelado, Razón Social, Total, Pendiente, UUID</strong> y <strong>Método de pago</strong>.
+                            </p>
+
+                            {/* File drop zone */}
+                            <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-emerald-400 transition-colors">
+                                <Input
+                                    ref={importInputRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    className="hidden"
+                                    id="import-invoices-excel"
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0]
+                                        if (f) setImportFile(f)
+                                    }}
+                                />
+                                <Label htmlFor="import-invoices-excel" className="cursor-pointer flex flex-col items-center gap-2">
+                                    <FileSpreadsheet className="h-10 w-10 text-emerald-500" />
+                                    <span className="text-sm font-medium">Seleccionar archivo Excel</span>
+                                    <span className="text-xs text-muted-foreground">.xlsx o .xls</span>
+                                </Label>
+                            </div>
+
+                            {/* Selected file */}
+                            {importFile && (
+                                <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
+                                    <FileSpreadsheet className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                                    <span className="text-sm flex-1 truncate">{importFile.name}</span>
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setImportFile(null)}>
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            )}
+
+                            <Button
+                                onClick={handleImportExcel}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                                disabled={!importFile || isImporting}
+                            >
+                                {isImporting ? "Importando..." : (
+                                    <>
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        Importar Facturas
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     )
