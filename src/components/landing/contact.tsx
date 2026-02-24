@@ -67,7 +67,7 @@ export function Contact() {
           <div className="space-y-4">
             {[
               { icon: Mail, title: "Email", value: "contacto@arycp.com", bg: "bg-primary/10", color: "text-primary" },
-              { icon: Phone, title: "Teléfono", value: "+52 (55) 1234-5678", bg: "bg-blue-50", color: "text-blue-600" },
+              { icon: Phone, title: "Teléfono", value: "+52 33 1094 9192", bg: "bg-blue-50", color: "text-blue-600" },
               { icon: MapPin, title: "Ubicación", value: "Zenzontle 886, Col. 8 de Julio, Guadalajara, Jalisco, México", bg: "bg-emerald-50", color: "text-emerald-600" },
             ].map((item, i) => (
               <Card key={i} className={`card-hover scroll-hidden stagger-${i + 1}`}>
