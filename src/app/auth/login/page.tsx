@@ -89,14 +89,8 @@ export default function LoginPage() {
                     {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
                   </Button>
                 </div>
-                <div className="mt-4 text-center text-sm">
-                  ¿No tienes cuenta?{" "}
-                  <Link
-                    href="/auth/sign-up"
-                    className="text-primary underline underline-offset-4 hover:text-primary/80"
-                  >
-                    Regístrate
-                  </Link>
+                <div className="mt-4 text-center text-sm text-muted-foreground">
+                  Sistema privado. Contacta a tu administrador para obtener acceso.
                 </div>
               </form>
             </CardContent>

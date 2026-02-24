@@ -160,8 +160,18 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
     aguinaldo_sent: false,
   })
 
+  // Notification state
+  const [contadores, setContadores] = useState<{ id: string; name: string; role: string }[]>([])
+  const [notifyDialog, setNotifyDialog] = useState<{ open: boolean; type: "completed" | "blocked"; payrollId: string; payrollLabel: string }>({
+    open: false, type: "completed", payrollId: "", payrollLabel: ""
+  })
+  const [notifyRecipient, setNotifyRecipient] = useState("")
+  const [notifyReason, setNotifyReason] = useState("")
+  const [notifySending, setNotifySending] = useState(false)
+
   useEffect(() => {
     loadPayrolls()
+    if (!isClient) loadContadores()
   }, [clientId])
 
   const loadPayrolls = async () => {
@@ -174,6 +184,16 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
       console.error("Error loading payrolls:", err)
     }
     setIsLoading(false)
+  }
+
+  const loadContadores = async () => {
+    try {
+      const res = await fetch("/api/labor/contadores")
+      const result = await res.json()
+      if (result.contadores) setContadores(result.contadores)
+    } catch (err) {
+      console.error("Error loading contadores:", err)
+    }
   }
 
   const handleSave = async () => {
@@ -215,6 +235,47 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
     } catch (err) {
       console.error("Error deleting payroll:", err)
     }
+  }
+
+  const openNotifyDialog = (type: "completed" | "blocked", payroll: Payroll) => {
+    setNotifyDialog({
+      open: true,
+      type,
+      payrollId: payroll.id,
+      payrollLabel: `${payroll.payroll_type} - ${payroll.period}`,
+    })
+    setNotifyRecipient("")
+    setNotifyReason("")
+  }
+
+  const handleSendNotification = async () => {
+    if (!notifyRecipient) return
+    if (notifyDialog.type === "blocked" && !notifyReason.trim()) return
+
+    setNotifySending(true)
+    try {
+      const res = await fetch("/api/labor/payroll-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payrollId: notifyDialog.payrollId,
+          recipientUserId: notifyRecipient,
+          type: notifyDialog.type,
+          reason: notifyReason || undefined,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+
+      toast({
+        title: notifyDialog.type === "completed" ? "Aviso enviado ✅" : "Reporte enviado ⚠️",
+        description: `Notificación enviada a ${result.recipientName}`,
+      })
+      setNotifyDialog({ open: false, type: "completed", payrollId: "", payrollLabel: "" })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    }
+    setNotifySending(false)
   }
 
   const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
@@ -324,7 +385,7 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
         <div className="space-y-3">
           {payrolls.map((payroll) => (
             <div key={payroll.id} className="p-4 border-2 border-gray-200 rounded-lg hover:border-green-500 transition-colors">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                     <DollarSign className="h-4 w-4" />
@@ -339,9 +400,9 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
                     {payroll.comments && <p className="text-xs text-muted-foreground mt-1">{payroll.comments}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {/* Status indicators */}
-                  <div className="flex items-center gap-3 mr-4">
+                  <div className="flex items-center gap-2 mr-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.has_subsidy ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-400"}`}>
                       Subsidio {payroll.has_subsidy ? "✓" : "—"}
                     </span>
@@ -356,6 +417,25 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
                   </div>
                   {!isClient && (
                     <>
+                      {/* Notification buttons */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-green-700 border-green-300 hover:bg-green-50"
+                        onClick={() => openNotifyDialog("completed", payroll)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        <span className="hidden sm:inline">Nómina Lista</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-orange-700 border-orange-300 hover:bg-orange-50"
+                        onClick={() => openNotifyDialog("blocked", payroll)}
+                      >
+                        <AlertCircle className="h-3.5 w-3.5 mr-1" />
+                        <span className="hidden sm:inline">Reportar Pendiente</span>
+                      </Button>
                       <Select value={payroll.status} onValueChange={(v) => handleUpdate(payroll.id, { status: v, completed_date: v === "realizada" ? new Date().toISOString().split("T")[0] : null })}>
                         <SelectTrigger className={`w-32 ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                           <SelectValue />
@@ -381,6 +461,64 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
           ))}
         </div>
       )}
+
+      {/* Notification Dialog */}
+      <Dialog open={notifyDialog.open} onOpenChange={(open) => setNotifyDialog({ ...notifyDialog, open })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {notifyDialog.type === "completed" ? "🟢 Avisar Nómina Lista" : "🟡 Reportar Pendiente"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="p-3 bg-muted/50 rounded-lg text-sm">
+              <span className="font-medium">Nómina:</span> {notifyDialog.payrollLabel}
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Enviar aviso a:</label>
+              <Select value={notifyRecipient} onValueChange={setNotifyRecipient}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar contador..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {contadores.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name} ({c.role})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {notifyDialog.type === "blocked" && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">¿Por qué no se pudo completar? *</label>
+                <Textarea
+                  placeholder="Ej: Falta el dato de RFC del empleado Juan Pérez..."
+                  value={notifyReason}
+                  onChange={(e) => setNotifyReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            )}
+            {notifyDialog.type === "completed" && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Mensaje adicional (opcional)</label>
+                <Textarea
+                  placeholder="Notas adicionales..."
+                  value={notifyReason}
+                  onChange={(e) => setNotifyReason(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            )}
+            <Button
+              onClick={handleSendNotification}
+              className="w-full"
+              disabled={!notifyRecipient || (notifyDialog.type === "blocked" && !notifyReason.trim()) || notifySending}
+            >
+              {notifySending ? "Enviando..." : notifyDialog.type === "completed" ? "Enviar Aviso ✅" : "Reportar Pendiente ⚠️"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

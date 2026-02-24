@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Bell, Check, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X } from "lucide-react"
+import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
@@ -43,6 +43,11 @@ function formatTimeAgo(dateStr: string): string {
     return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" })
 }
 
+// Check if a notification supports replies (payroll alerts/completion from labor module)
+function isPayrollNotification(n: Notification): boolean {
+    return n.module === "labor" && n.entity_type === "payroll" && (n.type === "alert" || n.type === "completion" || n.type === "info")
+}
+
 export function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
@@ -50,9 +55,13 @@ export function NotificationBell() {
     const [loading, setLoading] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
+    // Reply state
+    const [replyingTo, setReplyingTo] = useState<Notification | null>(null)
+    const [replyText, setReplyText] = useState("")
+    const [replySending, setReplySending] = useState(false)
+
     useEffect(() => {
         loadNotifications()
-        // Poll every 30 seconds for new notifications
         const interval = setInterval(loadNotifications, 30000)
         return () => clearInterval(interval)
     }, [])
@@ -61,6 +70,7 @@ export function NotificationBell() {
         function handleClickOutside(event: MouseEvent) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsOpen(false)
+                setReplyingTo(null)
             }
         }
         document.addEventListener("mousedown", handleClickOutside)
@@ -110,6 +120,42 @@ export function NotificationBell() {
         }
     }
 
+    async function handleReply() {
+        if (!replyingTo || !replyText.trim() || !replyingTo.from_user_id) return
+
+        setReplySending(true)
+        try {
+            const res = await fetch("/api/labor/payroll-notify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    payrollId: replyingTo.entity_id || undefined,
+                    recipientUserId: replyingTo.from_user_id,
+                    type: "reply",
+                    reason: replyText,
+                    replyToNotificationId: replyingTo.id,
+                }),
+            })
+
+            if (!res.ok) {
+                const result = await res.json()
+                throw new Error(result.error)
+            }
+
+            // Mark original as read
+            if (!replyingTo.is_read) {
+                markAsRead(replyingTo.id)
+            }
+
+            setReplyingTo(null)
+            setReplyText("")
+            loadNotifications()
+        } catch (err) {
+            console.error("Error sending reply:", err)
+        }
+        setReplySending(false)
+    }
+
     return (
         <div className="relative" ref={dropdownRef}>
             {/* Bell Button */}
@@ -117,7 +163,7 @@ export function NotificationBell() {
                 variant="ghost"
                 size="sm"
                 className="relative h-9 w-9 p-0"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => { setIsOpen(!isOpen); setReplyingTo(null) }}
             >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
@@ -146,6 +192,42 @@ export function NotificationBell() {
                         </div>
                     </div>
 
+                    {/* Reply panel */}
+                    {replyingTo && (
+                        <div className="px-4 py-3 border-b bg-blue-50/50 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium text-blue-700">
+                                    💬 Respondiendo a {replyingTo.from_user_name || "usuario"}
+                                </p>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setReplyingTo(null)}>
+                                    <X className="h-3 w-3" />
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{replyingTo.title}</p>
+                            <textarea
+                                className="w-full text-sm border rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                rows={2}
+                                placeholder="Escribe tu respuesta..."
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                autoFocus
+                            />
+                            <Button
+                                size="sm"
+                                className="w-full"
+                                disabled={!replyText.trim() || replySending}
+                                onClick={handleReply}
+                            >
+                                {replySending ? "Enviando..." : (
+                                    <>
+                                        <Send className="h-3.5 w-3.5 mr-1" />
+                                        Enviar Respuesta
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    )}
+
                     {/* Notifications List */}
                     <div className="overflow-y-auto max-h-[400px]">
                         {notifications.length === 0 ? (
@@ -159,6 +241,7 @@ export function NotificationBell() {
                             notifications.map((notification) => {
                                 const config = typeConfig[notification.type] || typeConfig.info
                                 const TypeIcon = config.icon
+                                const canReply = isPayrollNotification(notification) && notification.from_user_id
 
                                 return (
                                     <div
@@ -181,7 +264,7 @@ export function NotificationBell() {
                                                     <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />
                                                 )}
                                             </div>
-                                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.message}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 whitespace-pre-line">{notification.message}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-[11px] text-muted-foreground">{formatTimeAgo(notification.created_at)}</span>
                                                 {notification.from_user_name && (
@@ -189,6 +272,20 @@ export function NotificationBell() {
                                                         <span className="text-[11px] text-muted-foreground">•</span>
                                                         <span className="text-[11px] text-muted-foreground">De: {notification.from_user_name}</span>
                                                     </>
+                                                )}
+                                                {canReply && (
+                                                    <button
+                                                        className="ml-auto text-[11px] text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setReplyingTo(notification)
+                                                            setReplyText("")
+                                                            if (!notification.is_read) markAsRead(notification.id)
+                                                        }}
+                                                    >
+                                                        <MessageSquare className="h-3 w-3" />
+                                                        Responder
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>
