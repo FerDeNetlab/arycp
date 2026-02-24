@@ -1,11 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, XCircle, Search, X, ChevronDown, ChevronUp, Edit2, Save } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast"
+import { Plus, XCircle, Search, X, ChevronDown, ChevronUp, Edit2, Save, Upload, FileSpreadsheet } from "lucide-react"
 
 interface Cancellation {
     id: string
@@ -78,6 +81,7 @@ interface CancellationsTabProps {
 }
 
 export function CancellationsTab({ clientId, clientName, canEdit }: CancellationsTabProps) {
+    const { toast } = useToast()
     const [cancellations, setCancellations] = useState<Cancellation[]>([])
     const [loading, setLoading] = useState(true)
     const [showForm, setShowForm] = useState(false)
@@ -87,6 +91,12 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
     const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [expandedId, setExpandedId] = useState<string | null>(null)
+
+    // Import state
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+    const [importFile, setImportFile] = useState<File | null>(null)
+    const [isImporting, setIsImporting] = useState(false)
+    const importInputRef = useRef<HTMLInputElement>(null)
 
     const [form, setForm] = useState({
         companyName: "",
@@ -187,6 +197,40 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
         })
     }
 
+    async function handleImportExcel() {
+        if (!importFile) return
+        setIsImporting(true)
+        try {
+            const formData = new FormData()
+            formData.append("clientId", clientId)
+            formData.append("file", importFile)
+
+            const res = await fetch("/api/invoicing/import-cancellations", {
+                method: "POST",
+                body: formData,
+            })
+
+            const result = await res.json()
+
+            if (!res.ok) {
+                throw new Error(result.error || "Error al importar")
+            }
+
+            toast({
+                title: `✅ ${result.imported} cancelaciones importadas`,
+                description: result.skipped > 0 ? `${result.skipped} filas omitidas` : undefined,
+            })
+
+            setIsImportDialogOpen(false)
+            setImportFile(null)
+            loadCancellations()
+        } catch (error: any) {
+            toast({ title: "Error al importar", description: error.message, variant: "destructive" })
+        } finally {
+            setIsImporting(false)
+        }
+    }
+
     function getStatusBadge(status: string) {
         const s = (status || "").toLowerCase()
         if (s.includes("cancelado") || s.includes("cancelada")) return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Cancelado</Badge>
@@ -225,10 +269,21 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
                         {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                     {canEdit && (
-                        <Button onClick={() => setShowForm(!showForm)} size="sm" className="gap-1">
-                            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                            {showForm ? "Cancelar" : "Nueva Solicitud"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={() => setIsImportDialogOpen(true)}
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 border-red-300 text-red-700 hover:bg-red-50"
+                            >
+                                <FileSpreadsheet className="h-4 w-4" />
+                                Importar Excel
+                            </Button>
+                            <Button onClick={() => setShowForm(!showForm)} size="sm" className="gap-1 bg-red-600 hover:bg-red-700">
+                                {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                                {showForm ? "Cancelar" : "Nueva Solicitud"}
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -488,6 +543,68 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
                         </CardContent>
                     </Card>
                 </div>
+            )}
+
+            {/* Import Excel Dialog */}
+            {canEdit && (
+                <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <FileSpreadsheet className="h-5 w-5 text-red-600" />
+                                Importar Cancelaciones desde Excel
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                Sube el archivo Excel de cancelaciones. Usa el mismo formato que el de facturas.
+                                Todas las filas se importarán con estado <strong>"Cancelado"</strong>.
+                            </p>
+
+                            <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-red-400 transition-colors">
+                                <Input
+                                    ref={importInputRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    className="hidden"
+                                    id="import-cancellations-excel"
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0]
+                                        if (f) setImportFile(f)
+                                    }}
+                                />
+                                <Label htmlFor="import-cancellations-excel" className="cursor-pointer flex flex-col items-center gap-2">
+                                    <FileSpreadsheet className="h-10 w-10 text-red-500" />
+                                    <span className="text-sm font-medium">Seleccionar archivo Excel</span>
+                                    <span className="text-xs text-muted-foreground">.xlsx o .xls</span>
+                                </Label>
+                            </div>
+
+                            {importFile && (
+                                <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
+                                    <FileSpreadsheet className="h-4 w-4 text-red-600 flex-shrink-0" />
+                                    <span className="text-sm flex-1 truncate">{importFile.name}</span>
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setImportFile(null)}>
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            )}
+
+                            <Button
+                                onClick={handleImportExcel}
+                                className="w-full bg-red-600 hover:bg-red-700"
+                                disabled={!importFile || isImporting}
+                            >
+                                {isImporting ? "Importando..." : (
+                                    <>
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        Importar Cancelaciones
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     )
