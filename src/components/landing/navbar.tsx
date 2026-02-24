@@ -14,7 +14,7 @@ export function Navbar() {
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 md:gap-3 group">
           <div className="logo-shine animate-logo">
-            <Image src="/images/arycp-logo-symbol.png" alt="ARYCP Logo" width={50} height={50} className="md:w-[75px] md:h-[75px]" />
+            <Image src="/images/arycp-logo-symbol.png" alt="ARYCP Logo" width={60} height={45} className="md:w-[80px] md:h-[60px] object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="text-lg md:text-xl font-bold text-foreground group-hover:text-primary transition-colors">AR&CP</span>
