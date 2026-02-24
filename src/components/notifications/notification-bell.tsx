@@ -45,7 +45,19 @@ function formatTimeAgo(dateStr: string): string {
 
 // Check if a notification supports replies (payroll alerts/completion from labor module)
 function isPayrollNotification(n: Notification): boolean {
-    return n.module === "labor" && n.entity_type === "payroll" && (n.type === "alert" || n.type === "completion" || n.type === "info")
+    // Primary check: module/entity_type fields
+    if (n.module === "labor" && n.entity_type === "payroll" && (n.type === "alert" || n.type === "completion" || n.type === "info")) {
+        return true
+    }
+    // Fallback: detect by title patterns (in case module/entity_type not populated)
+    if (n.from_user_id && n.title && (
+        n.title.includes("Nómina") || n.title.includes("nómina") ||
+        n.title.includes("Respuesta:") || n.title.includes("pendiente") ||
+        n.title.includes("Nómina lista") || n.title.includes("Nómina pendiente")
+    )) {
+        return true
+    }
+    return false
 }
 
 export function NotificationBell() {
@@ -275,7 +287,7 @@ export function NotificationBell() {
                                                 )}
                                                 {canReply && (
                                                     <button
-                                                        className="ml-auto text-[11px] text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+                                                        className="ml-auto text-xs bg-primary/10 text-primary hover:bg-primary/20 font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             setReplyingTo(notification)
@@ -283,8 +295,8 @@ export function NotificationBell() {
                                                             if (!notification.is_read) markAsRead(notification.id)
                                                         }}
                                                     >
-                                                        <MessageSquare className="h-3 w-3" />
-                                                        Responder
+                                                        <MessageSquare className="h-3.5 w-3.5" />
+                                                        💬 Responder
                                                     </button>
                                                 )}
                                             </div>

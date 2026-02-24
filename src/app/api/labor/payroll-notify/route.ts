@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         let clientName = ""
         if (payrollId) {
             const { data: payroll } = await supabase
-                .from("labor_payrolls")
+                .from("labor_payroll")
                 .select("period, payroll_type, client_id")
                 .eq("id", payrollId)
                 .single()

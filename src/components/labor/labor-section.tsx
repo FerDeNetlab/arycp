@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Briefcase, Plus, Trash2, Edit2, Users, FileText, Calendar,
   DollarSign, UserPlus, UserMinus, AlertCircle, Check, Clock,
-  CheckCircle2, XCircle, ArrowUpDown
+  CheckCircle2, XCircle, ArrowUpDown, Search
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -87,9 +87,13 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 
+const FILTER_YEARS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i)
+
 export function LaborSection({ clientId, userRole }: { clientId: string; userRole?: string }) {
   const isClient = userRole === "cliente"
   const [activeTab, setActiveTab] = useState("payroll")
+  const [filterYear, setFilterYear] = useState<number | null>(null)
+  const [filterMonth, setFilterMonth] = useState<number | null>(null)
 
   return (
     <Card className="border-2 border-green-200 shadow-sm">
@@ -100,6 +104,50 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Date Filter Bar */}
+        <div className="flex items-center gap-3 mb-4 p-3 bg-muted/40 rounded-lg border">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
+          <Select
+            value={filterYear?.toString() || "todos"}
+            onValueChange={(v) => {
+              if (v === "todos") { setFilterYear(null); setFilterMonth(null) }
+              else { setFilterYear(parseInt(v)); setFilterMonth(null) }
+            }}
+          >
+            <SelectTrigger className="w-28">
+              <SelectValue placeholder="Año" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {FILTER_YEARS.map((y) => (
+                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {filterYear && (
+            <Select
+              value={filterMonth?.toString() || "todos"}
+              onValueChange={(v) => setFilterMonth(v === "todos" ? null : parseInt(v))}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Mes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todo el año</SelectItem>
+                {MONTHS.map((m, idx) => (
+                  <SelectItem key={idx} value={(idx + 1).toString()}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {filterYear && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              📅 {filterMonth ? `${MONTHS[filterMonth - 1]} ${filterYear}` : `Todo ${filterYear}`}
+            </span>
+          )}
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="payroll" className="flex items-center gap-2">
@@ -121,15 +169,15 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
           </TabsList>
 
           <TabsContent value="payroll" className="mt-6">
-            <PayrollSection clientId={clientId} isClient={isClient} />
+            <PayrollSection clientId={clientId} isClient={isClient} filterYear={filterYear} filterMonth={filterMonth} />
           </TabsContent>
 
           <TabsContent value="incidents" className="mt-6">
-            <IncidentsSection clientId={clientId} isClient={isClient} />
+            <IncidentsSection clientId={clientId} isClient={isClient} filterYear={filterYear} filterMonth={filterMonth} />
           </TabsContent>
 
           <TabsContent value="imss" className="mt-6">
-            <IMSSSection clientId={clientId} isClient={isClient} />
+            <IMSSSection clientId={clientId} isClient={isClient} filterYear={filterYear} filterMonth={filterMonth} />
           </TabsContent>
 
           <TabsContent value="taxes" className="mt-6">
@@ -144,7 +192,7 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
 // ===========================================
 // Sección de Nóminas (Enhanced)
 // ===========================================
-function PayrollSection({ clientId, isClient }: { clientId: string; isClient: boolean }) {
+function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clientId: string; isClient: boolean; filterYear: number | null; filterMonth: number | null }) {
   const { toast } = useToast()
   const [payrolls, setPayrolls] = useState<Payroll[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -155,10 +203,11 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
     status: "pendiente",
     comments: "",
     stamping_day: "",
-    has_subsidy: false,
     has_aguinaldo: false,
     aguinaldo_sent: false,
   })
+  const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   // Notification state
   const [contadores, setContadores] = useState<{ id: string; name: string; role: string }[]>([])
@@ -206,9 +255,43 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
       })
       if (!res.ok) throw new Error((await res.json()).error)
       toast({ title: "Nómina registrada" })
-      setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_subsidy: false, has_aguinaldo: false, aguinaldo_sent: false })
+      setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_aguinaldo: false, aguinaldo_sent: false })
       setIsDialogOpen(false)
       loadPayrolls()
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    }
+  }
+
+  const openEditDialog = (payroll: Payroll) => {
+    setEditingPayroll(payroll)
+    setFormData({
+      payroll_type: payroll.payroll_type,
+      period: payroll.period,
+      status: payroll.status,
+      comments: payroll.comments || "",
+      stamping_day: payroll.stamping_day || "",
+      has_aguinaldo: payroll.has_aguinaldo,
+      aguinaldo_sent: payroll.aguinaldo_sent,
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleEditSave = async () => {
+    if (!editingPayroll || !formData.period.trim()) return
+    try {
+      await handleUpdate(editingPayroll.id, {
+        payroll_type: formData.payroll_type,
+        period: formData.period,
+        comments: formData.comments || null,
+        stamping_day: formData.stamping_day || null,
+        has_aguinaldo: formData.has_aguinaldo,
+        aguinaldo_sent: formData.aguinaldo_sent,
+      })
+      toast({ title: "Nómina actualizada" })
+      setIsEditDialogOpen(false)
+      setEditingPayroll(null)
+      setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_aguinaldo: false, aguinaldo_sent: false })
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -337,13 +420,6 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
                 <div className="flex flex-wrap gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox
-                      checked={formData.has_subsidy}
-                      onCheckedChange={(c) => setFormData({ ...formData, has_subsidy: !!c })}
-                    />
-                    <span className="text-sm">Subsidio</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
                       checked={formData.has_aguinaldo}
                       onCheckedChange={(c) => setFormData({ ...formData, has_aguinaldo: !!c })}
                     />
@@ -374,93 +450,103 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
         )}
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-      ) : payrolls.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No hay nóminas registradas</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {payrolls.map((payroll) => (
-            <div key={payroll.id} className="p-4 border-2 border-gray-200 rounded-lg hover:border-green-500 transition-colors">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                    <DollarSign className="h-4 w-4" />
+      {(() => {
+        const filtered = payrolls.filter((p) => {
+          if (!filterYear) return true
+          const d = new Date(p.created_at)
+          if (d.getFullYear() !== filterYear) return false
+          if (filterMonth && d.getMonth() + 1 !== filterMonth) return false
+          return true
+        })
+        return isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No hay nóminas registradas</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((payroll) => (
+              <div key={payroll.id} className="p-4 border-2 border-gray-200 rounded-lg hover:border-green-500 transition-colors">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                      <DollarSign className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{payroll.period}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Nómina {payroll.payroll_type}
+                        {payroll.stamping_day && ` · Timbrado: ${payroll.stamping_day}`}
+                        {payroll.completed_date && ` · Realizada: ${new Date(payroll.completed_date).toLocaleDateString()}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground/60">Registrado: {new Date(payroll.created_at).toLocaleDateString()}</p>
+                      {payroll.comments && <p className="text-xs text-muted-foreground mt-1">{payroll.comments}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium">{payroll.period}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Nómina {payroll.payroll_type}
-                      {payroll.stamping_day && ` · Timbrado: ${payroll.stamping_day}`}
-                      {payroll.completed_date && ` · Realizada: ${new Date(payroll.completed_date).toLocaleDateString()}`}
-                    </p>
-                    {payroll.comments && <p className="text-xs text-muted-foreground mt-1">{payroll.comments}</p>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Status indicators */}
-                  <div className="flex items-center gap-2 mr-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.has_subsidy ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-400"}`}>
-                      Subsidio {payroll.has_subsidy ? "✓" : "—"}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.has_aguinaldo ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
-                      Aguinaldo {payroll.has_aguinaldo ? "✓" : "—"}
-                    </span>
-                    {payroll.has_aguinaldo && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.aguinaldo_sent ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
-                        {payroll.aguinaldo_sent ? "Enviado ✓" : "No enviado"}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Status indicators */}
+                    <div className="flex items-center gap-2 mr-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.has_aguinaldo ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
+                        Aguinaldo {payroll.has_aguinaldo ? "✓" : "—"}
                       </span>
+                      {payroll.has_aguinaldo && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${payroll.aguinaldo_sent ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                          {payroll.aguinaldo_sent ? "Enviado ✓" : "No enviado"}
+                        </span>
+                      )}
+                    </div>
+                    {!isClient && (
+                      <>
+                        {/* Notification buttons */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-green-700 border-green-300 hover:bg-green-50"
+                          onClick={() => openNotifyDialog("completed", payroll)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          <span className="hidden sm:inline">Nómina Lista</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-orange-700 border-orange-300 hover:bg-orange-50"
+                          onClick={() => openNotifyDialog("blocked", payroll)}
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 mr-1" />
+                          <span className="hidden sm:inline">Reportar Pendiente</span>
+                        </Button>
+                        <Select value={payroll.status} onValueChange={(v) => handleUpdate(payroll.id, { status: v, completed_date: v === "realizada" ? new Date().toISOString().split("T")[0] : null })}>
+                          <SelectTrigger className={`w-32 ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pendiente">Pendiente</SelectItem>
+                            <SelectItem value="realizada">Realizada</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(payroll)} className="text-blue-500" title="Editar">
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(payroll.id)} className="text-red-500" title="Eliminar">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {isClient && (
+                      <Badge variant={payroll.status === "realizada" ? "default" : "outline"}>
+                        {payroll.status === "realizada" ? "Realizada" : "Pendiente"}
+                      </Badge>
                     )}
                   </div>
-                  {!isClient && (
-                    <>
-                      {/* Notification buttons */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-green-700 border-green-300 hover:bg-green-50"
-                        onClick={() => openNotifyDialog("completed", payroll)}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                        <span className="hidden sm:inline">Nómina Lista</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-orange-700 border-orange-300 hover:bg-orange-50"
-                        onClick={() => openNotifyDialog("blocked", payroll)}
-                      >
-                        <AlertCircle className="h-3.5 w-3.5 mr-1" />
-                        <span className="hidden sm:inline">Reportar Pendiente</span>
-                      </Button>
-                      <Select value={payroll.status} onValueChange={(v) => handleUpdate(payroll.id, { status: v, completed_date: v === "realizada" ? new Date().toISOString().split("T")[0] : null })}>
-                        <SelectTrigger className={`w-32 ${payroll.status === "realizada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pendiente">Pendiente</SelectItem>
-                          <SelectItem value="realizada">Realizada</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(payroll.id)} className="text-red-500">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {isClient && (
-                    <Badge variant={payroll.status === "realizada" ? "default" : "outline"}>
-                      {payroll.status === "realizada" ? "Realizada" : "Pendiente"}
-                    </Badge>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Notification Dialog */}
       <Dialog open={notifyDialog.open} onOpenChange={(open) => setNotifyDialog({ ...notifyDialog, open })}>
@@ -519,6 +605,81 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Payroll Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) setEditingPayroll(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>✏️ Editar Nómina</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Tipo de Nómina</label>
+                <Select value={formData.payroll_type} onValueChange={(v) => setFormData({ ...formData, payroll_type: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semanal">Semanal</SelectItem>
+                    <SelectItem value="quincenal">Quincenal</SelectItem>
+                    <SelectItem value="mensual">Mensual</SelectItem>
+                    <SelectItem value="asimilados">Asimilados</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Día de Timbrado</label>
+                <Select value={formData.stamping_day} onValueChange={(v) => setFormData({ ...formData, stamping_day: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAYS.map((day) => (
+                      <SelectItem key={day} value={day}>{day}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Período</label>
+              <Input
+                placeholder="Ej: 1ra Quincena Enero 2026"
+                value={formData.period}
+                onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+              />
+            </div>
+            <div className="flex flex-wrap gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={formData.has_aguinaldo}
+                  onCheckedChange={(c) => setFormData({ ...formData, has_aguinaldo: !!c })}
+                />
+                <span className="text-sm">Aguinaldo</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={formData.aguinaldo_sent}
+                  onCheckedChange={(c) => setFormData({ ...formData, aguinaldo_sent: !!c })}
+                />
+                <span className="text-sm">Aguinaldo Enviado</span>
+              </label>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Observaciones</label>
+              <Textarea
+                placeholder="Notas adicionales..."
+                value={formData.comments}
+                onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+              />
+            </div>
+            <Button onClick={handleEditSave} className="w-full" disabled={!formData.period.trim()}>
+              Guardar Cambios
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -526,7 +687,7 @@ function PayrollSection({ clientId, isClient }: { clientId: string; isClient: bo
 // ===========================================
 // Sección de Incidencias (unchanged)
 // ===========================================
-function IncidentsSection({ clientId, isClient }: { clientId: string; isClient: boolean }) {
+function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { clientId: string; isClient: boolean; filterYear: number | null; filterMonth: number | null }) {
   const supabase = createClient()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -678,59 +839,69 @@ function IncidentsSection({ clientId, isClient }: { clientId: string; isClient: 
         )}
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-      ) : incidents.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No hay incidencias registradas</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {incidents.map((incident) => (
-            <div key={incident.id} className="p-4 border rounded-lg hover:border-green-300 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-100 text-orange-700 rounded">
-                    {getIncidentIcon(incident.incident_type)}
+      {(() => {
+        const filtered = incidents.filter((inc) => {
+          if (!filterYear) return true
+          const d = new Date(inc.created_at)
+          if (d.getFullYear() !== filterYear) return false
+          if (filterMonth && d.getMonth() + 1 !== filterMonth) return false
+          return true
+        })
+        return isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No hay incidencias registradas{filterYear ? ` en ${filterMonth ? MONTHS[filterMonth - 1] + ' ' : ''}${filterYear}` : ''}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((incident) => (
+              <div key={incident.id} className="p-4 border rounded-lg hover:border-green-300 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 text-orange-700 rounded">
+                      {getIncidentIcon(incident.incident_type)}
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{incident.employee_name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {getIncidentTypeLabel(incident.incident_type)} - {new Date(incident.start_date).toLocaleDateString()}
+                        {incident.end_date && ` al ${new Date(incident.end_date).toLocaleDateString()}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground/60">Registrado: {new Date(incident.created_at).toLocaleDateString()}</p>
+                      {incident.comments && <p className="text-xs text-muted-foreground mt-1">{incident.comments}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium">{incident.employee_name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {getIncidentTypeLabel(incident.incident_type)} - {new Date(incident.start_date).toLocaleDateString()}
-                      {incident.end_date && ` al ${new Date(incident.end_date).toLocaleDateString()}`}
-                    </p>
-                    {incident.comments && <p className="text-xs text-muted-foreground mt-1">{incident.comments}</p>}
+                  <div className="flex items-center gap-2">
+                    {!isClient && (
+                      <>
+                        <Select value={incident.status} onValueChange={(v) => handleUpdateStatus(incident.id, v)}>
+                          <SelectTrigger className={`w-32 ${incident.status === "aplicada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pendiente">Pendiente</SelectItem>
+                            <SelectItem value="aplicada">Aplicada</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(incident.id)} className="text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {isClient && (
+                      <Badge variant={incident.status === "aplicada" ? "default" : "outline"}>
+                        {incident.status === "aplicada" ? "Aplicada" : "Pendiente"}
+                      </Badge>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!isClient && (
-                    <>
-                      <Select value={incident.status} onValueChange={(v) => handleUpdateStatus(incident.id, v)}>
-                        <SelectTrigger className={`w-32 ${incident.status === "aplicada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pendiente">Pendiente</SelectItem>
-                          <SelectItem value="aplicada">Aplicada</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(incident.id)} className="text-red-500">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {isClient && (
-                    <Badge variant={incident.status === "aplicada" ? "default" : "outline"}>
-                      {incident.status === "aplicada" ? "Aplicada" : "Pendiente"}
-                    </Badge>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -738,7 +909,7 @@ function IncidentsSection({ clientId, isClient }: { clientId: string; isClient: 
 // ===========================================
 // Sección de Movimientos IMSS (Full Rewrite)
 // ===========================================
-function IMSSSection({ clientId, isClient }: { clientId: string; isClient: boolean }) {
+function IMSSSection({ clientId, isClient, filterYear, filterMonth }: { clientId: string; isClient: boolean; filterYear: number | null; filterMonth: number | null }) {
   const { toast } = useToast()
   const [movements, setMovements] = useState<IMSSMovement[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -869,9 +1040,15 @@ function IMSSSection({ clientId, isClient }: { clientId: string; isClient: boole
     }
   }
 
-  const filteredMovements = filterType === "todos"
-    ? movements
-    : movements.filter((m) => m.movement_type === filterType)
+  const filteredMovements = movements.filter((m) => {
+    if (filterType !== "todos" && m.movement_type !== filterType) return false
+    if (filterYear) {
+      const d = new Date(m.created_at)
+      if (d.getFullYear() !== filterYear) return false
+      if (filterMonth && d.getMonth() + 1 !== filterMonth) return false
+    }
+    return true
+  })
 
   return (
     <div className="space-y-4">
@@ -1084,6 +1261,7 @@ function IMSSSection({ clientId, isClient }: { clientId: string; isClient: boole
                       )}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+                      <span className="text-muted-foreground/60">📝 Registrado: {new Date(mov.created_at).toLocaleDateString()}</span>
                       {mov.request_date && <span>📅 Solicitud: {new Date(mov.request_date).toLocaleDateString()}</span>}
                       {mov.confirmation_date && <span>✅ Confirmado: {new Date(mov.confirmation_date).toLocaleDateString()}</span>}
                       {mov.patron_registration && <span>🏢 Reg: {mov.patron_registration}</span>}
