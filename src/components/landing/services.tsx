@@ -81,11 +81,11 @@ export function Services() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {services.map((service, index) => (
             <Card
               key={index}
-              className={`border-2 ${service.border} card-hover scroll-hidden stagger-${Math.min(index + 1, 6)} group ${index === services.length - 1 && services.length % 3 === 1 ? 'lg:col-start-2' : ''}`}
+              className={`border-2 ${service.border} card-hover scroll-hidden stagger-${Math.min(index + 1, 6)} group`}
             >
               <CardHeader>
                 <div className={`h-14 w-14 rounded-xl ${service.bg} flex items-center justify-center mb-4 icon-hover`}>

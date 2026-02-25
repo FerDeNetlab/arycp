@@ -46,7 +46,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Link href="/" className="flex flex-col items-center gap-2">
               <div className="logo-shine animate-logo">
-                <Image src="/images/arycp-logo-symbol.png" alt="ARYCP Logo" width={100} height={100} />
+                <Image src="/images/arycp-logo-symbol.png" alt="ARYCP Logo" width={120} height={90} className="object-contain" />
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">AR&CP</div>
@@ -55,7 +55,7 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <Card className="border-2">
+          <Card className="border shadow-xl bg-card/80 backdrop-blur-sm">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
               <CardDescription>Accede al sistema ERP de ARYCP</CardDescription>
@@ -79,6 +79,7 @@ export default function LoginPage() {
                     <Input
                       id="password"
                       type="password"
+                      placeholder="••••••••"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

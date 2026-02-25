@@ -165,10 +165,10 @@ export function Sidebar({ isClient, collapsed, onToggle, mobileOpen, onMobileClo
                                             href={item.href}
                                             onClick={onMobileClose}
                                             className={cn(
-                                                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium sidebar-link",
+                                                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium sidebar-link transition-all",
                                                 active
-                                                    ? "bg-sidebar-primary/15 text-sidebar-primary"
-                                                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                                                    ? "bg-sidebar-primary/15 text-sidebar-primary border-l-[3px] border-sidebar-primary shadow-sm"
+                                                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
                                                 collapsed && !mobileOpen && "justify-center px-2"
                                             )}
                                             title={collapsed && !mobileOpen ? item.label : undefined}
