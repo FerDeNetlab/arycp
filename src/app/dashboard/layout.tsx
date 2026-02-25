@@ -27,6 +27,7 @@ export default function DashboardLayout({
             {!loading && (
                 <Sidebar
                     isClient={isClient}
+                    userRole={role}
                     collapsed={sidebarCollapsed}
                     onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
                     mobileOpen={mobileMenuOpen}

@@ -20,6 +20,7 @@ import {
     LayoutDashboard,
     Receipt,
     X,
+    Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -59,6 +60,7 @@ const NAV_SECTIONS = [
     {
         label: "Sistema",
         items: [
+            { href: "/dashboard/supervision", icon: Shield, label: "Supervisión", adminOnly: true },
             { href: "/dashboard/users", icon: UserCircle, label: "Usuarios" },
         ],
     },
@@ -88,13 +90,14 @@ const CLIENT_NAV = [
 
 interface SidebarProps {
     isClient: boolean
+    userRole: string
     collapsed: boolean
     onToggle: () => void
     mobileOpen: boolean
     onMobileClose: () => void
 }
 
-export function Sidebar({ isClient, collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
+export function Sidebar({ isClient, userRole, collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
     const pathname = usePathname()
     const sections = isClient ? CLIENT_NAV : NAV_SECTIONS
 
@@ -156,31 +159,33 @@ export function Sidebar({ isClient, collapsed, onToggle, mobileOpen, onMobileClo
                                 </p>
                             )}
                             <div className="space-y-0.5">
-                                {section.items.map((item) => {
-                                    const Icon = item.icon
-                                    const active = isActive(item.href)
-                                    return (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            onClick={onMobileClose}
-                                            className={cn(
-                                                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium sidebar-link transition-all",
-                                                active
-                                                    ? "bg-sidebar-primary/15 text-sidebar-primary border-l-[3px] border-sidebar-primary shadow-sm"
-                                                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-                                                collapsed && !mobileOpen && "justify-center px-2"
-                                            )}
-                                            title={collapsed && !mobileOpen ? item.label : undefined}
-                                        >
-                                            <Icon className={cn(
-                                                "h-[18px] w-[18px] flex-shrink-0",
-                                                active ? "text-sidebar-primary" : "text-sidebar-foreground/50"
-                                            )} />
-                                            {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
-                                        </Link>
-                                    )
-                                })}
+                                {section.items
+                                    .filter((item: any) => !item.adminOnly || userRole === "admin")
+                                    .map((item) => {
+                                        const Icon = item.icon
+                                        const active = isActive(item.href)
+                                        return (
+                                            <Link
+                                                key={item.href}
+                                                href={item.href}
+                                                onClick={onMobileClose}
+                                                className={cn(
+                                                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium sidebar-link transition-all",
+                                                    active
+                                                        ? "bg-sidebar-primary/15 text-sidebar-primary border-l-[3px] border-sidebar-primary shadow-sm"
+                                                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+                                                    collapsed && !mobileOpen && "justify-center px-2"
+                                                )}
+                                                title={collapsed && !mobileOpen ? item.label : undefined}
+                                            >
+                                                <Icon className={cn(
+                                                    "h-[18px] w-[18px] flex-shrink-0",
+                                                    active ? "text-sidebar-primary" : "text-sidebar-foreground/50"
+                                                )} />
+                                                {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
+                                            </Link>
+                                        )
+                                    })}
                             </div>
                         </div>
                     ))}
