@@ -68,6 +68,7 @@ export function Hero() {
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/10 to-secondary/20 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500 opacity-60 group-hover:opacity-100"></div>
 
               <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/office-bg.jpg"
                   alt="Equipo de trabajo ARYCP"

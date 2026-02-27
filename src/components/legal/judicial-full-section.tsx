@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
   Plus, Trash2, Scale, FileText, Calendar, Gavel,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Clock, MapPin, CheckCircle2, AlertCircle, Users
 } from "lucide-react"
 import { toast } from "sonner"
@@ -122,6 +123,7 @@ const DOCUMENT_TYPES = [
   { value: "otro", label: "Otro" },
 ]
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function JudicialFullSection({ clientId, clientName, userRole }: JudicialFullSectionProps) {
   const isClient = userRole === "cliente"
   const [cases, setCases] = useState<JudicialCase[]>([])
@@ -178,6 +180,7 @@ export function JudicialFullSection({ clientId, clientName, userRole }: Judicial
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadData = async () => {

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import * as XLSX from "xlsx"
 import { logActivity } from "@/lib/activity"
+import { getErrorMessage } from "@/lib/api/errors"
 
 type FileType = "emitidos" | "recibidos" | "iva_trasladado" | "iva_acreditable"
 
@@ -26,7 +27,7 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
     const workbook = XLSX.read(buffer, { type: "array" })
     const sheetName = workbook.SheetNames[0]
     const sheet = workbook.Sheets[sheetName]
-    const data = XLSX.utils.sheet_to_json<Record<string, any>>(sheet)
+    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
 
     const type = detectFileType(fileName)
 
@@ -34,23 +35,25 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
     let subtotalSum = 0
     let ivaSum = 0
 
+    const num = (v: unknown): number => parseFloat(String(v ?? "")) || 0
+
     for (const row of data) {
         if (type === "iva_trasladado") {
             // IVA Trasladado file: use "IVA total" or "IVA 16%" for IVA, "Base IVA 16%" for base
-            ivaSum += parseFloat(row["IVA total"]) || parseFloat(row["IVA 16%"]) || 0
-            subtotalSum += parseFloat(row["Base IVA 16%"]) || 0
-            totalSum += parseFloat(row["Total"]) || 0
+            ivaSum += num(row["IVA total"]) || num(row["IVA 16%"])
+            subtotalSum += num(row["Base IVA 16%"])
+            totalSum += num(row["Total"])
         } else if (type === "iva_acreditable") {
             // IVA Acreditable file: use "IVA acreditable total" or "IVA 16%" for IVA, "Base IVA 16%" for base
-            ivaSum += parseFloat(row["IVA acreditable total"]) || parseFloat(row["IVA 16%"]) || 0
-            subtotalSum += parseFloat(row["Base IVA 16%"]) || parseFloat(row["Base IVA 8%"]) || 0
-            totalSum += parseFloat(row["Total"]) || 0
+            ivaSum += num(row["IVA acreditable total"]) || num(row["IVA 16%"])
+            subtotalSum += num(row["Base IVA 16%"]) || num(row["Base IVA 8%"])
+            totalSum += num(row["Total"])
         } else {
             // Emitidos/Recibidos files
-            totalSum += parseFloat(row["Total"]) || 0
+            totalSum += num(row["Total"])
             // "Base de IVA traslado" is the net income that matches EZAudita's "Ingresos netos"
-            subtotalSum += parseFloat(row["Base de IVA traslado"]) || parseFloat(row["Neto"]) || parseFloat(row["Subtotal"]) || 0
-            ivaSum += parseFloat(row["Importe IVA traslado"]) || parseFloat(row["Traslado IVA"]) || 0
+            subtotalSum += num(row["Base de IVA traslado"]) || num(row["Neto"]) || num(row["Subtotal"])
+            ivaSum += num(row["Importe IVA traslado"]) || num(row["Traslado IVA"])
         }
     }
 
@@ -232,8 +235,8 @@ export async function POST(request: Request) {
                 ivaBalance,
             },
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error importing Excel:", error)
-        return NextResponse.json({ error: error.message || "Error al importar" }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

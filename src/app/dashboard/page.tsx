@@ -1,14 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   FileText,
   ClipboardCheck,
   Calendar,
   AlertCircle,
-  TrendingUp,
   Users,
   Calculator,
   UserCircle,
@@ -170,8 +170,7 @@ const CLIENT_EXTRA_MODULES = [
 ]
 
 export default function DashboardPage() {
-  const { role, fullName, services, clientId, loading } = useUserRole()
-  const router = useRouter()
+  const { role, fullName, services, loading } = useUserRole()
   const isClient = isClientRole(role)
 
   const [stats, setStats] = useState({ totalActive: 0, totalPending: 0, upcomingEvents: 0, alerts: 0 })

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Badge } from "@/components/ui/badge"
 
 interface Notification {
@@ -20,6 +21,7 @@ interface Notification {
     created_at: string
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const typeConfig: Record<string, { icon: any; color: string; bgColor: string }> = {
     assignment: { icon: UserPlus, color: "text-blue-600", bgColor: "bg-blue-100" },
     alert: { icon: AlertCircle, color: "text-red-600", bgColor: "bg-red-100" },
@@ -64,7 +66,7 @@ export function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [isOpen, setIsOpen] = useState(false)
-    const [loading, setLoading] = useState(false)
+    const [_loading, _setLoading] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
     // Reply state

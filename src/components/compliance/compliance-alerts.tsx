@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ShieldAlert, ShieldX, ChevronRight, ClipboardList } from "lucide-react"
+import { ShieldAlert, ShieldX, ChevronRight } from "lucide-react"
 import Link from "next/link"
 
 interface Alert {

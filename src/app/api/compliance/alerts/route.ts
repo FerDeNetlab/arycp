@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
-import { getUserRole } from "@/lib/auth/get-user-role"
+import { requireAuth } from "@/lib/api/auth"
+import { getErrorMessage } from "@/lib/api/errors"
 import { ROLES } from "@/lib/constants/roles"
 
 export async function GET() {
     try {
-        const serverClient = await createClient()
-        const { data: { user } } = await serverClient.auth.getUser()
-        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-
-        const userData = await getUserRole(user.id)
-        const supabase = createAdminClient()
+        const auth = await requireAuth()
+        if ("error" in auth) return auth.error
+        const { user, sysUser, supabase } = auth
 
         // Build query
         let query = supabase
@@ -21,7 +17,7 @@ export async function GET() {
             .order("expiration_date", { ascending: true })
 
         // Contadores only see their own registrations
-        if (userData.role === ROLES.CONTADOR) {
+        if (sysUser.role === ROLES.CONTADOR) {
             query = query.eq("created_by", user.id)
         }
 
@@ -30,14 +26,32 @@ export async function GET() {
         if (error) throw error
 
         const now = new Date()
-        const alerts: any[] = []
+
+        interface ClientData {
+            id: string
+            business_name?: string
+            name?: string
+        }
+
+        interface Alert {
+            id: string
+            clientId: string
+            clientName: string
+            type: string
+            label: string
+            expirationDate: string
+            daysLeft: number
+            severity: "expired" | "critical" | "warning"
+        }
+
+        const alerts: Alert[] = []
 
         for (const reg of registrations || []) {
             const exp = new Date(reg.expiration_date + "T23:59:59")
             const diffDays = Math.floor((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
             if (diffDays <= 30) {
-                const clientData = reg.clients as any
+                const clientData = reg.clients as ClientData | null
                 alerts.push({
                     id: reg.id,
                     clientId: reg.client_id,
@@ -52,7 +66,7 @@ export async function GET() {
         }
 
         return NextResponse.json({ alerts })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

@@ -8,6 +8,7 @@ import Link from "next/link"
 import { MessagesList } from "@/components/messages/messages-list"
 
 export default function MessagesPage() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [messages, setMessages] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -15,6 +16,7 @@ export default function MessagesPage() {
 
     useEffect(() => {
         fetchMessages()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     async function fetchMessages() {

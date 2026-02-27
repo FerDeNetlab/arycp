@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function GET(request: Request) {
     try {
@@ -97,7 +98,7 @@ export async function GET(request: Request) {
                 monthlyData,
             }
         })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

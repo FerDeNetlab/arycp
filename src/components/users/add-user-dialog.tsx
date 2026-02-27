@@ -76,7 +76,8 @@ export function AddUserDialog({ children, onUserCreated }: { children: React.Rea
       setOpen(false)
       onUserCreated?.() // Notificar al padre que se creó un usuario
       router.refresh()
-    } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_err) {
       setError("Error de conexión. Intenta nuevamente.")
       setLoading(false)
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function GET(request: Request) {
     try {
@@ -24,8 +25,8 @@ export async function GET(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -57,7 +58,6 @@ export async function POST(request: Request) {
         }
 
         // Upload file to Supabase Storage
-        const fileExt = file.name.split(".").pop()
         const fileName = `${clientId}/${Date.now()}_${file.name}`
         const buffer = await file.arrayBuffer()
 
@@ -90,8 +90,8 @@ export async function POST(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -126,7 +126,7 @@ export async function DELETE(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ success: true })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

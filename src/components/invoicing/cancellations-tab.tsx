@@ -80,6 +80,7 @@ interface CancellationsTabProps {
     canEdit: boolean
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function CancellationsTab({ clientId, clientName, canEdit }: CancellationsTabProps) {
     const { toast } = useToast()
     const [cancellations, setCancellations] = useState<Cancellation[]>([])
@@ -142,6 +143,7 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
 
     useEffect(() => {
         loadCancellations()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clientId, filterYear, filterMonth])
 
     async function loadCancellations() {
@@ -233,8 +235,8 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
             setIsImportDialogOpen(false)
             setImportFile(null)
             loadCancellations()
-        } catch (error: any) {
-            toast({ title: "Error al importar", description: error.message, variant: "destructive" })
+        } catch (error: unknown) {
+            toast({ title: "Error al importar", description: error instanceof Error ? error.message : String(error), variant: "destructive" })
         } finally {
             setIsImporting(false)
         }
@@ -674,7 +676,7 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
                         <div className="space-y-4">
                             <p className="text-sm text-muted-foreground">
                                 Sube el archivo Excel de cancelaciones. Usa el mismo formato que el de facturas.
-                                Todas las filas se importarán con estado <strong>"Cancelado"</strong>.
+                                Todas las filas se importarán con estado <strong>&quot;Cancelado&quot;</strong>.
                             </p>
 
                             <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-red-400 transition-colors">

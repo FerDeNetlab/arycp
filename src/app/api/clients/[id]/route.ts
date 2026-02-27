@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getUserRole } from "@/lib/auth/get-user-role"
 import { ROLES } from "@/lib/constants/roles"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -38,8 +39,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         }
 
         return NextResponse.json({ client }, { status: 200 })
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Unexpected error:", error)
-        return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/supervision/admin-guard"
+import { getErrorMessage } from "@/lib/api/errors"
 
 // GET: fetch capacity & financial settings
 export async function GET() {
@@ -47,8 +48,8 @@ export async function GET() {
             employees: (employees || []).map(e => ({ id: e.auth_user_id, name: e.full_name })),
             clients: (clients || []).map(c => ({ id: c.id, name: c.business_name })),
         })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -125,7 +126,7 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ error: "Tipo no válido (capacity | financial)" }, { status: 400 })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

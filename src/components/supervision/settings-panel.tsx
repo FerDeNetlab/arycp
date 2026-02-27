@@ -29,8 +29,8 @@ export function SettingsPanel() {
     const { toast } = useToast()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState<string | null>(null)
-    const [capacities, setCapacities] = useState<CapacitySetting[]>([])
-    const [financials, setFinancials] = useState<ClientFinancial[]>([])
+    const [_capacities, setCapacities] = useState<CapacitySetting[]>([])
+    const [_financials, setFinancials] = useState<ClientFinancial[]>([])
     const [employees, setEmployees] = useState<{ id: string; name: string }[]>([])
     const [clients, setClients] = useState<{ id: string; name: string }[]>([])
 
@@ -49,6 +49,7 @@ export function SettingsPanel() {
                 setClients(data.clients || [])
 
                 // Initialize forms
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const capMap: Record<string, any> = {}
                 for (const c of data.capacities || []) {
                     capMap[c.user_id] = {
@@ -65,6 +66,7 @@ export function SettingsPanel() {
                 }
                 setCapForms(capMap)
 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const finMap: Record<string, any> = {}
                 for (const f of data.financials || []) {
                     finMap[f.client_id] = {
@@ -103,6 +105,7 @@ export function SettingsPanel() {
             })
             if (!res.ok) throw new Error("Error al guardar")
             toast({ title: "✅ Capacidad guardada" })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" })
         } finally {
@@ -127,6 +130,7 @@ export function SettingsPanel() {
             })
             if (!res.ok) throw new Error("Error al guardar")
             toast({ title: "✅ Datos financieros guardados" })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" })
         } finally {

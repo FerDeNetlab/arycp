@@ -162,6 +162,7 @@ export function Sidebar({ isClient, userRole, collapsed, onToggle, mobileOpen, o
                             )}
                             <div className="space-y-0.5">
                                 {section.items
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     .filter((item: any) => !item.adminOnly || userRole === "admin")
                                     .map((item) => {
                                         const Icon = item.icon

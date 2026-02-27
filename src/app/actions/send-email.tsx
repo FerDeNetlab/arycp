@@ -39,6 +39,7 @@ export async function sendDeclarationEmail({
     const resend = new Resend(apiKey)
     const fromWithName = `Robot contador de AR&CP <${fromEmail}>`
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emailPayload: any = {
       from: fromWithName,
       to: [to],
@@ -95,6 +96,7 @@ export async function sendDeclarationEmail({
     })
 
     return { success: true, data }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("[v0] Error general:", error)
     return { success: false, error: error?.message || "Error desconocido" }
@@ -244,6 +246,7 @@ export async function sendFiscalObservationsEmail({
     })
 
     return { success: true, data }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("[v0] Error general:", error)
     return { success: false, error: error?.message || "Error desconocido" }

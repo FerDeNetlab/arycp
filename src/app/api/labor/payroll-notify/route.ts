@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { logActivity, createNotification } from "@/lib/activity"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function POST(request: Request) {
     try {
@@ -165,8 +166,8 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json({ success: true, recipientName: recipient.full_name })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error sending payroll notification:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

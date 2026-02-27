@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Plus, Mail, Upload, X, FileSpreadsheet, ArrowUpDown, TrendingUp, TrendingDown, Receipt, UserPlus, Check, Loader2, ClipboardList } from "lucide-react"
+import { FileText, Plus, Mail, Upload, X, FileSpreadsheet, ArrowUpDown, TrendingUp, TrendingDown, Receipt, Check, Loader2, ClipboardList } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -79,6 +79,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
 
   useEffect(() => {
     loadDeclarations()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, selectedYear])
 
   async function loadDeclarations() {
@@ -89,6 +90,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       if (!res.ok) throw new Error(result.error)
 
       const declarationsMap: Record<number, MonthlyDeclaration> = {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result.data?.forEach((decl: any) => {
         declarationsMap[decl.month] = decl
       })
@@ -192,6 +194,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       setPdfFile(null)
       setSelectedFileName("")
       loadDeclarations()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }
@@ -259,6 +262,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       toast({ title: "Correo enviado correctamente" })
       setIsEmailDialogOpen(false)
       setEmailRecipient("")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("[v0] Error al enviar correo:", error)
       toast({ title: "Error", description: error.message, variant: "destructive" })
@@ -319,6 +323,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       } else {
         throw new Error(result.error)
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     } finally {
@@ -384,6 +389,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       setIsImportDialogOpen(false)
       setImportFiles([])
       loadDeclarations()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast({ title: "Error al importar", description: error.message, variant: "destructive" })
     } finally {

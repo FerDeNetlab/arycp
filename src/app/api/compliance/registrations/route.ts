@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { requireAuth, requireRole } from "@/lib/api/auth"
+import { getErrorMessage } from "@/lib/api/errors"
 import { createNotification } from "@/lib/activity"
 
 export async function GET(request: Request) {
     try {
-        const serverClient = await createClient()
-        const { data: { user } } = await serverClient.auth.getUser()
-        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+        const auth = await requireAuth()
+        if ("error" in auth) return auth.error
+        const { supabase } = auth
 
         const { searchParams } = new URL(request.url)
         const clientId = searchParams.get("clientId")
 
         if (!clientId) return NextResponse.json({ error: "clientId requerido" }, { status: 400 })
-
-        const supabase = createAdminClient()
 
         const { data, error } = await supabase
             .from("company_registrations")
@@ -26,28 +24,16 @@ export async function GET(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
 export async function POST(request: Request) {
     try {
-        const serverClient = await createClient()
-        const { data: { user } } = await serverClient.auth.getUser()
-        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-
-        const supabase = createAdminClient()
-
-        const { data: sysUser } = await supabase
-            .from("system_users")
-            .select("role, full_name")
-            .eq("auth_user_id", user.id)
-            .single()
-
-        if (!sysUser || (sysUser.role !== "admin" && sysUser.role !== "contador")) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-        }
+        const auth = await requireRole(["admin", "contador"])
+        if ("error" in auth) return auth.error
+        const { user, sysUser, supabase } = auth
 
         const body = await request.json()
         const {
@@ -100,28 +86,16 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
 export async function PATCH(request: Request) {
     try {
-        const serverClient = await createClient()
-        const { data: { user } } = await serverClient.auth.getUser()
-        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-
-        const supabase = createAdminClient()
-
-        const { data: sysUser } = await supabase
-            .from("system_users")
-            .select("role, full_name")
-            .eq("auth_user_id", user.id)
-            .single()
-
-        if (!sysUser || (sysUser.role !== "admin" && sysUser.role !== "contador")) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-        }
+        const auth = await requireRole(["admin", "contador"])
+        if ("error" in auth) return auth.error
+        const { supabase } = auth
 
         const body = await request.json()
         const { id, ...updates } = body
@@ -134,7 +108,7 @@ export async function PATCH(request: Request) {
             expirationDate: "expiration_date",
         }
 
-        const dbUpdates: Record<string, any> = {}
+        const dbUpdates: Record<string, unknown> = {}
         for (const [key, value] of Object.entries(updates)) {
             const dbKey = fieldMap[key] || key
             dbUpdates[dbKey] = value
@@ -151,28 +125,16 @@ export async function PATCH(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
 export async function DELETE(request: Request) {
     try {
-        const serverClient = await createClient()
-        const { data: { user } } = await serverClient.auth.getUser()
-        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
-
-        const supabase = createAdminClient()
-
-        const { data: sysUser } = await supabase
-            .from("system_users")
-            .select("role, full_name")
-            .eq("auth_user_id", user.id)
-            .single()
-
-        if (!sysUser || (sysUser.role !== "admin" && sysUser.role !== "contador")) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 403 })
-        }
+        const auth = await requireRole(["admin", "contador"])
+        if ("error" in auth) return auth.error
+        const { supabase } = auth
 
         const { searchParams } = new URL(request.url)
         const id = searchParams.get("id")
@@ -187,7 +149,7 @@ export async function DELETE(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ success: true })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

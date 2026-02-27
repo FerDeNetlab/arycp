@@ -26,7 +26,7 @@ export function AuthRedirectHandler() {
             const supabase = createClient()
 
             // Let Supabase process the hash tokens first
-            supabase.auth.onAuthStateChange((event, session) => {
+            supabase.auth.onAuthStateChange((event, _session) => {
                 if (event === "PASSWORD_RECOVERY") {
                     router.push("/auth/reset-password")
                 }

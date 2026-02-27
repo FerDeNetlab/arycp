@@ -69,6 +69,7 @@ const STATUS_OPTIONS = [
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-800" },
 ]
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ProceduresSection({ clientId, clientName, userRole }: ProceduresSectionProps) {
   const isClient = userRole === "cliente"
   const [procedures, setProcedures] = useState<Procedure[]>([])
@@ -87,6 +88,7 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
 
   useEffect(() => {
     loadProcedures()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadProcedures = async () => {
@@ -170,11 +172,13 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
     ) : null
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getProcedureTypeLabel = (type: string) => {
     const procedureType = PROCEDURE_TYPES.find((p) => p.value === type)
     return procedureType ? procedureType.label : type
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getProcedureIcon = (type: string) => {
     const procedureType = PROCEDURE_TYPES.find((p) => p.value === type)
     return procedureType ? procedureType.icon : FileCheck

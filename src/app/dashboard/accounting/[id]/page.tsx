@@ -41,6 +41,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
     if (clientId) {
       fetchClient()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   async function fetchClient() {

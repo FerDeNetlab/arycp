@@ -79,7 +79,7 @@ export async function POST(request: Request) {
             type: isFIEL ? "efirma" : "csd",
             label: `${isFIEL ? "e.Firma" : "CSD"} — ${name}`,
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error parsing .cer:", error)
         return NextResponse.json(
             { error: "No se pudo leer el archivo .cer. Verifica que sea un certificado válido del SAT." },

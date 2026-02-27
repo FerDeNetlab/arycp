@@ -25,6 +25,7 @@ interface FiscalObservation {
   created_at: string
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function FiscalSection({ clientId, clientData, userRole }: { clientId: string; clientData: any; userRole?: string }) {
   const isClient = userRole === "cliente"
   const [observations, setObservations] = useState<FiscalObservation[]>([])
@@ -45,6 +46,7 @@ export function FiscalSection({ clientId, clientData, userRole }: { clientId: st
 
   useEffect(() => {
     loadObservations()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadObservations = async () => {

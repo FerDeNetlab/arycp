@@ -30,6 +30,7 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({ isConnected, clients, processes }: CalendarViewProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [events] = useState<any[]>([])
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 

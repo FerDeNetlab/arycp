@@ -40,6 +40,7 @@ export function LegalProcessesSection({ clientId }: { clientId: string }) {
 
   useEffect(() => {
     loadProcesses()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadProcesses = async () => {
@@ -74,6 +75,7 @@ export function LegalProcessesSection({ clientId }: { clientId: string }) {
     } = await supabase.auth.getUser()
     if (!user || !newProcess.title.trim()) return
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { data: process, error } = await supabase
       .from("legal_processes")
       .insert({
@@ -174,6 +176,7 @@ export function LegalProcessesSection({ clientId }: { clientId: string }) {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "completed":

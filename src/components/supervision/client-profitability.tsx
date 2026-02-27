@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DollarSign, Clock, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
@@ -30,6 +30,7 @@ function getMargenBadge(level: string, margen: number) {
 
 export function ClientProfitability() {
     const [clients, setClients] = useState<ClientData[]>([])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [summary, setSummary] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [expandedId, setExpandedId] = useState<string | null>(null)

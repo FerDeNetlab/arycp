@@ -22,6 +22,7 @@ export function About() {
 
               {/* Main image */}
               <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/meeting-bg.jpg"
                   alt="Equipo ARYCP en reunión"

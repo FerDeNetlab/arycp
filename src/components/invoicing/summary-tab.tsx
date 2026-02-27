@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, XCircle, DollarSign, Clock, TrendingUp, AlertTriangle } from "lucide-react"
+import { FileText, XCircle, DollarSign, TrendingUp, AlertTriangle } from "lucide-react"
 
 interface SummaryData {
     totalInvoices: number
@@ -28,6 +28,7 @@ export function SummaryTab({ clientId, clientName }: SummaryTabProps) {
 
     useEffect(() => {
         loadSummary()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clientId, year])
 
     async function loadSummary() {

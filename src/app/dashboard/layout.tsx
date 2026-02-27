@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { LogOut, UserCircle, Menu } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 import { NotificationBell } from "@/components/notifications/notification-bell"

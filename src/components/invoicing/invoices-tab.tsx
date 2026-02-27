@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import {
-    Plus, FileText, Search, ChevronDown, ChevronUp,
-    Calendar, DollarSign, Hash, X, Upload, FileSpreadsheet,
+    Plus, FileText, Search,
+    X, Upload, FileSpreadsheet,
     Pencil, Trash2
 } from "lucide-react"
 
@@ -45,6 +45,7 @@ interface InvoicesTabProps {
     canEdit: boolean
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps) {
     const { toast } = useToast()
     const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -101,6 +102,7 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
 
     useEffect(() => {
         loadInvoices()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clientId, filterYear, filterMonth])
 
     async function loadInvoices() {
@@ -194,8 +196,8 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
             setIsImportDialogOpen(false)
             setImportFile(null)
             loadInvoices()
-        } catch (error: any) {
-            toast({ title: "Error al importar", description: error.message, variant: "destructive" })
+        } catch (error: unknown) {
+            toast({ title: "Error al importar", description: error instanceof Error ? error.message : String(error), variant: "destructive" })
         } finally {
             setIsImporting(false)
         }

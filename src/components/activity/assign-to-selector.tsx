@@ -39,6 +39,7 @@ export function AssignToSelector({
         if (isOpen && users.length === 0) {
             loadUsers()
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen])
 
     async function loadUsers() {
@@ -80,6 +81,7 @@ export function AssignToSelector({
 
             onAssigned?.(user.auth_user_id, user.full_name)
             setIsOpen(false)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             toast({
                 title: "Error al asignar",

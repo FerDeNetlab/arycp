@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/supervision/admin-guard"
+import { getErrorMessage } from "@/lib/api/errors"
+
+interface SupervisionAlert {
+    type: string
+    severity: string
+    title: string
+    message: string
+    entity_id: string
+    entity_type: string
+    entity_name: string
+}
 
 export async function GET() {
     try {
@@ -16,9 +27,9 @@ export async function GET() {
             .limit(50)
 
         return NextResponse.json({ alerts: alerts || [] })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error fetching alerts:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -29,7 +40,7 @@ export async function POST() {
         if ("error" in auth) return auth.error
         const { supabase } = auth
 
-        const newAlerts: any[] = []
+        const newAlerts: SupervisionAlert[] = []
         const now = new Date()
         const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
@@ -78,7 +89,7 @@ export async function POST() {
             })
         }
 
-        // 3. Employees overloaded (>100% capacity)
+        // 3. Employees overloaded (>100% capacity) — BATCH queries to fix N+1
         const year = now.getFullYear()
         const month = now.getMonth() + 1
         const startDate = `${year}-${String(month).padStart(2, "0")}-01`
@@ -90,32 +101,37 @@ export async function POST() {
             .select("auth_user_id, full_name")
             .in("role", ["admin", "contador"])
 
-        for (const emp of employees || []) {
-            const { data: cap } = await supabase
-                .from("capacity_settings")
-                .select("horas_laborales_diarias, dias_laborales_semana")
-                .eq("user_id", emp.auth_user_id)
-                .single()
+        // Batch: fetch ALL capacity settings and ALL completed tasks in one query each
+        const { data: allCapacities } = await supabase
+            .from("capacity_settings")
+            .select("user_id, horas_laborales_diarias, dias_laborales_semana")
 
+        const { data: allCompletedTasks } = await supabase
+            .from("tasks")
+            .select("assigned_to, started_at, completed_at")
+            .eq("status", "completada")
+            .gte("completed_at", startDate)
+            .lt("completed_at", endDate)
+
+        // Build lookup maps
+        const capacityMap = new Map(
+            (allCapacities || []).map(c => [c.user_id, c])
+        )
+        const taskHoursByAssignee = new Map<string, number>()
+        for (const t of allCompletedTasks || []) {
+            if (t.started_at && t.completed_at && t.assigned_to) {
+                const hrs = (new Date(t.completed_at).getTime() - new Date(t.started_at).getTime()) / 3600000
+                taskHoursByAssignee.set(t.assigned_to, (taskHoursByAssignee.get(t.assigned_to) || 0) + hrs)
+            }
+        }
+
+        for (const emp of employees || []) {
+            const cap = capacityMap.get(emp.auth_user_id)
             const hpd = cap?.horas_laborales_diarias || 8
             const dpw = cap?.dias_laborales_semana || 5
             const capHrs = Math.round((daysInMonth / 7) * dpw) * hpd
 
-            const { data: empTasks } = await supabase
-                .from("tasks")
-                .select("started_at, completed_at")
-                .eq("assigned_to", emp.auth_user_id)
-                .eq("status", "completada")
-                .gte("completed_at", startDate)
-                .lt("completed_at", endDate)
-
-            let hrs = 0
-            for (const t of empTasks || []) {
-                if (t.started_at && t.completed_at) {
-                    hrs += (new Date(t.completed_at).getTime() - new Date(t.started_at).getTime()) / 3600000
-                }
-            }
-
+            const hrs = taskHoursByAssignee.get(emp.auth_user_id) || 0
             const loadPct = capHrs > 0 ? (hrs / capHrs) * 100 : 0
             if (loadPct > 100) {
                 newAlerts.push({
@@ -130,27 +146,31 @@ export async function POST() {
             }
         }
 
-        // 4. Clients with negative profitability
+        // 4. Clients with negative profitability — BATCH queries
         const { data: financials } = await supabase.from("client_financials").select("*").eq("activo", true)
         const { data: clients } = await supabase.from("clients").select("id, business_name")
         const clientMap = new Map((clients || []).map(c => [c.id, c.business_name]))
 
+        // Batch: fetch ALL completed tasks for period (grouped by client)
+        const { data: allClientTasks } = await supabase
+            .from("tasks")
+            .select("client_id, started_at, completed_at")
+            .eq("status", "completada")
+            .not("client_id", "is", null)
+            .gte("completed_at", startDate)
+            .lt("completed_at", endDate)
+
+        const taskHoursByClient = new Map<string, number>()
+        for (const t of allClientTasks || []) {
+            if (t.started_at && t.completed_at && t.client_id) {
+                const hrs = (new Date(t.completed_at).getTime() - new Date(t.started_at).getTime()) / 3600000
+                taskHoursByClient.set(t.client_id, (taskHoursByClient.get(t.client_id) || 0) + hrs)
+            }
+        }
+
         for (const fin of financials || []) {
             if (fin.ingreso_mensual > 0) {
-                const { data: cTasks } = await supabase
-                    .from("tasks")
-                    .select("started_at, completed_at")
-                    .eq("client_id", fin.client_id)
-                    .eq("status", "completada")
-                    .gte("completed_at", startDate)
-                    .lt("completed_at", endDate)
-
-                let cHrs = 0
-                for (const t of cTasks || []) {
-                    if (t.started_at && t.completed_at) {
-                        cHrs += (new Date(t.completed_at).getTime() - new Date(t.started_at).getTime()) / 3600000
-                    }
-                }
+                const cHrs = taskHoursByClient.get(fin.client_id) || 0
                 // rough cost estimate
                 const estCost = cHrs * 200 + (fin.costo_operativo_estimado || 0)
                 const profit = fin.ingreso_mensual - estCost
@@ -182,9 +202,9 @@ export async function POST() {
         }
 
         return NextResponse.json({ generated: newAlerts.length })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error generating alerts:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -204,7 +224,7 @@ export async function PATCH(request: Request) {
             .eq("id", alertId)
 
         return NextResponse.json({ success: true })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

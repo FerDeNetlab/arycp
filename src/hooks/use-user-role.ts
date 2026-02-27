@@ -35,11 +35,8 @@ export function useUserRole(): UserRoleData {
     const [loading, setLoading] = useState(!cachedData)
 
     useEffect(() => {
-        if (cachedData) {
-            setData(cachedData)
-            setLoading(false)
-            return
-        }
+        // If we already have cached data, state was initialized from it — nothing to do
+        if (cachedData) return
 
         if (!fetchPromise) {
             fetchPromise = fetch("/api/auth/me")

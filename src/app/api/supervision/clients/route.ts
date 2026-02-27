@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/supervision/admin-guard"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function GET(request: Request) {
     try {
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
         const financialMap = new Map((financials || []).map(f => [f.client_id, f]))
 
         // Get employees + capacity for cost calculation
-        const { data: employees } = await supabase
+        const { data: _employees } = await supabase
             .from("system_users")
             .select("auth_user_id, full_name")
             .in("role", ["admin", "contador"])
@@ -160,8 +161,8 @@ export async function GET(request: Request) {
                 totalCost: Math.round(results.reduce((s, c) => s + c.costoTotal, 0) * 100) / 100,
             },
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error fetching client profitability:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

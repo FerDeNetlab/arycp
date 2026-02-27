@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, CheckCircle, Clock, RefreshCcw, XCircle, Info, Zap } from "lucide-react"
+import { AlertTriangle, CheckCircle, RefreshCcw, XCircle, Info } from "lucide-react"
 
 type Alert = {
     id: string
@@ -83,6 +83,7 @@ export function AlertsPanel() {
 
     const critical = alerts.filter(a => a.severity === "danger")
     const warnings = alerts.filter(a => a.severity === "warning")
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const info = alerts.filter(a => a.severity === "info")
 
     return (

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { logActivity } from "@/lib/activity"
 import * as XLSX from "xlsx"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function POST(request: Request) {
     try {
@@ -35,12 +36,14 @@ export async function POST(request: Request) {
         const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true })
         const sheetName = workbook.SheetNames[0]
         const sheet = workbook.Sheets[sheetName]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, dateNF: "yyyy-mm-dd" })
 
         // Find header row
         let headerIdx = -1
         for (let i = 0; i < Math.min(10, rawRows.length); i++) {
             const row = rawRows[i]
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (row && row.some((cell: any) => {
                 const s = String(cell || "").toLowerCase()
                 return s === "fecha" || s === "serie" || s === "folio"
@@ -54,6 +57,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No se encontró la fila de encabezados (Fecha, Serie, Folio...)" }, { status: 400 })
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const headers = rawRows[headerIdx].map((h: any) => String(h || "").trim().toLowerCase())
         const dataRows = rawRows.slice(headerIdx + 1).filter(row => row && row.length > 0 && row[0] != null)
 
@@ -87,6 +91,7 @@ export async function POST(request: Request) {
         }
 
         // Parse rows into cancellation records
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cancellations: any[] = []
         let skipped = 0
 
@@ -161,8 +166,8 @@ export async function POST(request: Request) {
             imported: cancellations.length,
             skipped,
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error importing cancellations:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

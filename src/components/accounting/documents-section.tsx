@@ -31,6 +31,7 @@ export function DocumentsSection({ clientId, userRole }: { clientId: string; use
 
   useEffect(() => {
     loadDocuments()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   async function loadDocuments() {
@@ -86,6 +87,7 @@ export function DocumentsSection({ clientId, userRole }: { clientId: string; use
         const fileExt = file.name.split(".").pop()
         const filePath = `${user.id}/${clientId}/${Date.now()}.${fileExt}`
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("client-documents")
           .upload(filePath, file)
@@ -129,6 +131,7 @@ export function DocumentsSection({ clientId, userRole }: { clientId: string; use
       setDocumentName("")
       setFile(null)
       loadDocuments()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }
@@ -143,6 +146,7 @@ export function DocumentsSection({ clientId, userRole }: { clientId: string; use
       if (error) throw error
       toast({ title: "Documento eliminado correctamente" })
       loadDocuments()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }

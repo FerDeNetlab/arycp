@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function PATCH(request: Request) {
     try {
@@ -53,8 +54,8 @@ export async function PATCH(request: Request) {
         }
 
         return NextResponse.json({ success: true })
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Unexpected error:", error)
-        return NextResponse.json({ error: "Error interno" }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

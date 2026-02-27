@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getUserRole } from "@/lib/auth/get-user-role"
 import { ROLES } from "@/lib/constants/roles"
+import { getErrorMessage } from "@/lib/api/errors"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = await createClient()
         const {
@@ -33,8 +34,8 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json({ clients: clients || [] }, { status: 200 })
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Unexpected error:", error)
-        return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

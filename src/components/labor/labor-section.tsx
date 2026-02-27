@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Briefcase, Plus, Trash2, Edit2, Users, FileText, Calendar,
-  DollarSign, UserPlus, UserMinus, AlertCircle, Check, Clock,
+  DollarSign, UserPlus, UserMinus, AlertCircle, Clock,
   CheckCircle2, XCircle, ArrowUpDown, Search
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -221,6 +221,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
   useEffect(() => {
     loadPayrolls()
     if (!isClient) loadContadores()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadPayrolls = async () => {
@@ -258,6 +259,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
       setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_aguinaldo: false, aguinaldo_sent: false })
       setIsDialogOpen(false)
       loadPayrolls()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -292,11 +294,13 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
       setIsEditDialogOpen(false)
       setEditingPayroll(null)
       setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_aguinaldo: false, aguinaldo_sent: false })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleUpdate = async (id: string, updates: Record<string, any>) => {
     try {
       await fetch("/api/labor/payroll", {
@@ -355,6 +359,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
         description: `Notificación enviada a ${result.recipientName}`,
       })
       setNotifyDialog({ open: false, type: "completed", payrollId: "", payrollLabel: "" })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -702,6 +707,7 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
 
   useEffect(() => {
     loadIncidents()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadIncidents = async () => {
@@ -931,6 +937,7 @@ function IMSSSection({ clientId, isClient, filterYear, filterMonth }: { clientId
 
   useEffect(() => {
     loadMovements()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadMovements = async () => {
@@ -977,6 +984,7 @@ function IMSSSection({ clientId, isClient, filterYear, filterMonth }: { clientId
       })
       setIsDialogOpen(false)
       loadMovements()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -1320,6 +1328,7 @@ function TaxesSection({ clientId, isClient }: { clientId: string; isClient: bool
 
   useEffect(() => {
     loadTaxes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, selectedYear, selectedMonth])
 
   const loadTaxes = async () => {

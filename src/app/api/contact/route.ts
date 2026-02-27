@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function POST(request: NextRequest) {
     try {
@@ -102,10 +103,10 @@ export async function POST(request: NextRequest) {
             { success: true, message: "Mensaje enviado correctamente" },
             { status: 201 }
         )
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Unexpected error:", error)
         return NextResponse.json(
-            { error: "Error interno del servidor" },
+            { error: getErrorMessage(error) },
             { status: 500 }
         )
     }

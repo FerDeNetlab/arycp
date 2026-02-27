@@ -10,6 +10,7 @@ import { useUserRole, canModify } from "@/hooks/use-user-role"
 
 export default function ComplianceClientPage() {
     const params = useParams()
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const router = useRouter()
     const clientId = params.id as string
     const [clientName, setClientName] = useState("")
@@ -18,6 +19,7 @@ export default function ComplianceClientPage() {
 
     useEffect(() => {
         fetchClientInfo()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clientId])
 
     async function fetchClientInfo() {
@@ -26,6 +28,7 @@ export default function ComplianceClientPage() {
             const data = await res.json()
             if (res.ok) {
                 const clients = data.data || data.clients || []
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const client = clients.find((c: any) => c.id === clientId)
                 if (client) {
                     setClientName(client.business_name || client.name || "Cliente")

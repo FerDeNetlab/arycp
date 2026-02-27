@@ -13,13 +13,12 @@ export async function GET(request: NextRequest) {
         if (!error) {
             // Check if this is a recovery flow — user came from password reset email
             // After exchanging code, the session type indicates recovery
-            const { data: { user } } = await supabase.auth.getUser()
 
             // If user has a recovery session (aud = "authenticated" after recovery),
             // check the session's AMR (Authentication Methods Reference)
             if (data?.session) {
-                const amr = (data.session as any)?.amr
-                const isRecovery = amr?.some?.((m: any) => m.method === "recovery")
+                const amr = (data.session as { amr?: Array<{ method: string }> })?.amr
+                const isRecovery = amr?.some?.((m) => m.method === "recovery")
                 if (isRecovery) {
                     return NextResponse.redirect(`${origin}/auth/reset-password`)
                 }

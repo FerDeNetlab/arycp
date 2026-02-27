@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { logActivity } from "@/lib/activity"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function GET(request: Request) {
     try {
@@ -36,8 +37,8 @@ export async function GET(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -98,8 +99,8 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -135,7 +136,7 @@ export async function PATCH(request: Request) {
             uuidSat: "uuid_sat",
         }
 
-        const dbUpdates: Record<string, any> = {}
+        const dbUpdates: Record<string, unknown> = {}
         for (const [key, value] of Object.entries(updates)) {
             const dbKey = fieldMap[key] || key
             dbUpdates[dbKey] = value
@@ -151,8 +152,8 @@ export async function PATCH(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ data })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -187,7 +188,7 @@ export async function DELETE(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ success: true })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

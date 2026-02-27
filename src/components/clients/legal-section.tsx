@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, ChevronDown, ChevronRight, CheckCircle2, Circle } from "lucide-react"
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function LegalSection({ clientId }: { clientId: string }) {
   const [expandedProcess, setExpandedProcess] = useState<string | null>(null)
 
@@ -60,7 +61,7 @@ export function LegalSection({ clientId }: { clientId: string }) {
 
             {expandedProcess === "1" && (
               <div className="border-t p-4 space-y-3 bg-muted/30">
-                {exampleProcess.steps.map((step, index) => (
+                {exampleProcess.steps.map((step, _index) => (
                   <div key={step.id} className="flex items-start gap-3 p-3 bg-background rounded-lg">
                     {step.status === "completed" ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />

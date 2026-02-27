@@ -45,6 +45,7 @@ export function ManageAssignmentsDialog({ client, children }: { client: Client; 
       loadUsers()
       loadAssignments()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   async function loadUsers() {
@@ -54,6 +55,7 @@ export function ManageAssignmentsDialog({ client, children }: { client: Client; 
         const data = await res.json()
         if (data.users) {
           // Filter to only active, non-client users
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setUsers(data.users.filter((u: any) => u.is_active !== false && u.role !== "cliente"))
         }
       }
@@ -64,6 +66,7 @@ export function ManageAssignmentsDialog({ client, children }: { client: Client; 
 
   async function loadAssignments() {
     if (client.client_assignments) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const assigned = new Set(client.client_assignments.map((a: any) => a.system_users.id))
       setSelectedUsers(assigned)
     }

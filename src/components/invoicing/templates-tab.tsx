@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FolderOpen, Upload, FileText, Trash2, Download, X } from "lucide-react"
+import { FolderOpen, Upload, Trash2, Download, X } from "lucide-react"
 
 interface Template {
     id: string
@@ -29,6 +29,7 @@ export function TemplatesTab({ clientId, canEdit }: TemplatesTabProps) {
 
     useEffect(() => {
         loadTemplates()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clientId])
 
     async function loadTemplates() {

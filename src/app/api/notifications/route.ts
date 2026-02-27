@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function GET(request: Request) {
     try {
@@ -39,9 +40,9 @@ export async function GET(request: Request) {
             .eq("is_read", false)
 
         return NextResponse.json({ data, unreadCount: count || 0 })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error fetching notifications:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -77,8 +78,8 @@ export async function PATCH(request: Request) {
         }
 
         return NextResponse.json({ success: true })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error updating notifications:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

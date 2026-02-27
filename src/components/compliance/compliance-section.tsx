@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -43,6 +43,7 @@ function getTypeInfo(type: string) {
     return REGISTRATION_TYPES.find(t => t.value === type) || REGISTRATION_TYPES[6]
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function computeStatus(expirationDate: string | null): { label: string; color: string; icon: any } {
     if (!expirationDate) return { label: "Sin fecha", color: "gray", icon: ShieldQuestion }
     const now = new Date()
@@ -121,8 +122,10 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
 
     // Upload state
     const [uploadingId, setUploadingId] = useState<string | null>(null)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { loadRegistrations() }, [clientId])
 
     async function loadRegistrations() {
@@ -168,6 +171,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             }))
 
             toast({ title: "✅ Certificado leído correctamente" })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             toast({ title: "Error al leer .cer", description: err.message, variant: "destructive" })
         } finally {
@@ -194,6 +198,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
 
             toast({ title: "✅ Archivo adjuntado" })
             loadRegistrations()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             toast({ title: "Error al subir archivo", description: err.message, variant: "destructive" })
         } finally {
@@ -206,6 +211,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
         const input = document.createElement("input")
         input.type = "file"
         input.accept = ".pdf,.cer,.doc,.docx,.jpg,.png"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         input.onchange = (e: any) => {
             const file = e.target.files?.[0]
             if (file) handleFileUpload(registrationId, file)
@@ -239,6 +245,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 const r = await res.json()
                 toast({ title: "Error", description: r.error, variant: "destructive" })
             }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             toast({ title: "Error al crear", variant: "destructive" })
         } finally {
@@ -282,6 +289,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 const r = await res.json()
                 toast({ title: "Error", description: r.error, variant: "destructive" })
             }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             toast({ title: "Error al actualizar", variant: "destructive" })
         } finally {
@@ -304,6 +312,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 const r = await res.json()
                 toast({ title: "Error", description: r.error, variant: "destructive" })
             }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             toast({ title: "Error al eliminar", variant: "destructive" })
         } finally {

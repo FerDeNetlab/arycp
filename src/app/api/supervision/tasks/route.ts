@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/supervision/admin-guard"
+import { getErrorMessage } from "@/lib/api/errors"
 
 // GET: list tasks with filters
 export async function GET(request: Request) {
@@ -27,8 +28,8 @@ export async function GET(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ tasks: data || [] })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -76,8 +77,8 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json({ task })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }
 
@@ -102,7 +103,7 @@ export async function PATCH(request: Request) {
 
         if (!current) return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 })
 
-        const updates: any = { updated_at: new Date().toISOString() }
+        const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
         if (status) {
             updates.status = status
@@ -139,7 +140,7 @@ export async function PATCH(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ success: true })
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function GET(request: Request) {
     try {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
 
         const { searchParams } = new URL(request.url)
         const limit = parseInt(searchParams.get("limit") || "20")
-        const module = searchParams.get("module")
+        const filterModule = searchParams.get("module")
 
         const supabase = createAdminClient()
 
@@ -32,8 +33,8 @@ export async function GET(request: Request) {
             .order("created_at", { ascending: false })
             .limit(limit)
 
-        if (module) {
-            query = query.eq("module", module)
+        if (filterModule) {
+            query = query.eq("module", filterModule)
         }
 
         // Role-based filtering
@@ -81,8 +82,8 @@ export async function GET(request: Request) {
         if (error) throw error
 
         return NextResponse.json({ data })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error fetching activity:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
     }
 }

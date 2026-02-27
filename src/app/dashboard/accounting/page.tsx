@@ -40,6 +40,7 @@ export default function AccountingPage() {
     if (!roleLoading && !isClientRole(role)) {
       fetchClients()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleLoading, role])
 
   async function fetchClients() {

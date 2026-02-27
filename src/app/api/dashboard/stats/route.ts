@@ -64,7 +64,7 @@ export async function GET() {
             upcomingEvents: upcomingEvents || 0,
             alerts: alerts || 0,
         })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error fetching dashboard stats:", error)
         return NextResponse.json({
             totalActive: 0,

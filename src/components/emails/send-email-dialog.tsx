@@ -18,6 +18,7 @@ interface SendEmailDialogProps {
 }
 
 export function SendEmailDialog({ open, onOpenChange, clientId, clientEmail }: SendEmailDialogProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [templates, setTemplates] = useState<any[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>("")
   const [to, setTo] = useState(clientEmail || "")
@@ -34,6 +35,7 @@ export function SendEmailDialog({ open, onOpenChange, clientId, clientEmail }: S
     if (open) {
       loadTemplates()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   useEffect(() => {
@@ -94,6 +96,7 @@ export function SendEmailDialog({ open, onOpenChange, clientId, clientEmail }: S
       setSubject("")
       setHtml("")
       setTo(clientEmail || "")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("[v0] Error sending email:", error)
       toast.error(error.message || "Error al enviar el correo")

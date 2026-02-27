@@ -92,6 +92,7 @@ export function ClientsSimpleList({ clients }: { clients: Client[] }) {
               <div className="mt-4 pt-4 border-t">
                 <p className="text-sm font-medium mb-2">Responsables asignados:</p>
                 <div className="flex flex-wrap gap-2">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {client.client_assignments.map((assignment: any) => (
                     <Badge key={assignment.system_users.id} variant="outline">
                       {assignment.system_users.full_name}

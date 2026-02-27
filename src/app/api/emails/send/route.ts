@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { createClient } from "@/lib/supabase/server"
+import { getErrorMessage } from "@/lib/api/errors"
 
 export async function POST(req: NextRequest) {
 
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
 
     const fromWithName = `Robot contador de AR&CP <${fromEmail}>`
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emailPayload: any = {
       from: fromWithName,
       to: Array.isArray(to) ? to : [to],
@@ -92,13 +94,13 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ success: true, data })
-  } catch (error: any) {
-    console.error("Error in /api/emails/send:", error?.message)
+  } catch (error: unknown) {
+    console.error("Error in /api/emails/send:", error)
 
     return NextResponse.json(
       {
         error: "Error interno del servidor",
-        message: error?.message || "Error desconocido",
+        message: getErrorMessage(error),
       },
       { status: 500 },
     )

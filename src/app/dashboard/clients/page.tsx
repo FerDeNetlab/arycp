@@ -29,6 +29,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchClients()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function fetchClients() {
