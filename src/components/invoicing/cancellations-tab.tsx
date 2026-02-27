@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, XCircle, Search, X, ChevronDown, ChevronUp, Edit2, Save, Upload, FileSpreadsheet } from "lucide-react"
+import { Plus, XCircle, Search, X, ChevronDown, ChevronUp, Pencil, Trash2, Upload, FileSpreadsheet } from "lucide-react"
 
 interface Cancellation {
     id: string
@@ -89,7 +89,6 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
     const [searchTerm, setSearchTerm] = useState("")
     const [filterYear, setFilterYear] = useState(new Date().getFullYear())
     const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1)
-    const [editingId, setEditingId] = useState<string | null>(null)
     const [expandedId, setExpandedId] = useState<string | null>(null)
 
     // Import state
@@ -97,6 +96,32 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
     const [importFile, setImportFile] = useState<File | null>(null)
     const [isImporting, setIsImporting] = useState(false)
     const importInputRef = useRef<HTMLInputElement>(null)
+
+    // Edit state
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [editingCancellation, setEditingCancellation] = useState<Cancellation | null>(null)
+    const [editForm, setEditForm] = useState({
+        companyName: "",
+        folioType: "cfdi",
+        folioNumber: "",
+        issueDate: "",
+        recipientName: "",
+        requestDate: "",
+        systemStatus: "Pendiente de cancelación",
+        satStatus: "Pendiente de cancelación",
+        statusNotes: "",
+        firstReceiptSent: "",
+        secondReceiptSent: "",
+        uuidSat: "",
+        cancellationReason: "",
+        replacementCfdi: "",
+    })
+    const [isEditSaving, setIsEditSaving] = useState(false)
+
+    // Delete state
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [deletingCancellation, setDeletingCancellation] = useState<Cancellation | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const [form, setForm] = useState({
         companyName: "",
@@ -171,22 +196,6 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
         }
     }
 
-    async function handleUpdateStatus(id: string, systemStatus: string, satStatus: string, statusNotes: string) {
-        try {
-            const res = await fetch("/api/invoicing/cancellations", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, systemStatus, satStatus, statusNotes }),
-            })
-            if (res.ok) {
-                setEditingId(null)
-                loadCancellations()
-            }
-        } catch (err) {
-            console.error("Error:", err)
-        }
-    }
-
     function resetForm() {
         setForm({
             companyName: "", folioType: "cfdi", folioNumber: "", issueDate: "",
@@ -228,6 +237,102 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
             toast({ title: "Error al importar", description: error.message, variant: "destructive" })
         } finally {
             setIsImporting(false)
+        }
+    }
+
+    // --- Edit handlers ---
+    function openEditDialog(c: Cancellation) {
+        setEditingCancellation(c)
+        setEditForm({
+            companyName: c.company_name || "",
+            folioType: c.folio_type || "cfdi",
+            folioNumber: c.folio_number?.toString() || "",
+            issueDate: c.issue_date || "",
+            recipientName: c.recipient_name || "",
+            requestDate: c.request_date || "",
+            systemStatus: c.system_status || "Pendiente de cancelación",
+            satStatus: c.sat_status || "Pendiente de cancelación",
+            statusNotes: c.status_notes || "",
+            firstReceiptSent: c.first_receipt_sent || "",
+            secondReceiptSent: c.second_receipt_sent || "",
+            uuidSat: c.uuid_sat || "",
+            cancellationReason: c.cancellation_reason || "",
+            replacementCfdi: c.replacement_cfdi || "",
+        })
+        setIsEditDialogOpen(true)
+    }
+
+    async function handleEditSubmit() {
+        if (!editingCancellation) return
+        setIsEditSaving(true)
+        try {
+            const res = await fetch("/api/invoicing/cancellations", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: editingCancellation.id,
+                    companyName: editForm.companyName,
+                    folioType: editForm.folioType,
+                    folioNumber: editForm.folioNumber ? parseInt(editForm.folioNumber) : null,
+                    issueDate: editForm.issueDate || null,
+                    recipientName: editForm.recipientName,
+                    requestDate: editForm.requestDate,
+                    systemStatus: editForm.systemStatus,
+                    satStatus: editForm.satStatus,
+                    statusNotes: editForm.statusNotes,
+                    firstReceiptSent: editForm.firstReceiptSent || null,
+                    secondReceiptSent: editForm.secondReceiptSent || null,
+                    uuidSat: editForm.uuidSat,
+                    cancellationReason: editForm.cancellationReason,
+                    replacementCfdi: editForm.replacementCfdi,
+                }),
+            })
+
+            if (res.ok) {
+                toast({ title: "✅ Cancelación actualizada" })
+                setIsEditDialogOpen(false)
+                setEditingCancellation(null)
+                loadCancellations()
+            } else {
+                const result = await res.json()
+                toast({ title: "Error", description: result.error, variant: "destructive" })
+            }
+        } catch (err) {
+            console.error("Error updating cancellation:", err)
+            toast({ title: "Error al actualizar", variant: "destructive" })
+        } finally {
+            setIsEditSaving(false)
+        }
+    }
+
+    // --- Delete handlers ---
+    function openDeleteDialog(c: Cancellation) {
+        setDeletingCancellation(c)
+        setIsDeleteDialogOpen(true)
+    }
+
+    async function handleDelete() {
+        if (!deletingCancellation) return
+        setIsDeleting(true)
+        try {
+            const res = await fetch(`/api/invoicing/cancellations?id=${deletingCancellation.id}`, {
+                method: "DELETE",
+            })
+
+            if (res.ok) {
+                toast({ title: "✅ Cancelación eliminada" })
+                setIsDeleteDialogOpen(false)
+                setDeletingCancellation(null)
+                loadCancellations()
+            } else {
+                const result = await res.json()
+                toast({ title: "Error", description: result.error, variant: "destructive" })
+            }
+        } catch (err) {
+            console.error("Error deleting cancellation:", err)
+            toast({ title: "Error al eliminar", variant: "destructive" })
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -423,7 +528,7 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
                                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">Sistema</th>
                                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">SAT</th>
                                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">Motivo</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground"></th>
+                                        <th className="text-right px-4 py-3 font-medium text-muted-foreground">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -446,11 +551,35 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
                                                 <td className="px-4 py-3 max-w-[150px] truncate text-xs text-muted-foreground" title={c.cancellation_reason}>
                                                     {c.cancellation_reason || "—"}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
-                                                        onClick={() => setExpandedId(isExpanded ? null : c.id)}>
-                                                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                    </Button>
+                                                <td className="px-4 py-3 whitespace-nowrap text-right">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
+                                                            onClick={() => setExpandedId(isExpanded ? null : c.id)}>
+                                                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                        </Button>
+                                                        {canEdit && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                    onClick={() => openEditDialog(c)}
+                                                                    title="Editar cancelación"
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => openDeleteDialog(c)}
+                                                                    title="Eliminar cancelación"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )
@@ -487,19 +616,6 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
                                         <div>
                                             <span className="text-xs text-muted-foreground block mb-1">Notas de Seguimiento</span>
                                             <p className="text-sm bg-white p-3 rounded border whitespace-pre-wrap">{c.status_notes}</p>
-                                        </div>
-                                    )}
-                                    {canEdit && (
-                                        <div className="flex gap-2 pt-1">
-                                            <Button variant="outline" size="sm" className="gap-1 text-xs"
-                                                onClick={() => {
-                                                    const newStatus = prompt("Nuevo estado en sistema:", c.system_status || "")
-                                                    const newSat = prompt("Nuevo estado en SAT:", c.sat_status || "")
-                                                    const newNotes = prompt("Notas:", c.status_notes || "")
-                                                    if (newStatus !== null) handleUpdateStatus(c.id, newStatus!, newSat || c.sat_status, newNotes || c.status_notes)
-                                                }}>
-                                                <Edit2 className="h-3 w-3" /> Actualizar Estado
-                                            </Button>
                                         </div>
                                     )}
                                 </div>
@@ -606,6 +722,133 @@ export function CancellationsTab({ clientId, clientName, canEdit }: Cancellation
                     </DialogContent>
                 </Dialog>
             )}
+
+            {/* Edit Cancellation Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Pencil className="h-5 w-5 text-blue-600" />
+                            Editar Cancelación
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Empresa</label>
+                            <Input placeholder="Nombre de la empresa" value={editForm.companyName}
+                                onChange={e => setEditForm({ ...editForm, companyName: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Tipo de Folio</label>
+                            <select value={editForm.folioType} onChange={e => setEditForm({ ...editForm, folioType: e.target.value })}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                {FOLIO_TYPES.map(ft => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Folio</label>
+                            <Input type="number" placeholder="Número de folio" value={editForm.folioNumber}
+                                onChange={e => setEditForm({ ...editForm, folioNumber: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Fecha de Emisión</label>
+                            <Input type="date" value={editForm.issueDate}
+                                onChange={e => setEditForm({ ...editForm, issueDate: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Cliente / Receptor</label>
+                            <Input placeholder="Nombre del cliente" value={editForm.recipientName}
+                                onChange={e => setEditForm({ ...editForm, recipientName: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Fecha de Solicitud</label>
+                            <Input type="date" value={editForm.requestDate}
+                                onChange={e => setEditForm({ ...editForm, requestDate: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Estado en Sistema</label>
+                            <select value={editForm.systemStatus} onChange={e => setEditForm({ ...editForm, systemStatus: e.target.value })}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                {SYSTEM_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Estado en SAT</label>
+                            <select value={editForm.satStatus} onChange={e => setEditForm({ ...editForm, satStatus: e.target.value })}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                {SAT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Motivo de Cancelación</label>
+                            <select value={editForm.cancellationReason} onChange={e => setEditForm({ ...editForm, cancellationReason: e.target.value })}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                <option value="">Seleccionar motivo...</option>
+                                {COMMON_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">UUID</label>
+                            <Input placeholder="Folio fiscal" value={editForm.uuidSat}
+                                onChange={e => setEditForm({ ...editForm, uuidSat: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">CFDI que Sustituye</label>
+                            <Input placeholder="Folio del reemplazo" value={editForm.replacementCfdi}
+                                onChange={e => setEditForm({ ...editForm, replacementCfdi: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Fecha 1er Comprobante</label>
+                            <Input type="date" value={editForm.firstReceiptSent}
+                                onChange={e => setEditForm({ ...editForm, firstReceiptSent: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Fecha 2do Comprobante</label>
+                            <Input type="date" value={editForm.secondReceiptSent}
+                                onChange={e => setEditForm({ ...editForm, secondReceiptSent: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                            <label className="text-xs font-medium text-muted-foreground">Notas de Seguimiento</label>
+                            <textarea
+                                placeholder="Notas, observaciones, historial de seguimiento..."
+                                value={editForm.statusNotes}
+                                onChange={e => setEditForm({ ...editForm, statusNotes: e.target.value })}
+                                className="w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2 pt-4">
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleEditSubmit} disabled={isEditSaving}>
+                            {isEditSaving ? "Guardando..." : "Guardar Cambios"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="h-5 w-5" />
+                            Eliminar Cancelación
+                        </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        ¿Estás seguro de que deseas eliminar la cancelación
+                        <strong> {FOLIO_TYPES.find(f => f.value === deletingCancellation?.folio_type)?.label || deletingCancellation?.folio_type?.toUpperCase()} {deletingCancellation?.folio_number}</strong> de
+                        <strong> {deletingCancellation?.company_name || deletingCancellation?.recipient_name}</strong>?
+                        Esta acción no se puede deshacer.
+                    </p>
+                    <DialogFooter className="gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</Button>
+                        <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                            {isDeleting ? "Eliminando..." : "Eliminar"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

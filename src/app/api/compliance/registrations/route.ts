@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { logActivity } from "@/lib/activity"
+import { createNotification } from "@/lib/activity"
 
 export async function GET(request: Request) {
     try {
@@ -11,28 +11,18 @@ export async function GET(request: Request) {
 
         const { searchParams } = new URL(request.url)
         const clientId = searchParams.get("clientId")
-        const year = searchParams.get("year")
-        const month = searchParams.get("month")
 
         if (!clientId) return NextResponse.json({ error: "clientId requerido" }, { status: 400 })
 
         const supabase = createAdminClient()
 
-        let query = supabase
-            .from("invoice_cancellations")
+        const { data, error } = await supabase
+            .from("company_registrations")
             .select("*")
             .eq("client_id", clientId)
-            .order("created_at", { ascending: false })
+            .order("type", { ascending: true })
+            .order("expiration_date", { ascending: true })
 
-        if (year && month) {
-            const startDate = `${year}-${month.padStart(2, "0")}-01`
-            const endMonth = parseInt(month) === 12 ? 1 : parseInt(month) + 1
-            const endYear = parseInt(month) === 12 ? parseInt(year) + 1 : parseInt(year)
-            const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`
-            query = query.gte("request_date", startDate).lt("request_date", endDate)
-        }
-
-        const { data, error } = await query
         if (error) throw error
 
         return NextResponse.json({ data })
@@ -61,48 +51,53 @@ export async function POST(request: Request) {
 
         const body = await request.json()
         const {
-            clientId, companyName, folioType, folioNumber, issueDate,
-            recipientName, requestDate, systemStatus, satStatus,
-            statusNotes, firstReceiptSent, secondReceiptSent,
-            uuidSat, cancellationReason, replacementCfdi
+            clientId, type, label, registrationNumber,
+            issuedDate, expirationDate, status, notes
         } = body
 
-        if (!clientId) {
-            return NextResponse.json({ error: "clientId requerido" }, { status: 400 })
+        if (!clientId || !label) {
+            return NextResponse.json({ error: "clientId y label son requeridos" }, { status: 400 })
         }
 
-        const { data, error } = await supabase.from("invoice_cancellations").insert({
+        const { data, error } = await supabase.from("company_registrations").insert({
             client_id: clientId,
-            company_name: companyName || null,
-            folio_type: folioType || "cfdi",
-            folio_number: folioNumber || null,
-            issue_date: issueDate || null,
-            recipient_name: recipientName || null,
-            request_date: requestDate || new Date().toISOString().split("T")[0],
-            system_status: systemStatus || "pendiente",
-            sat_status: satStatus || null,
-            status_notes: statusNotes || null,
-            first_receipt_sent: firstReceiptSent || null,
-            second_receipt_sent: secondReceiptSent || null,
-            uuid_sat: uuidSat || null,
-            cancellation_reason: cancellationReason || null,
-            replacement_cfdi: replacementCfdi || null,
+            type: type || "otro",
+            label,
+            registration_number: registrationNumber || null,
+            issued_date: issuedDate || null,
+            expiration_date: expirationDate || null,
+            status: status || "vigente",
+            notes: notes || null,
             created_by: user.id,
         }).select().single()
 
         if (error) throw error
 
-        const { data: client } = await supabase.from("clients").select("business_name").eq("id", clientId).single()
-        await logActivity({
-            userId: user.id,
-            userName: sysUser.full_name || "Usuario",
-            clientId,
-            clientName: client?.business_name || "",
-            module: "invoicing",
-            action: "created",
-            entityType: "cancellation",
-            description: `${sysUser.full_name} registró cancelación de ${folioType?.toUpperCase() || "CFDI"} ${folioNumber || ""} para ${recipientName || companyName || ""}`,
-        })
+        // Notify admin users about the new registration
+        try {
+            const { data: admins } = await supabase
+                .from("system_users")
+                .select("auth_user_id")
+                .eq("role", "admin")
+
+            for (const admin of admins || []) {
+                if (admin.auth_user_id !== user.id) {
+                    await createNotification({
+                        userId: admin.auth_user_id,
+                        fromUserId: user.id,
+                        fromUserName: sysUser.full_name,
+                        type: "info",
+                        title: `Nuevo registro: ${label}`,
+                        message: `${sysUser.full_name} registró "${label}" (${type}) con vencimiento ${expirationDate || "sin fecha"}.`,
+                        module: "compliance",
+                        entityType: "registration",
+                        entityId: data.id,
+                    })
+                }
+            }
+        } catch (notifErr) {
+            console.error("Error sending notifications:", notifErr)
+        }
 
         return NextResponse.json({ data })
     } catch (error: any) {
@@ -133,32 +128,21 @@ export async function PATCH(request: Request) {
 
         if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 })
 
-        // Map camelCase to snake_case for the update
-        const dbUpdates: Record<string, any> = {}
         const fieldMap: Record<string, string> = {
-            companyName: "company_name",
-            folioType: "folio_type",
-            folioNumber: "folio_number",
-            issueDate: "issue_date",
-            recipientName: "recipient_name",
-            requestDate: "request_date",
-            systemStatus: "system_status",
-            satStatus: "sat_status",
-            statusNotes: "status_notes",
-            firstReceiptSent: "first_receipt_sent",
-            secondReceiptSent: "second_receipt_sent",
-            uuidSat: "uuid_sat",
-            cancellationReason: "cancellation_reason",
-            replacementCfdi: "replacement_cfdi",
+            registrationNumber: "registration_number",
+            issuedDate: "issued_date",
+            expirationDate: "expiration_date",
         }
 
+        const dbUpdates: Record<string, any> = {}
         for (const [key, value] of Object.entries(updates)) {
             const dbKey = fieldMap[key] || key
             dbUpdates[dbKey] = value
         }
+        dbUpdates.updated_at = new Date().toISOString()
 
         const { data, error } = await supabase
-            .from("invoice_cancellations")
+            .from("company_registrations")
             .update(dbUpdates)
             .eq("id", id)
             .select()
@@ -196,7 +180,7 @@ export async function DELETE(request: Request) {
         if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 })
 
         const { error } = await supabase
-            .from("invoice_cancellations")
+            .from("company_registrations")
             .delete()
             .eq("id", id)
 

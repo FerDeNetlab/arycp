@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import {
     Plus, FileText, Search, ChevronDown, ChevronUp,
-    Calendar, DollarSign, Hash, X, Upload, FileSpreadsheet
+    Calendar, DollarSign, Hash, X, Upload, FileSpreadsheet,
+    Pencil, Trash2
 } from "lucide-react"
 
 interface Invoice {
@@ -59,6 +60,29 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
     const [importFile, setImportFile] = useState<File | null>(null)
     const [isImporting, setIsImporting] = useState(false)
     const importInputRef = useRef<HTMLInputElement>(null)
+
+    // Edit state
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
+    const [editForm, setEditForm] = useState({
+        agentName: "",
+        issueDate: "",
+        serie: "CFDI",
+        folio: "",
+        recipientName: "",
+        total: "",
+        pendingAmount: "",
+        paymentMethod: "03",
+        uuidSat: "",
+        status: "vigente",
+        notes: "",
+    })
+    const [isEditSaving, setIsEditSaving] = useState(false)
+
+    // Delete state
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // Form state
     const [form, setForm] = useState({
@@ -174,6 +198,96 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
             toast({ title: "Error al importar", description: error.message, variant: "destructive" })
         } finally {
             setIsImporting(false)
+        }
+    }
+
+    // --- Edit handlers ---
+    function openEditDialog(inv: Invoice) {
+        setEditingInvoice(inv)
+        setEditForm({
+            agentName: inv.agent_name || "",
+            issueDate: inv.issue_date || "",
+            serie: inv.serie || "CFDI",
+            folio: inv.folio?.toString() || "",
+            recipientName: inv.recipient_name || "",
+            total: inv.total?.toString() || "",
+            pendingAmount: inv.pending_amount?.toString() || "",
+            paymentMethod: inv.payment_method || "03",
+            uuidSat: inv.uuid_sat || "",
+            status: inv.status || "vigente",
+            notes: inv.notes || "",
+        })
+        setIsEditDialogOpen(true)
+    }
+
+    async function handleEditSubmit() {
+        if (!editingInvoice) return
+        setIsEditSaving(true)
+        try {
+            const res = await fetch("/api/invoicing/invoices", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: editingInvoice.id,
+                    agentName: editForm.agentName,
+                    issueDate: editForm.issueDate,
+                    serie: editForm.serie,
+                    folio: editForm.folio ? parseInt(editForm.folio) : null,
+                    recipientName: editForm.recipientName,
+                    total: parseFloat(editForm.total) || 0,
+                    pendingAmount: editForm.pendingAmount ? parseFloat(editForm.pendingAmount) : parseFloat(editForm.total) || 0,
+                    paymentMethod: editForm.paymentMethod,
+                    uuidSat: editForm.uuidSat,
+                    status: editForm.status,
+                    notes: editForm.notes,
+                }),
+            })
+
+            if (res.ok) {
+                toast({ title: "✅ Factura actualizada" })
+                setIsEditDialogOpen(false)
+                setEditingInvoice(null)
+                loadInvoices()
+            } else {
+                const result = await res.json()
+                toast({ title: "Error", description: result.error, variant: "destructive" })
+            }
+        } catch (err) {
+            console.error("Error updating invoice:", err)
+            toast({ title: "Error al actualizar", variant: "destructive" })
+        } finally {
+            setIsEditSaving(false)
+        }
+    }
+
+    // --- Delete handlers ---
+    function openDeleteDialog(inv: Invoice) {
+        setDeletingInvoice(inv)
+        setIsDeleteDialogOpen(true)
+    }
+
+    async function handleDelete() {
+        if (!deletingInvoice) return
+        setIsDeleting(true)
+        try {
+            const res = await fetch(`/api/invoicing/invoices?id=${deletingInvoice.id}`, {
+                method: "DELETE",
+            })
+
+            if (res.ok) {
+                toast({ title: "✅ Factura eliminada" })
+                setIsDeleteDialogOpen(false)
+                setDeletingInvoice(null)
+                loadInvoices()
+            } else {
+                const result = await res.json()
+                toast({ title: "Error", description: result.error, variant: "destructive" })
+            }
+        } catch (err) {
+            console.error("Error deleting invoice:", err)
+            toast({ title: "Error al eliminar", variant: "destructive" })
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -389,6 +503,7 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
                                         <th className="text-right px-4 py-3 font-medium text-muted-foreground">Pendiente</th>
                                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">F. Pago</th>
                                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">Estado</th>
+                                        {canEdit && <th className="text-right px-4 py-3 font-medium text-muted-foreground">Acciones</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -422,6 +537,30 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
                                                     {inv.status === "vigente" ? "Vigente" : "Cancelado"}
                                                 </Badge>
                                             </td>
+                                            {canEdit && (
+                                                <td className="px-4 py-3 whitespace-nowrap text-right">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            onClick={() => openEditDialog(inv)}
+                                                            title="Editar factura"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            onClick={() => openDeleteDialog(inv)}
+                                                            title="Eliminar factura"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -528,6 +667,147 @@ export function InvoicesTab({ clientId, clientName, canEdit }: InvoicesTabProps)
                     </DialogContent>
                 </Dialog>
             )}
+
+            {/* Edit Invoice Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Pencil className="h-5 w-5 text-blue-600" />
+                            Editar Factura
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Agente</label>
+                            <Input
+                                placeholder="Nombre del agente"
+                                value={editForm.agentName}
+                                onChange={e => setEditForm({ ...editForm, agentName: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Fecha</label>
+                            <Input
+                                type="date"
+                                value={editForm.issueDate}
+                                onChange={e => setEditForm({ ...editForm, issueDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Serie</label>
+                            <select
+                                value={editForm.serie}
+                                onChange={e => setEditForm({ ...editForm, serie: e.target.value })}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="CFDI">CFDI</option>
+                                <option value="CTA PORTE">Carta Porte</option>
+                                <option value="PGO">Complemento de Pago</option>
+                                <option value="NC">Nota de Crédito</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Folio</label>
+                            <Input
+                                type="number"
+                                placeholder="Ej: 1409"
+                                value={editForm.folio}
+                                onChange={e => setEditForm({ ...editForm, folio: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5 sm:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground">Razón Social / Receptor</label>
+                            <Input
+                                placeholder="Nombre del cliente receptor"
+                                value={editForm.recipientName}
+                                onChange={e => setEditForm({ ...editForm, recipientName: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Total ($)</label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={editForm.total}
+                                onChange={e => setEditForm({ ...editForm, total: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Pendiente ($)</label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={editForm.pendingAmount}
+                                onChange={e => setEditForm({ ...editForm, pendingAmount: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Forma de Pago</label>
+                            <select
+                                value={editForm.paymentMethod}
+                                onChange={e => setEditForm({ ...editForm, paymentMethod: e.target.value })}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                {Object.entries(PAYMENT_METHODS).map(([code, label]) => (
+                                    <option key={code} value={code}>{code} - {label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">UUID</label>
+                            <Input
+                                placeholder="Folio fiscal"
+                                value={editForm.uuidSat}
+                                onChange={e => setEditForm({ ...editForm, uuidSat: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Estado</label>
+                            <select
+                                value={editForm.status}
+                                onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="vigente">Vigente</option>
+                                <option value="cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2 pt-4">
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleEditSubmit} disabled={isEditSaving}>
+                            {isEditSaving ? "Guardando..." : "Guardar Cambios"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="h-5 w-5" />
+                            Eliminar Factura
+                        </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        ¿Estás seguro de que deseas eliminar la factura
+                        <strong> {deletingInvoice?.serie} {deletingInvoice?.folio}</strong> de
+                        <strong> {deletingInvoice?.recipient_name}</strong>?
+                        Esta acción no se puede deshacer.
+                    </p>
+                    <DialogFooter className="gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</Button>
+                        <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                            {isDeleting ? "Eliminando..." : "Eliminar"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

@@ -15,6 +15,7 @@ import {
     Mail,
     MessageSquare,
     ClipboardCheck,
+    ClipboardList,
     ChevronLeft,
     ChevronRight,
     LayoutDashboard,
@@ -46,6 +47,7 @@ const NAV_SECTIONS = [
         label: "Gestión",
         items: [
             { href: "/dashboard/clients", icon: Users, label: "Clientes" },
+            { href: "/dashboard/compliance", icon: ClipboardList, label: "Registros" },
             { href: "/dashboard/process-control", icon: ClipboardCheck, label: "Control de Procesos" },
             { href: "/dashboard/calendar", icon: Calendar, label: "Calendario" },
         ],

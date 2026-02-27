@@ -23,6 +23,7 @@ import {
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 import { ActivityFeed } from "@/components/activity/activity-feed"
+import { ComplianceAlerts } from "@/components/compliance/compliance-alerts"
 
 // Module definitions with their service flags
 const ALL_MODULES = [
@@ -343,8 +344,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Activity Feed — Right column */}
-        <div className="lg:col-span-1">
+        {/* Activity Feed + Compliance Alerts — Right column */}
+        <div className="lg:col-span-1 space-y-6">
+          {!isClient && <ComplianceAlerts />}
           <ActivityFeed />
         </div>
       </div>

@@ -102,3 +102,92 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }
+
+export async function PATCH(request: Request) {
+    try {
+        const serverClient = await createClient()
+        const { data: { user } } = await serverClient.auth.getUser()
+        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+
+        const supabase = createAdminClient()
+
+        const { data: sysUser } = await supabase
+            .from("system_users")
+            .select("role, full_name")
+            .eq("auth_user_id", user.id)
+            .single()
+
+        if (!sysUser || (sysUser.role !== "admin" && sysUser.role !== "contador")) {
+            return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+        }
+
+        const body = await request.json()
+        const { id, ...updates } = body
+
+        if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 })
+
+        const fieldMap: Record<string, string> = {
+            agentName: "agent_name",
+            issueDate: "issue_date",
+            recipientName: "recipient_name",
+            pendingAmount: "pending_amount",
+            paymentMethod: "payment_method",
+            uuidSat: "uuid_sat",
+        }
+
+        const dbUpdates: Record<string, any> = {}
+        for (const [key, value] of Object.entries(updates)) {
+            const dbKey = fieldMap[key] || key
+            dbUpdates[dbKey] = value
+        }
+
+        const { data, error } = await supabase
+            .from("invoices")
+            .update(dbUpdates)
+            .eq("id", id)
+            .select()
+            .single()
+
+        if (error) throw error
+
+        return NextResponse.json({ data })
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const serverClient = await createClient()
+        const { data: { user } } = await serverClient.auth.getUser()
+        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+
+        const supabase = createAdminClient()
+
+        const { data: sysUser } = await supabase
+            .from("system_users")
+            .select("role, full_name")
+            .eq("auth_user_id", user.id)
+            .single()
+
+        if (!sysUser || (sysUser.role !== "admin" && sysUser.role !== "contador")) {
+            return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+        }
+
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get("id")
+
+        if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 })
+
+        const { error } = await supabase
+            .from("invoices")
+            .delete()
+            .eq("id", id)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+}
