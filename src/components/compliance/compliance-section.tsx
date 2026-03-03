@@ -146,20 +146,20 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
         }
     }
 
-    // --- Parse .cer / .pfx ---
+    // --- Parse .cer / .pfx / .pdf ---
     function handleCertFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
         if (!file) return
         if (cerInputRef.current) cerInputRef.current.value = ""
 
-        const isPfx = file.name.toLowerCase().endsWith(".pfx") || file.name.toLowerCase().endsWith(".p12")
-        if (isPfx) {
-            // Show password prompt for .pfx
+        const name = file.name.toLowerCase()
+        if (name.endsWith(".pfx") || name.endsWith(".p12")) {
             setPfxFile(file)
             setPfxPassword("")
             setShowPfxPrompt(true)
+        } else if (name.endsWith(".pdf")) {
+            parsePdfFile(file)
         } else {
-            // Direct upload for .cer
             parseCertFile(file)
         }
     }
@@ -179,7 +179,6 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             const result = await res.json()
             if (!res.ok) throw new Error(result.error)
 
-            // Auto-fill form — use returned type if available
             const detectedType = result.type || createForm.type
             const typeLabel = REGISTRATION_TYPES.find(t => t.value === detectedType)?.label || detectedType
             setCreateForm(prev => ({
@@ -196,6 +195,47 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             toast({ title: "Error al leer certificado", description: err.message, variant: "destructive" })
+        } finally {
+            setIsParsing(false)
+        }
+    }
+
+    async function parsePdfFile(file: File) {
+        setIsParsing(true)
+        try {
+            const formData = new FormData()
+            formData.append("file", file)
+
+            const res = await fetch("/api/compliance/parse-pdf", {
+                method: "POST",
+                body: formData,
+            })
+
+            const result = await res.json()
+            if (!res.ok) throw new Error(result.error)
+
+            const detectedType = result.type || createForm.type
+            const typeLabel = REGISTRATION_TYPES.find(t => t.value === detectedType)?.label || detectedType
+            setCreateForm(prev => ({
+                ...prev,
+                type: detectedType,
+                label: result.label || `${typeLabel} — ${result.name || ""}`,
+                registrationNumber: result.registrationNumber || result.rfc || "",
+                issuedDate: result.issuedDate || "",
+                expirationDate: result.expirationDate || "",
+                notes: result.rfc ? `RFC: ${result.rfc}` : "",
+            }))
+
+            const dateMsg = result.datesFound > 0
+                ? `Se encontraron ${result.datesFound} fecha(s).`
+                : "No se encontraron fechas."
+            toast({
+                title: "📄 PDF leído — datos sugeridos",
+                description: `${dateMsg} Verifica que los campos estén correctos.`,
+            })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (err: any) {
+            toast({ title: "Error al leer PDF", description: err.message, variant: "destructive" })
         } finally {
             setIsParsing(false)
         }
@@ -371,16 +411,16 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 {showCerButton && (
                     <div className="sm:col-span-2">
                         <div className="border-2 border-dashed border-indigo-200 rounded-lg p-4 text-center bg-indigo-50/50 hover:border-indigo-400 transition-colors">
-                            <input ref={cerInputRef} type="file" accept=".cer,.pfx,.p12" className="hidden"
+                            <input ref={cerInputRef} type="file" accept=".cer,.pfx,.p12,.pdf" className="hidden"
                                 onChange={handleCertFileSelect} />
                             <Button variant="outline" onClick={() => cerInputRef.current?.click()}
                                 disabled={isParsing}
                                 className="gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-100">
                                 {isParsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
-                                {isParsing ? "Leyendo certificado..." : "Subir archivo .cer o .pfx para auto-llenar"}
+                                {isParsing ? "Leyendo archivo..." : "Subir .cer, .pfx o PDF para auto-llenar"}
                             </Button>
                             <p className="text-xs text-muted-foreground mt-2">
-                                Sube un archivo .cer o .pfx (llave IMSS) y los campos se llenarán automáticamente
+                                Sube un certificado (.cer/.pfx) o constancia PDF y los campos se llenarán automáticamente
                             </p>
                         </div>
                     </div>
