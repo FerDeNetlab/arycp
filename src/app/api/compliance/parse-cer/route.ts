@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import crypto from "crypto"
+import forge from "node-forge"
 
+/**
+ * Accepts .cer (DER certificate) or .pfx (PKCS#12) files.
+ * For .pfx, a "password" field is required in the FormData.
+ * Returns parsed certificate data for auto-filling compliance forms.
+ */
 export async function POST(request: Request) {
     try {
         const serverClient = await createClient()
@@ -12,14 +18,57 @@ export async function POST(request: Request) {
         const file = formData.get("file") as File
 
         if (!file) {
-            return NextResponse.json({ error: "Archivo .cer requerido" }, { status: 400 })
+            return NextResponse.json({ error: "Archivo .cer o .pfx requerido" }, { status: 400 })
         }
 
         const buffer = Buffer.from(await file.arrayBuffer())
+        const fileName = file.name.toLowerCase()
+        let pem: string
 
-        // Convert DER to PEM
-        const base64 = buffer.toString("base64")
-        const pem = `-----BEGIN CERTIFICATE-----\n${base64.match(/.{1,64}/g)!.join("\n")}\n-----END CERTIFICATE-----`
+        if (fileName.endsWith(".pfx") || fileName.endsWith(".p12")) {
+            // --- PFX / PKCS#12 flow ---
+            const password = (formData.get("password") as string) || ""
+
+            try {
+                const derBase64 = buffer.toString("base64")
+                const der = forge.util.decode64(derBase64)
+                const asn1 = forge.asn1.fromDer(der)
+                const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, false, password)
+
+                // Extract the first certificate from the PKCS#12 bags
+                const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })
+                const bags = certBags[forge.pki.oids.certBag]
+                if (!bags || bags.length === 0) {
+                    return NextResponse.json(
+                        { error: "No se encontró un certificado dentro del archivo .pfx" },
+                        { status: 400 }
+                    )
+                }
+
+                const forgeCert = bags[0].cert
+                if (!forgeCert) {
+                    return NextResponse.json(
+                        { error: "No se pudo extraer el certificado del archivo .pfx" },
+                        { status: 400 }
+                    )
+                }
+
+                pem = forge.pki.certificateToPem(forgeCert)
+            } catch (pfxError: unknown) {
+                const msg = pfxError instanceof Error ? pfxError.message : String(pfxError)
+                if (msg.includes("Invalid password") || msg.includes("PKCS#12 MAC") || msg.includes("decryption")) {
+                    return NextResponse.json(
+                        { error: "Contraseña incorrecta. Verifica la contraseña del archivo .pfx." },
+                        { status: 400 }
+                    )
+                }
+                throw pfxError
+            }
+        } else {
+            // --- CER (DER) flow (existing) ---
+            const base64 = buffer.toString("base64")
+            pem = `-----BEGIN CERTIFICATE-----\n${base64.match(/.{1,64}/g)!.join("\n")}\n-----END CERTIFICATE-----`
+        }
 
         // Parse with Node.js crypto
         const cert = new crypto.X509Certificate(pem)
@@ -39,10 +88,9 @@ export async function POST(request: Request) {
         const curp = subjectFields["serialNumber"] || ""
 
         // Parse dates
-        const validFrom = cert.validFrom // "Dec 15 16:18:44 2025 GMT"
+        const validFrom = cert.validFrom
         const validTo = cert.validTo
 
-        // Convert to ISO date strings
         function parseDate(dateStr: string): string {
             const d = new Date(dateStr)
             return d.toISOString().split("T")[0]
@@ -64,9 +112,22 @@ export async function POST(request: Request) {
             serialNumber = serialHex
         }
 
-        // Determine type based on issuer
+        // Determine type based on issuer / filename
         const issuer = cert.issuer || ""
-        const isFIEL = issuer.includes("SAT") || issuer.includes("ADMINISTRACION TRIBUTARIA")
+        const isSAT = issuer.includes("SAT") || issuer.includes("ADMINISTRACION TRIBUTARIA")
+        const isIMSS = fileName.endsWith(".pfx") || fileName.endsWith(".p12") ||
+            issuer.includes("IMSS") || issuer.includes("SEGURO SOCIAL")
+
+        // Auto-detect registration type
+        let type = "otro"
+        let typeLabel = "Certificado"
+        if (isIMSS) {
+            type = "imss"
+            typeLabel = "IMSS"
+        } else if (isSAT) {
+            type = "efirma"
+            typeLabel = "e.Firma"
+        }
 
         return NextResponse.json({
             name,
@@ -76,13 +137,13 @@ export async function POST(request: Request) {
             issuedDate,
             expirationDate,
             serialNumber,
-            type: isFIEL ? "efirma" : "csd",
-            label: `${isFIEL ? "e.Firma" : "CSD"} — ${name}`,
+            type,
+            label: `${typeLabel} — ${name}`,
         })
     } catch (error: unknown) {
-        console.error("Error parsing .cer:", error)
+        console.error("Error parsing certificate:", error)
         return NextResponse.json(
-            { error: "No se pudo leer el archivo .cer. Verifica que sea un certificado válido del SAT." },
+            { error: "No se pudo leer el archivo. Verifica que sea un certificado válido (.cer o .pfx)." },
             { status: 400 }
         )
     }

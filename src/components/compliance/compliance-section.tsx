@@ -109,6 +109,11 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
     const [isParsing, setIsParsing] = useState(false)
     const cerInputRef = useRef<HTMLInputElement>(null)
 
+    // PFX password prompt state
+    const [pfxFile, setPfxFile] = useState<File | null>(null)
+    const [pfxPassword, setPfxPassword] = useState("")
+    const [showPfxPrompt, setShowPfxPrompt] = useState(false)
+
     // Edit state
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [editingReg, setEditingReg] = useState<Registration | null>(null)
@@ -141,14 +146,30 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
         }
     }
 
-    // --- Parse .cer ---
-    async function handleCerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    // --- Parse .cer / .pfx ---
+    function handleCertFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
         if (!file) return
+        if (cerInputRef.current) cerInputRef.current.value = ""
+
+        const isPfx = file.name.toLowerCase().endsWith(".pfx") || file.name.toLowerCase().endsWith(".p12")
+        if (isPfx) {
+            // Show password prompt for .pfx
+            setPfxFile(file)
+            setPfxPassword("")
+            setShowPfxPrompt(true)
+        } else {
+            // Direct upload for .cer
+            parseCertFile(file)
+        }
+    }
+
+    async function parseCertFile(file: File, password?: string) {
         setIsParsing(true)
         try {
             const formData = new FormData()
             formData.append("file", file)
+            if (password !== undefined) formData.append("password", password)
 
             const res = await fetch("/api/compliance/parse-cer", {
                 method: "POST",
@@ -158,12 +179,13 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             const result = await res.json()
             if (!res.ok) throw new Error(result.error)
 
-            // Auto-fill the form but keep the user's selected type
-            const currentType = createForm.type
-            const typeLabel = REGISTRATION_TYPES.find(t => t.value === currentType)?.label || currentType
+            // Auto-fill form — use returned type if available
+            const detectedType = result.type || createForm.type
+            const typeLabel = REGISTRATION_TYPES.find(t => t.value === detectedType)?.label || detectedType
             setCreateForm(prev => ({
                 ...prev,
-                label: `${typeLabel} — ${result.name || ""}`,
+                type: detectedType,
+                label: result.label || `${typeLabel} — ${result.name || ""}`,
                 registrationNumber: result.rfc || "",
                 issuedDate: result.issuedDate || "",
                 expirationDate: result.expirationDate || "",
@@ -171,13 +193,20 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             }))
 
             toast({ title: "✅ Certificado leído correctamente" })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
-            toast({ title: "Error al leer .cer", description: err.message, variant: "destructive" })
+            toast({ title: "Error al leer certificado", description: err.message, variant: "destructive" })
         } finally {
             setIsParsing(false)
-            if (cerInputRef.current) cerInputRef.current.value = ""
         }
+    }
+
+    function handlePfxSubmit() {
+        if (!pfxFile) return
+        setShowPfxPrompt(false)
+        parseCertFile(pfxFile, pfxPassword)
+        setPfxFile(null)
+        setPfxPassword("")
     }
 
     // --- Upload file (PDF/cer) to a registration ---
@@ -198,7 +227,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
 
             toast({ title: "✅ Archivo adjuntado" })
             loadRegistrations()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             toast({ title: "Error al subir archivo", description: err.message, variant: "destructive" })
         } finally {
@@ -210,7 +239,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
         setUploadingId(registrationId)
         const input = document.createElement("input")
         input.type = "file"
-        input.accept = ".pdf,.cer,.doc,.docx,.jpg,.png"
+        input.accept = ".pdf,.cer,.pfx,.p12,.doc,.docx,.jpg,.png"
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         input.onchange = (e: any) => {
             const file = e.target.files?.[0]
@@ -245,7 +274,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 const r = await res.json()
                 toast({ title: "Error", description: r.error, variant: "destructive" })
             }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             toast({ title: "Error al crear", variant: "destructive" })
         } finally {
@@ -289,7 +318,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 const r = await res.json()
                 toast({ title: "Error", description: r.error, variant: "destructive" })
             }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             toast({ title: "Error al actualizar", variant: "destructive" })
         } finally {
@@ -312,7 +341,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 const r = await res.json()
                 toast({ title: "Error", description: r.error, variant: "destructive" })
             }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             toast({ title: "Error al eliminar", variant: "destructive" })
         } finally {
@@ -342,16 +371,16 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 {showCerButton && (
                     <div className="sm:col-span-2">
                         <div className="border-2 border-dashed border-indigo-200 rounded-lg p-4 text-center bg-indigo-50/50 hover:border-indigo-400 transition-colors">
-                            <input ref={cerInputRef} type="file" accept=".cer" className="hidden"
-                                onChange={handleCerUpload} />
+                            <input ref={cerInputRef} type="file" accept=".cer,.pfx,.p12" className="hidden"
+                                onChange={handleCertFileSelect} />
                             <Button variant="outline" onClick={() => cerInputRef.current?.click()}
                                 disabled={isParsing}
                                 className="gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-100">
                                 {isParsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
-                                {isParsing ? "Leyendo certificado..." : "Subir archivo .cer para auto-llenar"}
+                                {isParsing ? "Leyendo certificado..." : "Subir archivo .cer o .pfx para auto-llenar"}
                             </Button>
                             <p className="text-xs text-muted-foreground mt-2">
-                                Sube un archivo .cer y los campos se llenarán automáticamente
+                                Sube un archivo .cer o .pfx (llave IMSS) y los campos se llenarán automáticamente
                             </p>
                         </div>
                     </div>
@@ -606,6 +635,34 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                         <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancelar</Button>
                         <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
                             {isDeleting ? "Eliminando..." : "Eliminar"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* PFX Password Prompt */}
+            <Dialog open={showPfxPrompt} onOpenChange={(open) => { if (!open) { setShowPfxPrompt(false); setPfxFile(null); setPfxPassword("") } }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <KeyRound className="h-5 w-5 text-green-600" /> Contraseña del archivo .pfx
+                        </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        El archivo <strong>{pfxFile?.name}</strong> requiere contraseña para leer el certificado.
+                    </p>
+                    <Input
+                        type="password"
+                        placeholder="Ingresa la contraseña del .pfx"
+                        value={pfxPassword}
+                        onChange={e => setPfxPassword(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handlePfxSubmit() }}
+                        autoFocus
+                    />
+                    <DialogFooter className="gap-2 pt-2">
+                        <Button variant="outline" onClick={() => { setShowPfxPrompt(false); setPfxFile(null); setPfxPassword("") }}>Cancelar</Button>
+                        <Button onClick={handlePfxSubmit} className="bg-green-600 hover:bg-green-700">
+                            Leer Certificado
                         </Button>
                     </DialogFooter>
                 </DialogContent>
