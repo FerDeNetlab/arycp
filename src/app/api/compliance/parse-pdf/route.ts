@@ -57,7 +57,9 @@ const DATE_PATTERNS = [
 
 // Keywords near dates that hint at their meaning
 const EXPIRATION_KEYWORDS = /vigencia|vence|vencimiento|expira|caduca|válido?\s+hasta|validez|termina|fenece/i
-const ISSUED_KEYWORDS = /emisi[oó]n|emitid[oa]|expedid[oa]|fecha\s+de\s+expedici[oó]n|otorgad[oa]|registrad[oa]/i
+const ISSUED_KEYWORDS = /emisi[oó]n|emitid[oa]|expedid[oa]|fecha\s+de\s+expedici[oó]n|otorgad[oa]|registrad[oa]|ciudad\s+de/i
+// Dates near these keywords are legal references, not document dates — skip them
+const BOILERPLATE_KEYWORDS = /diario\s+oficial|publicado\s+en|acuerdos?\s+modificatorio|disposiciones|d\.?o\.?f\.?/i
 
 function toISODate(d: Date): string {
     return d.toISOString().split("T")[0]
@@ -119,6 +121,21 @@ export async function POST(request: Request) {
         const rpMatches = [...text.matchAll(REGISTRO_PATRONAL_REGEX)]
         const registroPatronal = rpMatches[0]?.[1]?.replace(/\s/g, "-") || ""
 
+        // --- Extract Folio / Acuerdo / Registration number ---
+        let folioNumber = ""
+        const folioPatterns = [
+            /(?:no\.?\s*de\s*folio(?:\s*de\s*ingreso)?|folio)[:\s]+([\d]+)/i,
+            /(?:no\.?\s*de\s*acuerdo|acuerdo\s*(?:no\.?|número))[:\s]+([A-Z0-9\/\-]+)/i,
+            /(?:registro\s*(?:no\.?|número))[:\s]+([A-Z0-9\/\-]+)/i,
+        ]
+        for (const fp of folioPatterns) {
+            const folioMatch = text.match(fp)
+            if (folioMatch?.[1]) {
+                folioNumber = folioMatch[1].trim()
+                break
+            }
+        }
+
         // --- Extract dates with context ---
         const lines = text.split("\n")
         const extractedDates: ExtractedDate[] = []
@@ -129,6 +146,9 @@ export async function POST(request: Request) {
             const contextStart = Math.max(0, i - 2)
             const contextEnd = Math.min(lines.length - 1, i + 2)
             const context = lines.slice(contextStart, contextEnd + 1).join(" ")
+
+            // Skip dates that appear in legal boilerplate (DOF references, etc.)
+            if (BOILERPLATE_KEYWORDS.test(context)) continue
 
             for (const pattern of DATE_PATTERNS) {
                 // Reset regex
@@ -195,20 +215,22 @@ export async function POST(request: Request) {
             }
         }
 
-        // --- Determine registration number ---
-        const registrationNumber = registroPatronal || rfc
+        // --- Determine registration number (folio > registro patronal > RFC) ---
+        const registrationNumber = folioNumber || registroPatronal || rfc
 
         // --- Detect type from content ---
+        // IMPORTANT: REPSE must be checked BEFORE IMSS because REPSE documents often
+        // mention "Seguro Social" in their legal boilerplate text
         let type = "otro"
         const textLower = text.toLowerCase()
-        if (textLower.includes("imss") || textLower.includes("seguro social") || registroPatronal) {
+        if (textLower.includes("repse") || textLower.includes("servicios especializados") || textLower.includes("obras especializadas") || textLower.includes("repse.stps") || textLower.includes("padrón público de contratistas") || textLower.includes("padron publico de contratistas") || textLower.includes("subcontratación") || textLower.includes("subcontratacion")) {
+            type = "repse"
+        } else if (textLower.includes("imss") || textLower.includes("seguro social") || registroPatronal) {
             type = "imss"
         } else if (textLower.includes("impuesto sobre nómina") || textLower.includes("impuesto sobre nomina") || textLower.includes("i.s.n") || textLower.includes(" isn ")) {
             type = "isn"
         } else if (textLower.includes("fonacot")) {
             type = "fonacot"
-        } else if (textLower.includes("repse") || textLower.includes("subcontratación") || textLower.includes("subcontratacion") || textLower.includes("servicios especializados") || textLower.includes("obras especializadas") || textLower.includes("repse.stps") || textLower.includes("padrón público de contratistas") || textLower.includes("padron publico de contratistas")) {
-            type = "repse"
         } else if (textLower.includes("administración tributaria") || textLower.includes("servicio de administracion tributaria")) {
             type = "efirma"
         }
