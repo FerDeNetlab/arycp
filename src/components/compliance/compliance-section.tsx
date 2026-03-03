@@ -185,10 +185,16 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
                 ...prev,
                 type: detectedType,
                 label: result.label || `${typeLabel} — ${result.name || ""}`,
-                registrationNumber: result.rfc || "",
+                registrationNumber: result.registrationNumber || result.registroPatronal || result.rfc || "",
                 issuedDate: result.issuedDate || "",
                 expirationDate: result.expirationDate || "",
-                notes: `No. Serie: ${result.serialNumber || "—"}\nEmail: ${result.email || "—"}\nCURP: ${result.curp || "—"}`,
+                notes: [
+                    result.registroPatronal ? `Reg. Patronal: ${result.registroPatronal}` : "",
+                    result.rfc ? `RFC: ${result.rfc}` : "",
+                    result.serialNumber ? `No. Serie: ${result.serialNumber}` : "",
+                    result.email ? `Email: ${result.email}` : "",
+                    result.curp ? `CURP: ${result.curp}` : "",
+                ].filter(Boolean).join("\n"),
             }))
 
             toast({ title: "✅ Certificado leído correctamente" })

@@ -24,6 +24,8 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(await file.arrayBuffer())
         const fileName = file.name.toLowerCase()
         let pem: string
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let pfxExtraData: { registroPatronal: string; name: string; rfc: string; email: string } | null = null
 
         if (fileName.endsWith(".pfx") || fileName.endsWith(".p12")) {
             // --- PFX / PKCS#12 flow ---
@@ -32,10 +34,10 @@ export async function POST(request: Request) {
             try {
                 const derBase64 = buffer.toString("base64")
                 const der = forge.util.decode64(derBase64)
-                const asn1 = forge.asn1.fromDer(der)
-                const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, false, password)
+                const asn1Obj = forge.asn1.fromDer(der)
+                const p12 = forge.pkcs12.pkcs12FromAsn1(asn1Obj, false, password)
 
-                // Extract the first certificate from the PKCS#12 bags
+                // Extract all certificates from the PKCS#12 bags
                 const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })
                 const bags = certBags[forge.pki.oids.certBag]
                 if (!bags || bags.length === 0) {
@@ -45,7 +47,20 @@ export async function POST(request: Request) {
                     )
                 }
 
-                const forgeCert = bags[0].cert
+                // Pick the end-entity cert (not the CA cert)
+                // CA certs are self-signed (subject === issuer) — skip those
+                let forgeCert = bags[0].cert
+                for (const bag of bags) {
+                    if (!bag.cert) continue
+                    const subjectCN = bag.cert.subject.getField("CN")?.value || ""
+                    const issuerCN = bag.cert.issuer.getField("CN")?.value || ""
+                    if (subjectCN !== issuerCN) {
+                        // This is the end-entity cert (not self-signed)
+                        forgeCert = bag.cert
+                        break
+                    }
+                }
+
                 if (!forgeCert) {
                     return NextResponse.json(
                         { error: "No se pudo extraer el certificado del archivo .pfx" },
@@ -53,7 +68,35 @@ export async function POST(request: Request) {
                     )
                 }
 
+                // Extract IMSS-specific fields directly from forge cert attributes
+                const getAttr = (name: string) => forgeCert!.subject.getField(name)?.value || ""
+                const registroPatronal = getAttr("businessCategory") || getAttr("OU") || ""
+                const forgeName = getAttr("CN")?.replace(/\$/g, " ").trim() || getAttr("O") || ""
+                const forgeEmail = getAttr("E") || ""
+
+                // Extract RFC from subject attributes (may be in an unnamed OID field)
+                let forgeRfc = ""
+                for (const attr of forgeCert.subject.attributes) {
+                    const val = String(attr.value || "")
+                    // RFC pattern: 3-4 letters + 6 digits + 3 alphanumeric
+                    if (/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(val)) {
+                        forgeRfc = val
+                        break
+                    }
+                }
+
+                // Also try to extract registro patronal from filename
+                const fileRegistro = fileName.match(/([A-Z]\d{9,10})/i)?.[1] || ""
+
                 pem = forge.pki.certificateToPem(forgeCert)
+
+                // Store extra data for IMSS certs
+                pfxExtraData = {
+                    registroPatronal: registroPatronal || fileRegistro,
+                    name: forgeName,
+                    rfc: forgeRfc,
+                    email: forgeEmail,
+                }
             } catch (pfxError: unknown) {
                 const msg = pfxError instanceof Error ? pfxError.message : String(pfxError)
                 if (msg.includes("Invalid password") || msg.includes("PKCS#12 MAC") || msg.includes("decryption")) {
@@ -81,11 +124,12 @@ export async function POST(request: Request) {
             if (key && vals.length) subjectFields[key.trim()] = vals.join("=").trim()
         })
 
-        // Get name and RFC
-        const name = subjectFields["CN"] || subjectFields["O"] || ""
-        const rfc = subjectFields["x500UniqueIdentifier"] || ""
-        const email = subjectFields["emailAddress"] || ""
+        // Get name and RFC (prefer PFX-extracted data for IMSS certs)
+        const name = pfxExtraData?.name || subjectFields["CN"] || subjectFields["O"] || ""
+        const rfc = pfxExtraData?.rfc || subjectFields["x500UniqueIdentifier"] || ""
+        const email = pfxExtraData?.email || subjectFields["emailAddress"] || ""
         const curp = subjectFields["serialNumber"] || ""
+        const registroPatronal = pfxExtraData?.registroPatronal || ""
 
         // Parse dates
         const validFrom = cert.validFrom
@@ -132,6 +176,8 @@ export async function POST(request: Request) {
         return NextResponse.json({
             name,
             rfc,
+            registroPatronal,
+            registrationNumber: registroPatronal || rfc,
             email,
             curp,
             issuedDate,
