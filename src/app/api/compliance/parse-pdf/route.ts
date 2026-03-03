@@ -180,15 +180,17 @@ export async function POST(request: Request) {
         let name = ""
         const namePatterns = [
             /raz[oó]n\s+social[:\s]+(.+)/i,
-            /nombre[:\s]+(.+)/i,
+            /(?:persona|Persona)[:\s]*\(?(?:Moral|Física|moral|física)\)?\s+([A-ZÑ&\s]+(?:SA\s+DE\s+CV|S\.?A\.?\s+DE\s+C\.?V\.?|SC|AC|SRL|S\.?C\.?))/i,
+            /(?:Moral|Física)\s+([A-ZÑ&\s]+(?:SA\s+DE\s+CV|S\.?A\.?\s+DE\s+C\.?V\.?|SC|AC|SRL|S\.?C\.?))/i,
             /denominaci[oó]n[:\s]+(.+)/i,
             /contribuyente[:\s]+(.+)/i,
             /patr[oó]n[:\s]+(.+)/i,
+            /nombre[:\s]+(.+)/i,
         ]
         for (const np of namePatterns) {
             const nameMatch = text.match(np)
             if (nameMatch?.[1]) {
-                name = nameMatch[1].trim().substring(0, 120)
+                name = nameMatch[1].trim().replace(/,\s*$/, "").substring(0, 120)
                 break
             }
         }
@@ -205,9 +207,9 @@ export async function POST(request: Request) {
             type = "isn"
         } else if (textLower.includes("fonacot")) {
             type = "fonacot"
-        } else if (textLower.includes("repse") || textLower.includes("subcontratación") || textLower.includes("subcontratacion")) {
+        } else if (textLower.includes("repse") || textLower.includes("subcontratación") || textLower.includes("subcontratacion") || textLower.includes("servicios especializados") || textLower.includes("obras especializadas") || textLower.includes("repse.stps") || textLower.includes("padrón público de contratistas") || textLower.includes("padron publico de contratistas")) {
             type = "repse"
-        } else if (textLower.includes("sat") || textLower.includes("administración tributaria")) {
+        } else if (textLower.includes("administración tributaria") || textLower.includes("servicio de administracion tributaria")) {
             type = "efirma"
         }
 
