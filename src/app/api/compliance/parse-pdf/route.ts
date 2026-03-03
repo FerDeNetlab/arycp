@@ -59,7 +59,7 @@ const DATE_PATTERNS = [
 const EXPIRATION_KEYWORDS = /vigencia|vence|vencimiento|expira|caduca|válido?\s+hasta|validez|termina|fenece/i
 const ISSUED_KEYWORDS = /emisi[oó]n|emitid[oa]|expedid[oa]|fecha\s+de\s+expedici[oó]n|otorgad[oa]|registrad[oa]|ciudad\s+de/i
 // Dates near these keywords are legal references, not document dates — skip them
-const BOILERPLATE_KEYWORDS = /diario\s+oficial|publicado\s+en|acuerdos?\s+modificatorio|disposiciones|d\.?o\.?f\.?/i
+const BOILERPLATE_KEYWORDS = /diario\s+oficial|publicado\s+en\s+el|acuerdos?\s+modificatorio|d\.?o\.?f\.?/i
 
 function toISODate(d: Date): string {
     return d.toISOString().split("T")[0]
@@ -148,7 +148,8 @@ export async function POST(request: Request) {
             const context = lines.slice(contextStart, contextEnd + 1).join(" ")
 
             // Skip dates that appear in legal boilerplate (DOF references, etc.)
-            if (BOILERPLATE_KEYWORDS.test(context)) continue
+            // Only check the same line, not surrounding context, to avoid false positives
+            if (BOILERPLATE_KEYWORDS.test(lineText)) continue
 
             for (const pattern of DATE_PATTERNS) {
                 // Reset regex
