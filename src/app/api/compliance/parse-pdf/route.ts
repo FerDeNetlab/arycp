@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 
 // Force Node.js runtime (pdfjs-dist needs it)
 export const runtime = "nodejs"
@@ -70,6 +69,13 @@ interface ExtractedDate {
     lineIndex: number
 }
 
+async function extractTextFromPdf(buffer: Buffer): Promise<string> {
+    const { extractText } = await import("unpdf")
+    const uint8Array = new Uint8Array(buffer)
+    const { text } = await extractText(uint8Array)
+    return Array.isArray(text) ? text.join("\n") : text
+}
+
 export async function POST(request: Request) {
     try {
         const serverClient = await createClient()
@@ -87,18 +93,12 @@ export async function POST(request: Request) {
 
         let text = ""
         try {
-            const uint8Array = new Uint8Array(buffer)
-            const doc = await getDocument({ data: uint8Array, useSystemFonts: true }).promise
-            for (let i = 1; i <= doc.numPages; i++) {
-                const page = await doc.getPage(i)
-                const content = await page.getTextContent()
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const pageText = content.items.map((item: any) => item.str || "").join(" ")
-                text += pageText + "\n"
-            }
-        } catch {
+            text = await extractTextFromPdf(buffer)
+        } catch (pdfError: unknown) {
+            const msg = pdfError instanceof Error ? pdfError.message : String(pdfError)
+            console.error("PDF parse error:", msg)
             return NextResponse.json(
-                { error: "No se pudo leer el PDF. Verifica que no esté protegido o dañado." },
+                { error: `No se pudo leer el PDF: ${msg}` },
                 { status: 400 }
             )
         }
