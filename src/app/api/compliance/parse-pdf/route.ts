@@ -240,6 +240,16 @@ export async function POST(request: Request) {
             fonacot: "FONACOT", repse: "REPSE", otro: "Otro",
         }
 
+        // Auto-calculate expiration based on registration type durations
+        // IMSS registrations last 2 years, REPSE 3 years
+        if (issuedDate && !expirationDate && (type === "imss" || type === "repse")) {
+            const issued = new Date(issuedDate)
+            const yearsToAdd = type === "imss" ? 2 : 3
+            const calculated = new Date(issued)
+            calculated.setFullYear(calculated.getFullYear() + yearsToAdd)
+            expirationDate = calculated.toISOString().split("T")[0]
+        }
+
         return NextResponse.json({
             name,
             rfc,
@@ -248,7 +258,7 @@ export async function POST(request: Request) {
             expirationDate,
             type,
             label: `${typeLabels[type] || "Registro"} — ${name || rfc || "PDF"}`,
-            suggested: true, // indicates these values are heuristic guesses
+            suggested: true,
             datesFound: extractedDates.length,
             textPreview: text.substring(0, 300).trim(),
         })

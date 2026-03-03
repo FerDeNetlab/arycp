@@ -173,6 +173,17 @@ export async function POST(request: Request) {
             typeLabel = "e.Firma"
         }
 
+        // Auto-calculate expiration based on registration type durations
+        // IMSS registrations last 2 years, REPSE 3 years
+        let finalExpirationDate = expirationDate
+        if (issuedDate && (type === "imss" || type === "repse")) {
+            const issued = new Date(issuedDate)
+            const yearsToAdd = type === "imss" ? 2 : 3
+            const calculated = new Date(issued)
+            calculated.setFullYear(calculated.getFullYear() + yearsToAdd)
+            finalExpirationDate = calculated.toISOString().split("T")[0]
+        }
+
         return NextResponse.json({
             name,
             rfc,
@@ -181,7 +192,7 @@ export async function POST(request: Request) {
             email,
             curp,
             issuedDate,
-            expirationDate,
+            expirationDate: finalExpirationDate,
             serialNumber,
             type,
             label: `${typeLabel} — ${name}`,
