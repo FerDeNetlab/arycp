@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { AssignToSelector } from "@/components/activity/assign-to-selector"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useToast } from "@/hooks/use-toast"
 import {
   Plus,
   Trash2,
@@ -25,7 +26,12 @@ import {
   Mail,
   Search as SearchIcon,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Pencil,
+  Upload,
+  Loader2,
+  ExternalLink,
 } from "lucide-react"
 
 interface Procedure {
@@ -52,6 +58,7 @@ interface ProceduresSectionProps {
 
 const PROCEDURE_TYPES = [
   { value: "alta_patronal_imss", label: "Alta patronal ante el IMSS", icon: Building2 },
+  { value: "alta_isn", label: "Alta de ISN", icon: FileText },
   { value: "alta_representante_legal", label: "Alta de representante legal", icon: UserCheck },
   { value: "generacion_firma_electronica", label: "Generación de firma electrónica", icon: KeyRound },
   { value: "constancia_situacion_fiscal", label: "Constancias de situación fiscal", icon: FileCheck },
@@ -69,14 +76,44 @@ const STATUS_OPTIONS = [
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-800" },
 ]
 
+const ESTADOS_MEXICO = [
+  "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+  "Chihuahua", "Ciudad de México", "Coahuila", "Colima", "Durango", "Estado de México",
+  "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Michoacán", "Morelos", "Nayarit",
+  "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
+  "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas",
+]
+
+const emptyISNData = {
+  rfc: "",
+  razon_social: "",
+  domicilio_fiscal: "",
+  estado: "",
+  fecha_solicitud: new Date().toISOString().split("T")[0],
+  fecha_estimada_resolucion: "",
+  fecha_resolucion: "",
+  numero_registro_isn: "",
+  porcentaje_isn: "",
+  periodo_inicio: "",
+  base_calculo: "",
+  archivo_nombre: "",
+  archivo_url: "",
+  notas_adicionales: "",
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ProceduresSection({ clientId, clientName, userRole }: ProceduresSectionProps) {
   const isClient = userRole === "cliente"
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingProcedure, setEditingProcedure] = useState<Procedure | null>(null)
   const [activeTab, setActiveTab] = useState("alta_patronal_imss")
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+  const { toast } = useToast()
 
   const [newProcedure, setNewProcedure] = useState({
     procedure_type: "",
@@ -105,9 +142,31 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
     setLoading(false)
   }
 
+  // Auto-calculate estimated resolution date (+5 business days) for ISN
+  function calcEstimatedResolution(dateStr: string): string {
+    if (!dateStr) return ""
+    const d = new Date(dateStr)
+    let businessDays = 0
+    while (businessDays < 5) {
+      d.setDate(d.getDate() + 1)
+      if (d.getDay() !== 0 && d.getDay() !== 6) businessDays++
+    }
+    return d.toISOString().split("T")[0]
+  }
+
   const handleCreateProcedure = async () => {
     const { data: userData } = await supabase.auth.getUser()
     if (!userData?.user) return
+
+    const specificData = { ...newProcedure.specific_data }
+
+    // Auto-calc estimated resolution for ISN
+    if (newProcedure.procedure_type === "alta_isn") {
+      const solicitud = (specificData as typeof emptyISNData).fecha_solicitud
+      if (solicitud && !(specificData as typeof emptyISNData).fecha_estimada_resolucion) {
+        (specificData as typeof emptyISNData).fecha_estimada_resolucion = calcEstimatedResolution(solicitud)
+      }
+    }
 
     const { error } = await supabase.from("procedures").insert({
       client_id: clientId,
@@ -116,7 +175,7 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
       start_date: newProcedure.start_date,
       responsible: newProcedure.responsible,
       comments: newProcedure.comments,
-      specific_data: newProcedure.specific_data,
+      specific_data: specificData,
       created_by: userData.user.id,
     })
 
@@ -130,6 +189,7 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
         specific_data: {},
       })
       loadProcedures()
+      toast({ title: "✅ Trámite creado exitosamente" })
     }
   }
 
@@ -165,6 +225,67 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
     loadProcedures()
   }
 
+  // --- Edit procedure ---
+  const openEditDialog = (procedure: Procedure) => {
+    setEditingProcedure({ ...procedure })
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingProcedure) return
+    const { data: userData } = await supabase.auth.getUser()
+
+    const { error } = await supabase.from("procedures").update({
+      responsible: editingProcedure.responsible,
+      comments: editingProcedure.comments,
+      specific_data: editingProcedure.specific_data,
+      updated_by: userData?.user?.id,
+      updated_at: new Date().toISOString(),
+    }).eq("id", editingProcedure.id)
+
+    if (!error) {
+      setEditDialogOpen(false)
+      setEditingProcedure(null)
+      loadProcedures()
+      toast({ title: "✅ Trámite actualizado" })
+    }
+  }
+
+  // --- File upload for ISN ---
+  const handleFileUpload = async (file: File, procedureId: string) => {
+    setUploading(true)
+    try {
+      const filePath = `procedures/${procedureId}/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabase.storage
+        .from("client-documents")
+        .upload(filePath, file, { contentType: file.type || "application/octet-stream", upsert: false })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage.from("client-documents").getPublicUrl(filePath)
+      const fileUrl = urlData?.publicUrl || filePath
+
+      // Update specific_data with file info
+      const procedure = procedures.find(p => p.id === procedureId)
+      if (procedure) {
+        const updatedData = { ...(procedure.specific_data || {}), archivo_nombre: file.name, archivo_url: fileUrl }
+        await supabase.from("procedures").update({ specific_data: updatedData, updated_at: new Date().toISOString() }).eq("id", procedureId)
+
+        // Also update editingProcedure if open
+        if (editingProcedure?.id === procedureId) {
+          setEditingProcedure({ ...editingProcedure, specific_data: updatedData })
+        }
+        loadProcedures()
+        toast({ title: "✅ Archivo subido exitosamente" })
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast({ title: "Error al subir archivo", description: msg, variant: "destructive" })
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const statusOption = STATUS_OPTIONS.find((s) => s.value === status)
     return statusOption ? (
@@ -172,19 +293,142 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
     ) : null
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getProcedureTypeLabel = (type: string) => {
-    const procedureType = PROCEDURE_TYPES.find((p) => p.value === type)
-    return procedureType ? procedureType.label : type
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getProcedureIcon = (type: string) => {
-    const procedureType = PROCEDURE_TYPES.find((p) => p.value === type)
-    return procedureType ? procedureType.icon : FileCheck
-  }
-
   const proceduresByType = (type: string) => procedures.filter((p) => p.procedure_type === type)
+
+  // --- ISN specific fields renderer ---
+  function renderISNFields(
+    data: typeof emptyISNData,
+    onChange: (field: string, value: string) => void,
+    readOnly = false
+  ) {
+    return (
+      <div className="space-y-4 border rounded-lg p-4 bg-slate-50">
+        <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          Datos del Alta de ISN
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">RFC</label>
+            <Input placeholder="ABC123456XYZ" value={data.rfc || ""} readOnly={readOnly}
+              onChange={e => onChange("rfc", e.target.value)} className="h-9" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Razón Social</label>
+            <Input placeholder="Empresa SA de CV" value={data.razon_social || ""} readOnly={readOnly}
+              onChange={e => onChange("razon_social", e.target.value)} className="h-9" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Domicilio Fiscal</label>
+            <Input placeholder="Calle, número, colonia, CP" value={data.domicilio_fiscal || ""} readOnly={readOnly}
+              onChange={e => onChange("domicilio_fiscal", e.target.value)} className="h-9" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Estado</label>
+            {readOnly ? (
+              <Input value={data.estado || ""} readOnly className="h-9" />
+            ) : (
+              <Select value={data.estado || ""} onValueChange={v => onChange("estado", v)}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent>
+                  {ESTADOS_MEXICO.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Porcentaje ISN (%)</label>
+            <Input placeholder="3.0" type="number" step="0.1" value={data.porcentaje_isn || ""} readOnly={readOnly}
+              onChange={e => onChange("porcentaje_isn", e.target.value)} className="h-9" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Fecha de Solicitud</label>
+            <Input type="date" value={data.fecha_solicitud || ""} readOnly={readOnly}
+              onChange={e => {
+                onChange("fecha_solicitud", e.target.value)
+                if (!readOnly) onChange("fecha_estimada_resolucion", calcEstimatedResolution(e.target.value))
+              }} className="h-9" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Fecha Estimada de Resolución</label>
+            <Input type="date" value={data.fecha_estimada_resolucion || ""} readOnly
+              className="h-9 bg-slate-100" />
+            <p className="text-[10px] text-slate-400 mt-0.5">Se calcula automáticamente (5 días hábiles)</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Fecha Real de Resolución</label>
+            <Input type="date" value={data.fecha_resolucion || ""} readOnly={readOnly}
+              onChange={e => onChange("fecha_resolucion", e.target.value)} className="h-9" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">No. Registro ISN</label>
+            <Input placeholder="Se asigna al resolver" value={data.numero_registro_isn || ""} readOnly={readOnly}
+              onChange={e => onChange("numero_registro_isn", e.target.value)} className="h-9" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Período de Inicio</label>
+            <Input placeholder="Ej: Marzo 2025" value={data.periodo_inicio || ""} readOnly={readOnly}
+              onChange={e => onChange("periodo_inicio", e.target.value)} className="h-9" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Base de Cálculo</label>
+            <Input placeholder="Nómina, prestaciones..." value={data.base_calculo || ""} readOnly={readOnly}
+              onChange={e => onChange("base_calculo", e.target.value)} className="h-9" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-medium text-slate-600 mb-1 block">Notas Adicionales</label>
+            <Textarea placeholder="Observaciones del trámite..." value={data.notas_adicionales || ""} readOnly={readOnly}
+              onChange={e => onChange("notas_adicionales", e.target.value)} rows={2} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // --- ISN card detail renderer ---
+  function renderISNDetail(data: typeof emptyISNData, procedureId: string) {
+    return (
+      <div className="mt-3 space-y-2 bg-slate-50 rounded-lg p-3 border">
+        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Datos ISN</h4>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-sm">
+          {data.rfc && <div><span className="text-slate-500">RFC:</span> <span className="font-medium">{data.rfc}</span></div>}
+          {data.razon_social && <div className="col-span-2"><span className="text-slate-500">Razón Social:</span> <span className="font-medium">{data.razon_social}</span></div>}
+          {data.estado && <div><span className="text-slate-500">Estado:</span> <span className="font-medium">{data.estado}</span></div>}
+          {data.porcentaje_isn && <div><span className="text-slate-500">% ISN:</span> <span className="font-medium">{data.porcentaje_isn}%</span></div>}
+          {data.numero_registro_isn && <div><span className="text-slate-500">Registro:</span> <span className="font-medium text-cyan-700">{data.numero_registro_isn}</span></div>}
+          {data.fecha_solicitud && <div><span className="text-slate-500">Solicitud:</span> <span className="font-medium">{new Date(data.fecha_solicitud + "T12:00:00").toLocaleDateString("es-MX")}</span></div>}
+          {data.fecha_estimada_resolucion && <div><span className="text-slate-500">Est. Resolución:</span> <span className="font-medium">{new Date(data.fecha_estimada_resolucion + "T12:00:00").toLocaleDateString("es-MX")}</span></div>}
+          {data.fecha_resolucion && <div><span className="text-slate-500">Resolución:</span> <span className="font-medium text-green-600">{new Date(data.fecha_resolucion + "T12:00:00").toLocaleDateString("es-MX")}</span></div>}
+          {data.periodo_inicio && <div><span className="text-slate-500">Período:</span> <span className="font-medium">{data.periodo_inicio}</span></div>}
+          {data.base_calculo && <div><span className="text-slate-500">Base:</span> <span className="font-medium">{data.base_calculo}</span></div>}
+        </div>
+        {data.notas_adicionales && <p className="text-xs text-slate-500 mt-1">{data.notas_adicionales}</p>}
+        {data.archivo_url ? (
+          <a href={data.archivo_url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-800 font-medium mt-1">
+            <ExternalLink className="h-3 w-3" /> {data.archivo_nombre || "Ver constancia"}
+          </a>
+        ) : (
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-amber-600 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" /> Sin constancia adjunta
+            </span>
+            {!isClient && (
+              <>
+                <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                  onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], procedureId) }} />
+                <Button variant="outline" size="sm" className="h-6 text-xs gap-1"
+                  onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                  Subir
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -199,7 +443,7 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
                 Nuevo Trámite
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Nuevo Trámite</DialogTitle>
               </DialogHeader>
@@ -208,7 +452,10 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
                   <label className="text-sm font-medium mb-2 block">Tipo de Trámite</label>
                   <Select
                     value={newProcedure.procedure_type}
-                    onValueChange={(value) => setNewProcedure({ ...newProcedure, procedure_type: value })}
+                    onValueChange={(value) => {
+                      const sd = value === "alta_isn" ? { ...emptyISNData } : {}
+                      setNewProcedure({ ...newProcedure, procedure_type: value, specific_data: sd })
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar tipo" />
@@ -250,6 +497,15 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
                   />
                 </div>
 
+                {/* ISN-specific fields */}
+                {newProcedure.procedure_type === "alta_isn" && renderISNFields(
+                  newProcedure.specific_data as typeof emptyISNData,
+                  (field, value) => setNewProcedure({
+                    ...newProcedure,
+                    specific_data: { ...newProcedure.specific_data, [field]: value }
+                  })
+                )}
+
                 <Button
                   onClick={handleCreateProcedure}
                   className="w-full bg-cyan-600 hover:bg-cyan-700"
@@ -263,29 +519,31 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
         )}
       </div>
 
-      {/* Tabs por tipo de trámite */}
+      {/* Tabs por tipo de trámite — horizontal scroll to avoid overlap */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex flex-wrap h-auto gap-2 bg-transparent p-0">
-          {PROCEDURE_TYPES.map((type) => {
-            const Icon = type.icon
-            const count = proceduresByType(type.value).length
-            return (
-              <TabsTrigger
-                key={type.value}
-                value={type.value}
-                className="data-[state=active]:bg-cyan-100 data-[state=active]:text-cyan-800 border"
-              >
-                <Icon className="h-4 w-4 mr-2" />
-                {type.label}
-                {count > 0 && (
-                  <Badge variant="secondary" className="ml-2 bg-cyan-200 text-cyan-800">
-                    {count}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            )
-          })}
-        </TabsList>
+        <div className="overflow-x-auto pb-2 -mx-1 px-1">
+          <TabsList className="inline-flex h-auto gap-2 bg-transparent p-0 whitespace-nowrap">
+            {PROCEDURE_TYPES.map((type) => {
+              const Icon = type.icon
+              const count = proceduresByType(type.value).length
+              return (
+                <TabsTrigger
+                  key={type.value}
+                  value={type.value}
+                  className="data-[state=active]:bg-cyan-100 data-[state=active]:text-cyan-800 border shrink-0"
+                >
+                  <Icon className="h-4 w-4 mr-2" />
+                  {type.label}
+                  {count > 0 && (
+                    <Badge variant="secondary" className="ml-2 bg-cyan-200 text-cyan-800">
+                      {count}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </div>
 
         {PROCEDURE_TYPES.map((type) => {
           const Icon = type.icon
@@ -337,6 +595,10 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
                                 {procedure.comments && (
                                   <p className="text-sm text-muted-foreground">{procedure.comments}</p>
                                 )}
+
+                                {/* ISN-specific detail */}
+                                {procedure.procedure_type === "alta_isn" &&
+                                  renderISNDetail(procedure.specific_data as typeof emptyISNData, procedure.id)}
 
                                 {/* Assignment selector */}
                                 {!isClient && (
@@ -391,14 +653,24 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
                               </div>
 
                               {!isClient && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteProcedure(procedure.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex flex-col gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-slate-500 hover:text-cyan-700"
+                                    onClick={() => openEditDialog(procedure)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteProcedure(procedure.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               )}
                             </div>
                           </CardContent>
@@ -412,6 +684,80 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
           )
         })}
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4" />
+              Editar Trámite
+            </DialogTitle>
+          </DialogHeader>
+          {editingProcedure && (
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Responsable</label>
+                <Input
+                  value={editingProcedure.responsible || ""}
+                  onChange={e => setEditingProcedure({ ...editingProcedure, responsible: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Comentarios</label>
+                <Textarea
+                  value={editingProcedure.comments || ""}
+                  onChange={e => setEditingProcedure({ ...editingProcedure, comments: e.target.value })}
+                />
+              </div>
+
+              {/* ISN-specific edit fields */}
+              {editingProcedure.procedure_type === "alta_isn" && renderISNFields(
+                (editingProcedure.specific_data || {}) as typeof emptyISNData,
+                (field, value) => setEditingProcedure({
+                  ...editingProcedure,
+                  specific_data: { ...editingProcedure.specific_data, [field]: value }
+                })
+              )}
+
+              {/* File upload in edit dialog for ISN */}
+              {editingProcedure.procedure_type === "alta_isn" && (
+                <div className="border-2 border-dashed border-cyan-200 rounded-lg p-4 text-center bg-cyan-50/50">
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" id="edit-file-input"
+                    onChange={e => {
+                      if (e.target.files?.[0]) handleFileUpload(e.target.files[0], editingProcedure.id)
+                    }} />
+                  {(editingProcedure.specific_data as typeof emptyISNData).archivo_url ? (
+                    <div className="space-y-2">
+                      <a href={(editingProcedure.specific_data as typeof emptyISNData).archivo_url}
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-cyan-600 hover:text-cyan-800 text-sm font-medium flex items-center justify-center gap-1">
+                        <ExternalLink className="h-4 w-4" />
+                        {(editingProcedure.specific_data as typeof emptyISNData).archivo_nombre || "Ver archivo"}
+                      </a>
+                      <Button variant="outline" size="sm" className="gap-1"
+                        onClick={() => document.getElementById("edit-file-input")?.click()} disabled={uploading}>
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        Reemplazar archivo
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="gap-2 border-cyan-300 text-cyan-700 hover:bg-cyan-100"
+                      onClick={() => document.getElementById("edit-file-input")?.click()} disabled={uploading}>
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      {uploading ? "Subiendo..." : "Subir constancia ISN"}
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              <Button onClick={handleSaveEdit} className="w-full bg-cyan-600 hover:bg-cyan-700">
+                Guardar Cambios
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Resumen de todos los trámites */}
       <Card className="border-2 border-cyan-200">
