@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { createPortal } from "react-dom"
 import { MessageCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ChatPanel } from "./chat-panel"
@@ -83,11 +84,14 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
                 )}
             </button>
 
-            <ChatPanel
-                open={open}
-                onClose={handleClose}
-                currentUserId={currentUserId}
-            />
+            {typeof document !== "undefined" && createPortal(
+                <ChatPanel
+                    open={open}
+                    onClose={handleClose}
+                    currentUserId={currentUserId}
+                />,
+                document.body
+            )}
         </>
     )
 }
