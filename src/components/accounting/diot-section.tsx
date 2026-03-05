@@ -134,13 +134,13 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
     function getStatusConfig(status: string) {
         switch (status) {
             case "presentado_con_datos":
-                return { label: "Con datos", color: "bg-emerald-100 text-emerald-700", icon: Check, badgeVariant: "default" as const }
+                return { label: "Con datos", badgeClass: "bg-emerald-600 text-white hover:bg-emerald-600", icon: Check, badgeVariant: "default" as const }
             case "presentado_sin_datos":
-                return { label: "Sin datos", color: "bg-blue-100 text-blue-700", icon: FileX, badgeVariant: "secondary" as const }
+                return { label: "Sin datos", badgeClass: "bg-blue-600 text-white hover:bg-blue-600", icon: FileX, badgeVariant: "default" as const }
             case "no_presentado":
-                return { label: "No presentado", color: "bg-red-100 text-red-700", icon: AlertCircle, badgeVariant: "destructive" as const }
+                return { label: "No presentado", badgeClass: "bg-red-600 text-white hover:bg-red-600", icon: AlertCircle, badgeVariant: "default" as const }
             default:
-                return { label: "Pendiente", color: "bg-gray-100 text-gray-500", icon: FileText, badgeVariant: "outline" as const }
+                return { label: "Pendiente", badgeClass: "bg-gray-200 text-gray-600", icon: FileText, badgeVariant: "outline" as const }
         }
     }
 
@@ -167,7 +167,7 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <h4 className="font-semibold text-sm">{month}</h4>
-                                    <Badge variant={config.badgeVariant} className="text-xs">
+                                    <Badge variant={config.badgeVariant} className={`text-xs ${config.badgeClass}`}>
                                         {config.label}
                                     </Badge>
                                 </div>
