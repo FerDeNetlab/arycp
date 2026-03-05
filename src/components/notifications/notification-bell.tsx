@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { createClient as createBrowserClient } from "@/lib/supabase/client"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Badge } from "@/components/ui/badge"
 
@@ -96,8 +97,28 @@ export function NotificationBell() {
 
     useEffect(() => {
         loadNotifications()
-        const interval = setInterval(loadNotifications, 30000)
-        return () => clearInterval(interval)
+
+        // Realtime: listen for new/updated notifications
+        const supabase = createBrowserClient()
+        const channel = supabase
+            .channel("notifications-realtime")
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "notifications",
+                },
+                () => {
+                    // Reload notifications on any change
+                    loadNotifications()
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [])
 
     useEffect(() => {
