@@ -5,6 +5,33 @@ import { getErrorMessage } from "@/lib/api/errors"
 // Force Node.js runtime (not edge) for PDF parsing
 export const runtime = "nodejs"
 
+// Polyfill DOMMatrix for pdfjs-dist in Node.js (it's a browser-only API)
+if (typeof globalThis.DOMMatrix === "undefined") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).DOMMatrix = class DOMMatrix {
+        m: number[]
+        constructor(init?: string | number[]) {
+            this.m = Array.isArray(init) ? init : [1, 0, 0, 1, 0, 0]
+        }
+        get a() { return this.m[0] }
+        get b() { return this.m[1] }
+        get c() { return this.m[2] }
+        get d() { return this.m[3] }
+        get e() { return this.m[4] }
+        get f() { return this.m[5] }
+        get is2D() { return true }
+        get isIdentity() { return this.m[0] === 1 && this.m[3] === 1 }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        inverse() { return new (globalThis as any).DOMMatrix() }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        multiply() { return new (globalThis as any).DOMMatrix() }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        scale() { return new (globalThis as any).DOMMatrix() }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        translate() { return new (globalThis as any).DOMMatrix() }
+    }
+}
+
 export async function GET(request: Request) {
     try {
         const auth = await requireAuth()
