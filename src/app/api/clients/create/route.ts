@@ -43,14 +43,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Nombre y email son requeridos" }, { status: 400 })
         }
 
-        // 5. Verificar que no exista un cliente con el mismo email
-        const { data: existingClient } = await adminClient.from("clients").select("id").eq("email", email).single()
-
-        if (existingClient) {
-            return NextResponse.json({ error: "Ya existe un cliente con ese email" }, { status: 400 })
-        }
-
-        // 6. Crear cliente usando adminClient (bypass RLS)
+        // 5. Crear cliente usando adminClient (bypass RLS)
+        // Note: same email can be used for multiple companies (multi-empresa)
         const { data: newClient, error: createError } = await adminClient
             .from("clients")
             .insert({
@@ -68,12 +62,9 @@ export async function POST(request: NextRequest) {
 
         if (createError) {
             console.error("Error creating client:", createError)
-            // Surface specific DB error for debugging
-            const errorMsg = createError.message?.includes("duplicate")
-                ? "Ya existe un cliente con ese email"
-                : createError.message?.includes("violates")
-                    ? `Error de validación: ${createError.message}`
-                    : `Error al crear cliente: ${createError.message || "Error desconocido"}`
+            const errorMsg = createError.message?.includes("violates")
+                ? `Error de validación: ${createError.message}`
+                : `Error al crear cliente: ${createError.message || "Error desconocido"}`
             return NextResponse.json({ error: errorMsg }, { status: 500 })
         }
 
