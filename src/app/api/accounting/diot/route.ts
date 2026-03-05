@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { requireAuth, requireRole } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
 
+// Force Node.js runtime (not edge) for PDF parsing
+export const runtime = "nodejs"
+
 export async function GET(request: Request) {
     try {
         const auth = await requireAuth()
@@ -71,6 +74,51 @@ export async function POST(request: Request) {
 
             pdfUrl = publicUrl
             pdfName = pdfFile.name
+
+            // Extract folio from PDF server-side if not provided manually
+            if (!extractedFolio) {
+                try {
+                    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
+                    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+
+                    let fullText = ""
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i)
+                        const textContent = await page.getTextContent()
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const pageText = textContent.items.map((item: any) => item.str).join(" ")
+                        fullText += pageText + "\n"
+                    }
+
+                    console.log("[DIOT] PDF text extracted, length:", fullText.length)
+
+                    const patterns = [
+                        /N[u\u00fa]mero\s*de\s*operaci[o\u00f3]n[:\s]*(\d+)/i,
+                        /operaci[o\u00f3]n[:\s]*(\d{6,})/i,
+                        /folio[:\s]*(\d{6,})/i,
+                    ]
+
+                    for (const pattern of patterns) {
+                        const match = fullText.match(pattern)
+                        if (match) {
+                            extractedFolio = match[1]
+                            console.log("[DIOT] Folio found:", extractedFolio)
+                            break
+                        }
+                    }
+
+                    // Fallback: any 12+ digit number
+                    if (!extractedFolio) {
+                        const longNum = fullText.match(/\b(\d{12,})\b/)
+                        if (longNum) {
+                            extractedFolio = longNum[1]
+                            console.log("[DIOT] Folio (fallback long number):", extractedFolio)
+                        }
+                    }
+                } catch (parseErr) {
+                    console.error("[DIOT] PDF parse error:", parseErr)
+                }
+            }
         }
 
         // Check if record already exists for this month

@@ -40,7 +40,6 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
     const [pdfFile, setPdfFile] = useState<File | null>(null)
     const [isSaving, setIsSaving] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
-    const [isExtractingFolio, setIsExtractingFolio] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const { toast } = useToast()
 
@@ -85,82 +84,9 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
         setIsDialogOpen(true)
     }
 
-    async function extractFolioFromPdf(file: File): Promise<string | null> {
-        try {
-            const pdfjsLib = await import("pdfjs-dist")
-            // Configure worker - use .js (not .mjs) for Safari compatibility
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-
-            const arrayBuffer = await file.arrayBuffer()
-            const pdf = await pdfjsLib.getDocument({
-                data: new Uint8Array(arrayBuffer),
-                standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/standard_fonts/`,
-                useWorkerFetch: false,
-                isEvalSupported: false,
-            }).promise
-
-            let fullText = ""
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i)
-                const textContent = await page.getTextContent()
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const pageText = textContent.items.map((item: any) => item.str).join(" ")
-                fullText += pageText + "\n"
-            }
-
-            console.log("[DIOT] Texto extraído del PDF:", fullText.substring(0, 1000))
-
-            // Try multiple patterns for the operation number
-            const patterns = [
-                /N[u\u00fa]mero\s*de\s*operaci[o\u00f3]n[:\s]*(\d+)/i,
-                /operaci[o\u00f3]n[:\s]*(\d{6,})/i,
-                /No\.\s*operaci[o\u00f3]n[:\s]*(\d+)/i,
-                /folio[:\s]*(\d{6,})/i,
-                // Sometimes the number might be on a separate line after the label
-                /operaci[o\u00f3]n\s+(\d{6,})/i,
-            ]
-
-            for (const pattern of patterns) {
-                const match = fullText.match(pattern)
-                if (match) {
-                    console.log("[DIOT] Folio encontrado:", match[1])
-                    return match[1]
-                }
-            }
-
-            // Fallback: look for any long number sequence (12+ digits) that could be the folio
-            const longNumberMatch = fullText.match(/\b(\d{12,})\b/)
-            if (longNumberMatch) {
-                console.log("[DIOT] Posible folio (número largo):", longNumberMatch[1])
-                return longNumberMatch[1]
-            }
-
-            console.log("[DIOT] No se encontró patrón de folio en el texto")
-            return null
-        } catch (err) {
-            console.error("[DIOT] Error al extraer texto del PDF:", err)
-            return null
-        }
-    }
-
-    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
-        if (!file) return
-        setPdfFile(file)
-
-        // Extract folio from PDF client-side
-        setIsExtractingFolio(true)
-        try {
-            const folio = await extractFolioFromPdf(file)
-            if (folio) {
-                setFormFolio(folio)
-                toast({ title: "\u2705 Folio detectado", description: `N\u00famero de operaci\u00f3n: ${folio}` })
-            } else {
-                toast({ title: "\u26a0\ufe0f No se detect\u00f3 el folio", description: "Escr\u00edbelo manualmente en el campo de abajo" })
-            }
-        } finally {
-            setIsExtractingFolio(false)
-        }
+        if (file) setPdfFile(file)
     }
 
     async function handleSave() {
@@ -371,7 +297,6 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
                                                 <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
                                                     <FileText className="h-4 w-4 text-purple-600" />
                                                     <span className="text-sm flex-1 truncate">{pdfFile.name}</span>
-                                                    {isExtractingFolio && <span className="text-xs text-muted-foreground animate-pulse">Extrayendo folio...</span>}
                                                     <Button size="sm" variant="ghost" onClick={() => { setPdfFile(null); if (fileInputRef.current) fileInputRef.current.value = "" }}>
                                                         <X className="h-4 w-4" />
                                                     </Button>
