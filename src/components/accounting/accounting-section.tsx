@@ -50,7 +50,7 @@ interface MonthlyDeclaration {
   notes?: string
 }
 
-export function AccountingSection({ clientId, userRole }: { clientId: string; userRole?: string }) {
+export function AccountingSection({ clientId, userRole, onYearChange }: { clientId: string; userRole?: string; onYearChange?: (year: number) => void }) {
   const isClient = userRole === "cliente"
   const currentYear = new Date().getFullYear()
   const [selectedYear, setSelectedYear] = useState(currentYear)
@@ -414,7 +414,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Contabilidad - {selectedYear}</span>
-          <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(Number.parseInt(val))}>
+          <Select value={selectedYear.toString()} onValueChange={(val) => { const y = Number.parseInt(val); setSelectedYear(y); onYearChange?.(y) }}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>

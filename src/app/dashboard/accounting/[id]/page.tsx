@@ -8,6 +8,7 @@ import Link from "next/link"
 import { ClientHeader } from "@/components/accounting/client-header"
 import { DocumentsSection } from "@/components/accounting/documents-section"
 import { AccountingSection } from "@/components/accounting/accounting-section"
+import { DiotSection } from "@/components/accounting/diot-section"
 import { FiscalSection } from "@/components/accounting/fiscal-section"
 import { useUserRole } from "@/hooks/use-user-role"
 
@@ -29,6 +30,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const router = useRouter()
   const [clientId, setClientId] = useState<string | null>(null)
   const { role } = useUserRole()
@@ -41,7 +43,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
     if (clientId) {
       fetchClient()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   async function fetchClient() {
@@ -106,7 +108,10 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
         <DocumentsSection clientId={client.id} userRole={role} />
 
         {/* Sección de Contabilidad */}
-        {client.has_accounting && <AccountingSection clientId={client.id} userRole={role} />}
+        {client.has_accounting && <AccountingSection clientId={client.id} userRole={role} onYearChange={setSelectedYear} />}
+
+        {/* Sección de DIOT */}
+        {client.has_accounting && <DiotSection clientId={client.id} userRole={role} selectedYear={selectedYear} />}
 
         {/* Sección Fiscal */}
         {client.has_fiscal && <FiscalSection clientId={client.id} clientData={client} userRole={role} />}
