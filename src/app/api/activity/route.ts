@@ -17,15 +17,15 @@ export async function GET(request: Request) {
 
         const supabase = createAdminClient()
 
-        // Get user role and client info
+        // Get user role and email
         const { data: sysUser } = await supabase
             .from("system_users")
-            .select("role, client_id")
+            .select("role, email")
             .eq("auth_user_id", user.id)
             .single()
 
         const role = sysUser?.role || ""
-        const userClientId = sysUser?.client_id || null
+        const userEmail = sysUser?.email || user.email || ""
 
         let query = supabase
             .from("activity_log")
@@ -39,9 +39,15 @@ export async function GET(request: Request) {
 
         // Role-based filtering
         if (role === "cliente") {
-            // Clients only see activity related to their own client record
-            if (userClientId) {
-                query = query.eq("client_id", userClientId)
+            // Look up all client records matching this user's email (multi-company support)
+            const { data: clientRecords } = await supabase
+                .from("clients")
+                .select("id")
+                .eq("email", userEmail)
+
+            const clientIds = (clientRecords || []).map(c => c.id)
+            if (clientIds.length > 0) {
+                query = query.in("client_id", clientIds)
             } else {
                 // No client linked — show nothing
                 return NextResponse.json({ data: [] })
