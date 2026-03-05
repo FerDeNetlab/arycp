@@ -112,6 +112,8 @@ export async function POST(request: Request) {
                 module: "accounting",
                 entity_type: "diot_assignment",
                 entity_id: null,
+                client_id: diotClientId || null,
+                client_name: clientName || null,
             })
             debug.notificationInsert = notifError ? { error: notifError.message, code: notifError.code, details: notifError.details } : "OK"
 
@@ -149,10 +151,10 @@ export async function POST(request: Request) {
         if (entity?.client_id) {
             const { data: client } = await supabase
                 .from("clients")
-                .select("business_name")
+                .select("business_name, name")
                 .eq("id", entity.client_id)
                 .single()
-            clientName = client?.business_name || ""
+            clientName = client?.business_name || client?.name || ""
         }
 
         const entityLabel = entityType === "procedure" ? "trámite" : entityType === "fiscal_obligation" ? "obligación fiscal" : "proceso legal"
@@ -209,10 +211,12 @@ export async function POST(request: Request) {
             fromUserName: assigner?.full_name || "Un usuario",
             type: "assignment",
             title: `Nueva asignación: ${entityDesc}`,
-            message: `${assigner?.full_name || "Un usuario"} te asignó el ${entityLabel} "${entityDesc}"${clientName ? ` del cliente ${clientName}` : ""}.`,
+            message: `${assigner?.full_name || "Un usuario"} te asignó el ${entityLabel} "${entityDesc}"${clientName ? ` — Cliente: ${clientName}` : ""}.`,
             module: module || entityType,
             entityType,
             entityId,
+            clientId: entity?.client_id,
+            clientName,
         })
 
         return NextResponse.json({

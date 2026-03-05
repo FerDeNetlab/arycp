@@ -18,6 +18,8 @@ interface Notification {
     module?: string
     entity_type?: string
     entity_id?: string
+    client_id?: string
+    client_name?: string
     is_read: boolean
     created_at: string
 }
@@ -65,18 +67,17 @@ function isPayrollNotification(n: Notification): boolean {
 
 // Build URL to navigate to when clicking a notification
 function getNotificationUrl(n: Notification): string | null {
-    // entity_id typically holds the client_id for module-specific notifications
-    if (!n.entity_id && !n.module) return null
-    const id = n.entity_id
     const mod = n.module || n.entity_type || ""
+    // Use client_id for deep linking to the specific client within a module
+    const cid = n.client_id
 
-    if (mod === "procedure" || mod === "procedures") return id ? `/dashboard/procedures/${id}` : "/dashboard/procedures"
-    if (mod === "fiscal" || mod === "fiscal_obligation") return id ? `/dashboard/fiscal/${id}` : "/dashboard/fiscal"
-    if (mod === "legal" || mod === "legal_process") return id ? `/dashboard/legal/${id}` : "/dashboard/legal"
-    if (mod === "labor") return id ? `/dashboard/labor/${id}` : "/dashboard/labor"
-    if (mod === "accounting") return id ? `/dashboard/accounting/${id}` : "/dashboard/accounting"
-    if (mod === "invoicing") return id ? `/dashboard/invoicing/${id}` : "/dashboard/invoicing"
-    if (mod === "compliance") return id ? `/dashboard/compliance/${id}` : "/dashboard/compliance"
+    if (mod === "procedure" || mod === "procedures") return cid ? `/dashboard/procedures/${cid}` : "/dashboard/procedures"
+    if (mod === "fiscal" || mod === "fiscal_obligation") return cid ? `/dashboard/fiscal/${cid}` : "/dashboard/fiscal"
+    if (mod === "legal" || mod === "legal_process") return cid ? `/dashboard/legal/${cid}` : "/dashboard/legal"
+    if (mod === "labor") return cid ? `/dashboard/labor/${cid}` : "/dashboard/labor"
+    if (mod === "accounting") return cid ? `/dashboard/accounting/${cid}` : "/dashboard/accounting"
+    if (mod === "invoicing") return cid ? `/dashboard/invoicing/${cid}` : "/dashboard/invoicing"
+    if (mod === "compliance") return cid ? `/dashboard/compliance/${cid}` : "/dashboard/compliance"
     return null
 }
 

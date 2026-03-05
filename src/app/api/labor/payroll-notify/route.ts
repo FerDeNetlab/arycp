@@ -125,6 +125,8 @@ export async function POST(request: Request) {
             module: "labor",
             entityType: "payroll",
             entityId: payrollId || undefined,
+            clientId: clientId || undefined,
+            clientName: clientName || undefined,
         })
 
         // Log activity for the sender

@@ -78,6 +78,7 @@ export async function POST(request: Request) {
                         module: "compliance",
                         entityType: "registration",
                         entityId: data.id,
+                        clientId: clientId,
                     })
                 }
             }

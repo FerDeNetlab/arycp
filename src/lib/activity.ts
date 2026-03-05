@@ -24,6 +24,8 @@ interface CreateNotificationParams {
     module?: string
     entityType?: string
     entityId?: string
+    clientId?: string
+    clientName?: string
     sendEmail?: boolean
 }
 
@@ -61,6 +63,8 @@ export async function createNotification(params: CreateNotificationParams) {
             module: params.module || null,
             entity_type: params.entityType || null,
             entity_id: params.entityId || null,
+            client_id: params.clientId || null,
+            client_name: params.clientName || null,
         })
         if (error) console.error("Error creating notification:", error)
 
