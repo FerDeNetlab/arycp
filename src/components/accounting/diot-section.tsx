@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs"
 
 const months = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -40,6 +41,7 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
     const [pdfFile, setPdfFile] = useState<File | null>(null)
     const [isSaving, setIsSaving] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
+    const [isExtractingFolio, setIsExtractingFolio] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const { toast } = useToast()
 
@@ -84,9 +86,50 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
         setIsDialogOpen(true)
     }
 
-    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
-        if (file) setPdfFile(file)
+        if (!file) return
+        setPdfFile(file)
+
+        // Extract folio from PDF client-side
+        setIsExtractingFolio(true)
+        try {
+            const arrayBuffer = await file.arrayBuffer()
+            const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) })
+            const pdf = await loadingTask.promise
+
+            let fullText = ""
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i)
+                const textContent = await page.getTextContent()
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const pageText = textContent.items.map((item: any) => item.str).join(" ")
+                fullText += pageText + "\n"
+            }
+
+            console.log("[DIOT] PDF text:", fullText.substring(0, 800))
+
+            // Try multiple patterns
+            const patterns = [
+                /N[uú]mero\s+de\s+operaci[oó]n[:\s]*(\d+)/i,
+                /operaci[oó]n[:\s]*(\d{6,})/i,
+                /No\.\s*de\s*operaci[oó]n[:\s]*(\d+)/i,
+                /folio[:\s]*(\d{6,})/i,
+            ]
+
+            for (const pattern of patterns) {
+                const match = fullText.match(pattern)
+                if (match) {
+                    setFormFolio(match[1])
+                    toast({ title: "✅ Folio detectado", description: `Número de operación: ${match[1]}` })
+                    break
+                }
+            }
+        } catch (err) {
+            console.error("[DIOT] Error extracting folio from PDF:", err)
+        } finally {
+            setIsExtractingFolio(false)
+        }
     }
 
     async function handleSave() {
@@ -297,7 +340,8 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
                                                 <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
                                                     <FileText className="h-4 w-4 text-purple-600" />
                                                     <span className="text-sm flex-1 truncate">{pdfFile.name}</span>
-                                                    <Button size="sm" variant="ghost" onClick={() => setPdfFile(null)}>
+                                                    {isExtractingFolio && <span className="text-xs text-muted-foreground animate-pulse">Extrayendo folio...</span>}
+                                                    <Button size="sm" variant="ghost" onClick={() => { setPdfFile(null); if (fileInputRef.current) fileInputRef.current.value = "" }}>
                                                         <X className="h-4 w-4" />
                                                     </Button>
                                                 </div>
