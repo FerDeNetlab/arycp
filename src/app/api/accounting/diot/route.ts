@@ -75,19 +75,43 @@ export async function POST(request: Request) {
             // Try to extract folio from PDF if not provided manually
             if (!extractedFolio) {
                 try {
-                    // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    const pdfParse = require("pdf-parse")
-                    const pdfData = await pdfParse(buffer)
-                    const text = pdfData.text
+                    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
+                    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) })
+                    const pdf = await loadingTask.promise
 
-                    // Look for "Número de operación:" pattern
-                    const folioMatch = text.match(/N[uú]mero\s+de\s+operaci[oó]n[:\s]+(\d+)/i)
-                    if (folioMatch) {
-                        extractedFolio = folioMatch[1]
+                    let fullText = ""
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i)
+                        const textContent = await page.getTextContent()
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const pageText = textContent.items.map((item: any) => item.str).join(" ")
+                        fullText += pageText + "\n"
+                    }
+
+                    console.log("[DIOT] Extracted PDF text (first 500 chars):", fullText.substring(0, 500))
+
+                    // Try multiple patterns for folio/operation number
+                    const patterns = [
+                        /N[uú]mero\s+de\s+operaci[oó]n[:\s]*(\d+)/i,
+                        /operaci[oó]n[:\s]*(\d{6,})/i,
+                        /No\.\s*de\s*operaci[oó]n[:\s]*(\d+)/i,
+                        /folio[:\s]*(\d{6,})/i,
+                    ]
+
+                    for (const pattern of patterns) {
+                        const match = fullText.match(pattern)
+                        if (match) {
+                            extractedFolio = match[1]
+                            console.log("[DIOT] Folio found:", extractedFolio)
+                            break
+                        }
+                    }
+
+                    if (!extractedFolio) {
+                        console.log("[DIOT] No folio pattern matched in text")
                     }
                 } catch (parseErr) {
-                    console.error("Error parsing DIOT PDF:", parseErr)
-                    // Non-fatal — continue without folio
+                    console.error("[DIOT] Error parsing PDF:", parseErr)
                 }
             }
         }
