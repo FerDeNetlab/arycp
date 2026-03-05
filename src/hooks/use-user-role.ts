@@ -89,10 +89,6 @@ export function useUserRole(): UserRoleData {
     useEffect(() => {
         // If we already have cached data, state was initialized from it — nothing to do
         if (cachedData) {
-            // But ensure selectedClientId is set
-            if (!selectedClientId && cachedData.clientId) {
-                setSelectedClientIdState(cachedData.clientId)
-            }
             return
         }
 

@@ -27,8 +27,24 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
     }, [])
 
     useEffect(() => {
-        loadUnreadCount()
-    }, [loadUnreadCount])
+        let cancelled = false
+        async function load() {
+            try {
+                const res = await fetch("/api/chat/conversations")
+                const data = await res.json()
+                if (!cancelled && res.ok && data.data) {
+                    const total = (data.data as { unreadCount: number }[]).reduce(
+                        (sum, c) => sum + c.unreadCount, 0
+                    )
+                    setUnreadCount(total)
+                }
+            } catch {
+                // Silent fail
+            }
+        }
+        load()
+        return () => { cancelled = true }
+    }, [])
 
     // Realtime: listen for new messages to update badge
     useEffect(() => {

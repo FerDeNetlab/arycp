@@ -27,7 +27,8 @@ export function CompanySelector() {
         // Pattern: /dashboard/accounting/OLD_ID → /dashboard/accounting/NEW_ID
         const segments = pathname.split("/")
         // Check if last segment is a UUID (client ID)
-        if (segments.length >= 4 && segments[3]?.length > 30) {
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        if (segments.length >= 4 && uuidPattern.test(segments[3])) {
             segments[3] = clientId
             router.replace(segments.join("/"))
         } else {

@@ -43,7 +43,7 @@ export async function GET(request: Request) {
             const { data: clientRecords } = await supabase
                 .from("clients")
                 .select("id")
-                .eq("email", userEmail)
+                .ilike("email", userEmail)
 
             const clientIds = (clientRecords || []).map(c => c.id)
             if (clientIds.length > 0) {
