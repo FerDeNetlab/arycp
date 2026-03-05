@@ -29,11 +29,18 @@ export async function GET() {
         // If client role, get their contracted services and client IDs (supports multi-company)
         if (userData.role === "cliente") {
             const adminClient = createAdminClient()
-            const { data: clientsData } = await adminClient
+            const { data: clientsData, error: clientsError } = await adminClient
                 .from("clients")
                 .select("id, name, business_name, has_accounting, has_fiscal, has_legal, has_labor")
                 .eq("email", userData.email)
                 .order("business_name")
+
+            console.log("[AUTH/ME] Client lookup:", {
+                email: userData.email,
+                found: clientsData?.length || 0,
+                error: clientsError?.message,
+                names: clientsData?.map(c => c.business_name || c.name),
+            })
 
             if (clientsData && clientsData.length > 0) {
                 // First client as default (backwards compatible)
