@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     CheckCircle, Clock, TrendingUp, AlertTriangle,
-    Users, Zap, Crown, Target
+    Users, Crown, Target, Activity
 } from "lucide-react"
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -12,34 +12,46 @@ import {
 } from "recharts"
 
 type KPIs = {
+    totalActivities: number
     tasksCompleted: number
     avgTimeHours: number
     complianceRate: number
     delayedCount: number
-    avgEfficiency: number
-    mostEfficient: { name: string; efficiency: number } | null
+    avgScore: number
+    mostProductive: { name: string; score: number } | null
     mostSaturated: { name: string; hours: number } | null
     topClient: { name: string; ingreso: number } | null
 }
 
-type EmployeeEff = {
+type EmployeeMetric = {
     name: string
-    efficiency: number
-    tasksCount: number
+    activities: number
+    tasksCompleted: number
+    score: number
     hoursWorked: number
+    efficiency: number
+    byModule: Record<string, number>
+}
+
+type ModuleBreakdown = {
+    module: string
+    label: string
+    count: number
 }
 
 type TrendPoint = {
     month: string
-    completed: number
-    avgHours: number
+    activities: number
+    tasks: number
+    score: number
 }
 
 const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#ec4899"]
 
 export function SupervisionDashboard() {
     const [kpis, setKpis] = useState<KPIs | null>(null)
-    const [employees, setEmployees] = useState<EmployeeEff[]>([])
+    const [employees, setEmployees] = useState<EmployeeMetric[]>([])
+    const [modules, setModules] = useState<ModuleBreakdown[]>([])
     const [trend, setTrend] = useState<TrendPoint[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -53,7 +65,8 @@ export function SupervisionDashboard() {
                 const res = await fetch(`/api/supervision/stats?year=${year}&month=${month}`)
                 const data = await res.json()
                 setKpis(data.kpis)
-                setEmployees(data.employeeEfficiency || [])
+                setEmployees(data.employeeMetrics || [])
+                setModules(data.moduleBreakdown || [])
                 setTrend(data.trend || [])
             } catch { /* empty */ } finally {
                 setLoading(false)
@@ -76,28 +89,29 @@ export function SupervisionDashboard() {
     if (!kpis) return <p className="text-muted-foreground text-center py-10">No se pudieron cargar las métricas.</p>
 
     const kpiCards = [
+        { label: "Total Actividades", value: kpis.totalActivities, icon: Activity, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-950" },
         { label: "Tareas Completadas", value: kpis.tasksCompleted, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950" },
         { label: "Tiempo Promedio", value: `${kpis.avgTimeHours}h`, icon: Clock, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950" },
-        { label: "Cumplimiento", value: `${kpis.complianceRate}%`, icon: Target, color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-950" },
         { label: "Retrasos", value: kpis.delayedCount, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50 dark:bg-red-950" },
-        { label: "Eficiencia Equipo", value: `${kpis.avgEfficiency}%`, icon: Zap, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950" },
-        { label: "Más Eficiente", value: kpis.mostEfficient?.name || "—", subtitle: kpis.mostEfficient ? `${kpis.mostEfficient.efficiency}%` : "", icon: Crown, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950" },
+        { label: "Score Promedio", value: kpis.avgScore, icon: Target, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950" },
+        { label: "Más Productivo", value: kpis.mostProductive?.name || "—", subtitle: kpis.mostProductive ? `${kpis.mostProductive.score} pts` : "", icon: Crown, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950" },
         { label: "Más Saturado", value: kpis.mostSaturated?.name || "—", subtitle: kpis.mostSaturated ? `${kpis.mostSaturated.hours}h` : "", icon: Users, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-950" },
         { label: "Cliente Top", value: kpis.topClient?.name || "—", subtitle: kpis.topClient ? `$${kpis.topClient.ingreso?.toLocaleString()}` : "", icon: TrendingUp, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-950" },
     ]
 
-    // Employee efficiency for bar chart
+    // Employee score bar chart
     const barData = employees.map(e => ({
         name: e.name.split(" ")[0],
-        eficiencia: e.efficiency,
-        tareas: e.tasksCount,
+        score: e.score,
+        actividades: e.activities,
+        tareas: e.tasksCompleted,
     }))
 
-    // Load distribution pie
-    const loadData = employees.map(e => ({
-        name: e.name.split(" ")[0],
-        hours: e.hoursWorked,
-    })).filter(e => e.hours > 0)
+    // Module pie chart
+    const pieData = modules.filter(m => m.count > 0).map(m => ({
+        name: m.label,
+        value: m.count,
+    }))
 
     return (
         <div className="space-y-6">
@@ -121,18 +135,18 @@ export function SupervisionDashboard() {
 
             {/* Charts Row */}
             <div className="grid md:grid-cols-2 gap-6">
-                {/* Productivity by Employee */}
+                {/* Score by Employee */}
                 <Card className="border shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Eficiencia por Empleado</CardTitle>
+                        <CardTitle className="text-base">Score por Empleado</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {barData.length > 0 ? (
+                        {barData.length > 0 && barData.some(d => d.score > 0) ? (
                             <ResponsiveContainer width="100%" height={280}>
                                 <BarChart data={barData}>
                                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                                    <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
+                                    <YAxis tick={{ fontSize: 12 }} />
                                     <Tooltip
                                         contentStyle={{
                                             backgroundColor: "hsl(var(--card))",
@@ -141,12 +155,14 @@ export function SupervisionDashboard() {
                                             fontSize: "12px",
                                         }}
                                     />
-                                    <Bar dataKey="eficiencia" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                    <Legend />
+                                    <Bar dataKey="actividades" fill="#6366f1" radius={[4, 4, 0, 0]} name="Actividades" stackId="a" />
+                                    <Bar dataKey="tareas" fill="#10b981" radius={[4, 4, 0, 0]} name="Tareas (×5)" stackId="a" />
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : (
                             <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
-                                Sin datos de tareas completadas
+                                Sin datos de actividad aún
                             </div>
                         )}
                     </CardContent>
@@ -158,7 +174,7 @@ export function SupervisionDashboard() {
                         <CardTitle className="text-base">Tendencia Mensual (6 meses)</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {trend.some(t => t.completed > 0) ? (
+                        {trend.some(t => t.score > 0) ? (
                             <ResponsiveContainer width="100%" height={280}>
                                 <LineChart data={trend}>
                                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -172,8 +188,8 @@ export function SupervisionDashboard() {
                                             fontSize: "12px",
                                         }}
                                     />
-                                    <Line type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={2} name="Completadas" dot={{ r: 4 }} />
-                                    <Line type="monotone" dataKey="avgHours" stroke="#10b981" strokeWidth={2} name="Hrs Prom" dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="activities" stroke="#6366f1" strokeWidth={2} name="Actividades" dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="tasks" stroke="#10b981" strokeWidth={2} name="Tareas" dot={{ r: 4 }} />
                                     <Legend />
                                 </LineChart>
                             </ResponsiveContainer>
@@ -188,27 +204,27 @@ export function SupervisionDashboard() {
 
             {/* Second row */}
             <div className="grid md:grid-cols-2 gap-6">
-                {/* Load Distribution */}
+                {/* Module Breakdown */}
                 <Card className="border shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Distribución de Carga Laboral</CardTitle>
+                        <CardTitle className="text-base">Actividad por Módulo</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {loadData.length > 0 ? (
+                        {pieData.length > 0 ? (
                             <ResponsiveContainer width="100%" height={280}>
                                 <PieChart>
                                     <Pie
-                                        data={loadData}
+                                        data={pieData}
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={60}
                                         outerRadius={100}
                                         paddingAngle={3}
-                                        dataKey="hours"
+                                        dataKey="value"
                                         nameKey="name"
                                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                                     >
-                                        {loadData.map((_, i) => (
+                                        {pieData.map((_, i) => (
                                             <Cell key={i} fill={COLORS[i % COLORS.length]} />
                                         ))}
                                     </Pie>
@@ -217,7 +233,7 @@ export function SupervisionDashboard() {
                             </ResponsiveContainer>
                         ) : (
                             <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
-                                Sin datos de horas aún
+                                Sin datos de módulos aún
                             </div>
                         )}
                     </CardContent>
@@ -226,12 +242,12 @@ export function SupervisionDashboard() {
                 {/* Rankings */}
                 <Card className="border shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Ranking de Eficiencia</CardTitle>
+                        <CardTitle className="text-base">Ranking de Productividad</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {employees.length > 0 ? (
                             <div className="space-y-3">
-                                {[...employees].sort((a, b) => b.efficiency - a.efficiency).map((emp, i) => (
+                                {[...employees].sort((a, b) => b.score - a.score).map((emp, i) => (
                                     <div key={i} className="flex items-center gap-3">
                                         <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${i === 0 ? "bg-amber-500" : i === 1 ? "bg-gray-400" : i === 2 ? "bg-amber-700" : "bg-muted-foreground/30"
                                             }`}>
@@ -239,21 +255,19 @@ export function SupervisionDashboard() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-medium truncate">{emp.name}</div>
-                                            <div className="text-xs text-muted-foreground">{emp.tasksCount} tareas · {emp.hoursWorked}h</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {emp.activities} actividades · {emp.tasksCompleted} tareas · {emp.hoursWorked}h
+                                            </div>
                                         </div>
-                                        <div className={`text-sm font-bold ${emp.efficiency >= 80 ? "text-emerald-600" : emp.efficiency >= 60 ? "text-amber-600" : "text-red-600"
-                                            }`}>
-                                            {emp.efficiency}%
+                                        <div className={`text-sm font-bold ${emp.score >= 20 ? "text-emerald-600" : emp.score >= 10 ? "text-amber-600" : "text-muted-foreground"}`}>
+                                            {emp.score} pts
                                         </div>
                                     </div>
                                 ))}
-                                {employees.length === 0 && (
-                                    <p className="text-sm text-muted-foreground text-center py-8">Sin datos de empleados</p>
-                                )}
                             </div>
                         ) : (
                             <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
-                                Sin datos de eficiencia
+                                Sin datos de empleados
                             </div>
                         )}
                     </CardContent>

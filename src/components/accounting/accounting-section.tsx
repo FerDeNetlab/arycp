@@ -44,6 +44,9 @@ interface MonthlyDeclaration {
   num_facturas_recibidas?: number
   gross_profit?: number
   iva_balance?: number
+  iva_retenido?: number
+  isr_retenido?: number
+  isr_persona_moral?: number
   notes?: string
 }
 
@@ -79,7 +82,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
 
   useEffect(() => {
     loadDeclarations()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, selectedYear])
 
   async function loadDeclarations() {
@@ -194,7 +197,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       setPdfFile(null)
       setSelectedFileName("")
       loadDeclarations()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }
@@ -262,7 +265,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       toast({ title: "Correo enviado correctamente" })
       setIsEmailDialogOpen(false)
       setEmailRecipient("")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("[v0] Error al enviar correo:", error)
       toast({ title: "Error", description: error.message, variant: "destructive" })
@@ -323,7 +326,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       } else {
         throw new Error(result.error)
       }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     } finally {
@@ -389,7 +392,7 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
       setIsImportDialogOpen(false)
       setImportFiles([])
       loadDeclarations()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast({ title: "Error al importar", description: error.message, variant: "destructive" })
     } finally {
@@ -493,6 +496,24 @@ export function AccountingSection({ clientId, userRole }: { clientId: string; us
                             ${(declaration.gross_profit || 0).toLocaleString()}
                           </span>
                         </div>
+                        {(declaration.iva_retenido || 0) > 0 && (
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">IVA Retenido:</span>
+                            <span className="font-medium text-orange-600">${(declaration.iva_retenido || 0).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {(declaration.isr_retenido || 0) > 0 && (
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">ISR Retenido:</span>
+                            <span className="font-medium text-orange-600">${(declaration.isr_retenido || 0).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {(declaration.isr_persona_moral || 0) > 0 && (
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">ISR P.M.:</span>
+                            <span className="font-medium text-indigo-600">${(declaration.isr_persona_moral || 0).toLocaleString()}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] text-muted-foreground">
                             📄 {declaration.num_facturas_emitidas || 0} emitidas

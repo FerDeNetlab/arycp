@@ -13,6 +13,8 @@ interface ParsedExcelData {
     subtotal: number
     iva: number
     count: number
+    iva_retenido: number
+    isr_retenido: number
 }
 
 function detectFileType(fileName: string): FileType {
@@ -34,6 +36,8 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
     let totalSum = 0
     let subtotalSum = 0
     let ivaSum = 0
+    let ivaRetenidoSum = 0
+    let isrRetenidoSum = 0
 
     const num = (v: unknown): number => parseFloat(String(v ?? "")) || 0
 
@@ -54,6 +58,9 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
             // "Base de IVA traslado" is the net income that matches EZAudita's "Ingresos netos"
             subtotalSum += num(row["Base de IVA traslado"]) || num(row["Neto"]) || num(row["Subtotal"])
             ivaSum += num(row["Importe IVA traslado"]) || num(row["Traslado IVA"])
+            // Retenciones (typically in recibidos files)
+            ivaRetenidoSum += num(row["Retención IVA"]) || num(row["IVA retenido"]) || num(row["Importe IVA retenido"])
+            isrRetenidoSum += num(row["Retención ISR"]) || num(row["ISR retenido"]) || num(row["Importe ISR retenido"])
         }
     }
 
@@ -63,6 +70,8 @@ function parseEZAuditaExcel(buffer: ArrayBuffer, fileName: string): ParsedExcelD
         subtotal: Math.round(subtotalSum * 100) / 100,
         iva: Math.round(ivaSum * 100) / 100,
         count: data.length,
+        iva_retenido: Math.round(ivaRetenidoSum * 100) / 100,
+        isr_retenido: Math.round(isrRetenidoSum * 100) / 100,
     }
 }
 
@@ -118,6 +127,9 @@ export async function POST(request: Request) {
         let ivaTrasladado = 0
         let ivaAcreditable = 0
         let hasIvaFiles = false
+        let ivaRetenido = 0
+        let isrRetenido = 0
+        let isrPersonaMoral = 0
 
         for (const file of files) {
             const buffer = await file.arrayBuffer()
@@ -129,12 +141,17 @@ export async function POST(request: Request) {
                     totalEmitidos += parsed.subtotal
                     ivaEmitidos += parsed.iva
                     numEmitidas += parsed.count
+                    // ISR Persona Moral = subtotal from emitidos
+                    isrPersonaMoral += parsed.subtotal
                     break
                 case "recibidos":
                     // Use subtotal ("Neto") for expenses
                     totalRecibidos += parsed.subtotal
                     ivaRecibidos += parsed.iva
                     numRecibidas += parsed.count
+                    // Retenciones from recibidos
+                    ivaRetenido += parsed.iva_retenido
+                    isrRetenido += parsed.isr_retenido
                     break
                 case "iva_trasladado":
                     // Use iva ("IVA total") from the IVA trasladado file
@@ -187,6 +204,9 @@ export async function POST(request: Request) {
             num_facturas_recibidas: mergedNumRecibidas,
             gross_profit: grossProfit,
             iva_balance: ivaBalance,
+            iva_retenido: hasRecibidos ? ivaRetenido : (existing?.iva_retenido || 0),
+            isr_retenido: hasRecibidos ? isrRetenido : (existing?.isr_retenido || 0),
+            isr_persona_moral: hasEmitidos ? isrPersonaMoral : (existing?.isr_persona_moral || 0),
         }
 
         if (existing?.id) {
@@ -233,6 +253,9 @@ export async function POST(request: Request) {
                 numRecibidas,
                 grossProfit,
                 ivaBalance,
+                ivaRetenido,
+                isrRetenido,
+                isrPersonaMoral,
             },
         })
     } catch (error: unknown) {

@@ -98,6 +98,15 @@ const emptyForm = {
 export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceSectionProps) {
     const { toast } = useToast()
     const [registrations, setRegistrations] = useState<Registration[]>([])
+
+    // Log activity for supervision metrics
+    function logAction(action: string, description: string) {
+        fetch("/api/activity/log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ module: "compliance", action, clientId, clientName, description }),
+        }).catch(() => { /* fire and forget */ })
+    }
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [filterType, setFilterType] = useState("all")
@@ -272,6 +281,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             if (!res.ok) throw new Error(result.error)
 
             toast({ title: "✅ Archivo adjuntado" })
+            logAction("subir_archivo", `Subió archivo de compliance`)
             loadRegistrations()
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
@@ -313,6 +323,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             })
             if (res.ok) {
                 toast({ title: "✅ Registro creado" })
+                logAction("crear_registro", `Creó registro: ${createForm.label}`)
                 setIsCreateOpen(false)
                 setCreateForm({ ...emptyForm })
                 loadRegistrations()
@@ -357,6 +368,7 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             })
             if (res.ok) {
                 toast({ title: "✅ Registro actualizado" })
+                logAction("actualizar_registro", `Actualizó registro: ${editForm.label}`)
                 setIsEditOpen(false)
                 setEditingReg(null)
                 loadRegistrations()

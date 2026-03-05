@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { ArrowLeft, Search } from "lucide-react"
 import Link from "next/link"
 import { LegalClientsList } from "@/components/legal/legal-clients-list"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
@@ -26,6 +27,7 @@ export default function LegalPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
   const { role, clientId, loading: roleLoading } = useUserRole()
 
@@ -40,7 +42,7 @@ export default function LegalPage() {
     if (!roleLoading && !isClientRole(role)) {
       fetchClients()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleLoading, role])
 
   async function fetchClients() {
@@ -67,6 +69,17 @@ export default function LegalPage() {
     }
   }
 
+  const filteredClients = useMemo(() => {
+    const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name, "es"))
+    if (!searchQuery.trim()) return sorted
+    const q = searchQuery.toLowerCase()
+    return sorted.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.email && c.email.toLowerCase().includes(q)) ||
+      (c.company && c.company.toLowerCase().includes(q))
+    )
+  }, [clients, searchQuery])
+
   if (roleLoading || isClientRole(role)) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -89,9 +102,21 @@ export default function LegalPage() {
         </div>
       </div>
 
+      {!loading && !error && clients.length > 0 && (
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar cliente por nombre o correo..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      )}
+
       {loading && <p className="text-center text-muted-foreground">Cargando clientes...</p>}
       {error && <p className="text-center text-destructive">{error}</p>}
-      {!loading && !error && <LegalClientsList clients={clients} />}
+      {!loading && !error && <LegalClientsList clients={filteredClients} />}
     </div>
   )
 }

@@ -24,7 +24,6 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(await file.arrayBuffer())
         const fileName = file.name.toLowerCase()
         let pem: string
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let pfxExtraData: { registroPatronal: string; name: string; rfc: string; email: string } | null = null
 
         if (fileName.endsWith(".pfx") || fileName.endsWith(".p12")) {

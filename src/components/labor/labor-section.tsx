@@ -259,7 +259,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
       setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_aguinaldo: false, aguinaldo_sent: false })
       setIsDialogOpen(false)
       loadPayrolls()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -294,7 +294,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
       setIsEditDialogOpen(false)
       setEditingPayroll(null)
       setFormData({ payroll_type: "semanal", period: "", status: "pendiente", comments: "", stamping_day: "", has_aguinaldo: false, aguinaldo_sent: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -359,7 +359,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
         description: `Notificación enviada a ${result.recipientName}`,
       })
       setNotifyDialog({ open: false, type: "completed", payrollId: "", payrollLabel: "" })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -984,7 +984,7 @@ function IMSSSection({ clientId, isClient, filterYear, filterMonth }: { clientId
       })
       setIsDialogOpen(false)
       loadMovements()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" })
     }
@@ -1484,7 +1484,7 @@ function TaxesSection({ clientId, isClient }: { clientId: string; isClient: bool
             <div key={tax.id} className="p-4 border rounded-lg hover:border-green-300 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded ${tax.status === "realizado" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                  <div className={`p-2 rounded ${tax.status === "realizado" ? "bg-green-100 text-green-700" : tax.status === "falta_de_pago" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
                     <FileText className="h-4 w-4" />
                   </div>
                   <div>
@@ -1511,11 +1511,12 @@ function TaxesSection({ clientId, isClient }: { clientId: string; isClient: bool
                 {!isClient && (
                   <>
                     <Select value={tax.status} onValueChange={(v) => handleUpdateStatus(tax.id, v)}>
-                      <SelectTrigger className={`w-32 ${tax.status === "realizado" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                      <SelectTrigger className={`w-40 ${tax.status === "realizado" ? "bg-green-100 text-green-700" : tax.status === "falta_de_pago" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pendiente">Pendiente</SelectItem>
+                        <SelectItem value="falta_de_pago">Falta de Pago</SelectItem>
                         <SelectItem value="realizado">Realizado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1529,8 +1530,8 @@ function TaxesSection({ clientId, isClient }: { clientId: string; isClient: bool
                   </>
                 )}
                 {isClient && (
-                  <Badge variant={tax.status === "realizado" ? "default" : "outline"}>
-                    {tax.status === "realizado" ? "Realizado" : "Pendiente"}
+                  <Badge variant={tax.status === "realizado" ? "default" : tax.status === "falta_de_pago" ? "destructive" : "outline"}>
+                    {tax.status === "realizado" ? "Realizado" : tax.status === "falta_de_pago" ? "Falta de Pago" : "Pendiente"}
                   </Badge>
                 )}
               </div>

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Badge } from "@/components/ui/badge"
@@ -62,7 +63,25 @@ function isPayrollNotification(n: Notification): boolean {
     return false
 }
 
+// Build URL to navigate to when clicking a notification
+function getNotificationUrl(n: Notification): string | null {
+    // entity_id typically holds the client_id for module-specific notifications
+    if (!n.entity_id && !n.module) return null
+    const id = n.entity_id
+    const mod = n.module || n.entity_type || ""
+
+    if (mod === "procedure" || mod === "procedures") return id ? `/dashboard/procedures/${id}` : "/dashboard/procedures"
+    if (mod === "fiscal" || mod === "fiscal_obligation") return id ? `/dashboard/fiscal/${id}` : "/dashboard/fiscal"
+    if (mod === "legal" || mod === "legal_process") return id ? `/dashboard/legal/${id}` : "/dashboard/legal"
+    if (mod === "labor") return id ? `/dashboard/labor/${id}` : "/dashboard/labor"
+    if (mod === "accounting") return id ? `/dashboard/accounting/${id}` : "/dashboard/accounting"
+    if (mod === "invoicing") return id ? `/dashboard/invoicing/${id}` : "/dashboard/invoicing"
+    if (mod === "compliance") return id ? `/dashboard/compliance/${id}` : "/dashboard/compliance"
+    return null
+}
+
 export function NotificationBell() {
+    const router = useRouter()
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [isOpen, setIsOpen] = useState(false)
@@ -264,9 +283,13 @@ export function NotificationBell() {
                                             }`}
                                         onClick={() => {
                                             if (!notification.is_read) markAsRead(notification.id)
+                                            const url = getNotificationUrl(notification)
+                                            if (url) {
+                                                setIsOpen(false)
+                                                router.push(url)
+                                            }
                                         }}
-                                    >
-                                        <div className={`h-9 w-9 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                    >                                      <div className={`h-9 w-9 rounded-full ${config.bgColor} flex items-center justify-center flex-shrink-0 mt-0.5`}>
                                             <TypeIcon className={`h-4 w-4 ${config.color}`} />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -300,6 +323,12 @@ export function NotificationBell() {
                                                         <MessageSquare className="h-3.5 w-3.5" />
                                                         💬 Responder
                                                     </button>
+                                                )}
+                                                {!canReply && getNotificationUrl(notification) && (
+                                                    <span className="ml-auto text-xs text-muted-foreground flex items-center gap-1">
+                                                        <ExternalLink className="h-3 w-3" />
+                                                        Ver
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>

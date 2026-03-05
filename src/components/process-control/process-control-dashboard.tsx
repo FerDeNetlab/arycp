@@ -108,14 +108,14 @@ export function ProcessControlDashboard() {
 
     useEffect(() => {
         initUser()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {
         if (userId) {
             loadAllData()
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId, selectedMonth, selectedYear])
 
     const initUser = async () => {
@@ -480,6 +480,33 @@ export function ProcessControlDashboard() {
             }
         }
 
+        // --- Labor Taxes ---
+        const { data: taxesPending } = await supabase
+            .from("labor_taxes")
+            .select("id, tax_type, month, year, status, created_at, client_id")
+            .eq("user_id", userId)
+            .in("status", ["pendiente", "falta_de_pago"])
+            .order("created_at", { ascending: false })
+
+        if (taxesPending) {
+            for (const tax of taxesPending) {
+                const clientName = await getClientName(tax.client_id)
+                const urgency: "high" | "medium" | "low" = tax.status === "falta_de_pago" ? "high" : "medium"
+
+                const actionNeeded = tax.status === "falta_de_pago"
+                    ? `Falta de pago: ${tax.tax_type} de ${MONTHS[(tax.month || 1) - 1]} ${tax.year}`
+                    : `Realizar pago de ${tax.tax_type} de ${MONTHS[(tax.month || 1) - 1]} ${tax.year}`
+
+                addItem({
+                    id: `lt-${tax.id}`, module: "labor", moduleLabel: "Laboral", moduleColor: "text-green-600",
+                    moduleBgColor: "bg-green-100", moduleIcon: DollarSign, clientId: tax.client_id, clientName,
+                    title: `${tax.tax_type} - ${MONTHS[(tax.month || 1) - 1]} ${tax.year}`,
+                    description: `Impuesto laboral de ${clientName}`, actionNeeded,
+                    status: tax.status, urgency, createdAt: tax.created_at,
+                })
+            }
+        }
+
         // --- Accounting Declarations ---
         const { data: declPending } = await supabase
             .from("monthly_declarations")
@@ -566,18 +593,24 @@ export function ProcessControlDashboard() {
             })
         }
 
-        // Labor
+        // Labor (payroll + taxes)
         const { data: laborAll } = await supabase
             .from("labor_payroll")
             .select("id, status")
             .eq("user_id", userId)
 
-        if (laborAll) {
-            const pending = laborAll.filter(l => l.status === "pendiente" || l.status === "en_proceso").length
-            const completed = laborAll.filter(l => l.status === "timbrado" || l.status === "enviado").length
+        const { data: laborTaxesAll } = await supabase
+            .from("labor_taxes")
+            .select("id, status")
+            .eq("user_id", userId)
+
+        const allLabor = [...(laborAll || []), ...(laborTaxesAll || [])]
+        if (allLabor.length > 0) {
+            const pending = allLabor.filter(l => l.status === "pendiente" || l.status === "en_proceso" || l.status === "falta_de_pago").length
+            const completed = allLabor.filter(l => l.status === "timbrado" || l.status === "enviado" || l.status === "realizado").length
             stats.push({
                 label: "Laboral",
-                total: laborAll.length,
+                total: allLabor.length,
                 completed,
                 pending,
                 icon: Briefcase,
@@ -712,7 +745,14 @@ export function ProcessControlDashboard() {
                 .eq("client_id", cid)
                 .in("status", ["pendiente", "en_proceso"])
 
-            const pending = (fo?.length || 0) + (fp?.length || 0) + (jc?.length || 0) + (pr?.length || 0) + (lp?.length || 0)
+            const { data: lt } = await supabase
+                .from("labor_taxes")
+                .select("id")
+                .eq("user_id", userId)
+                .eq("client_id", cid)
+                .in("status", ["pendiente", "falta_de_pago"])
+
+            const pending = (fo?.length || 0) + (fp?.length || 0) + (jc?.length || 0) + (pr?.length || 0) + (lp?.length || 0) + (lt?.length || 0)
 
             if (pending > 0 || true) { // Show all clients
                 summaries.push({
@@ -793,6 +833,8 @@ export function ProcessControlDashboard() {
         switch (status) {
             case "pendiente":
                 return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>
+            case "falta_de_pago":
+                return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs"><AlertCircle className="h-3 w-3 mr-1" />Falta de Pago</Badge>
             case "en_proceso":
                 return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs"><Clock className="h-3 w-3 mr-1" />En Proceso</Badge>
             case "activo":

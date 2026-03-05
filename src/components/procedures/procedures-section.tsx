@@ -101,7 +101,6 @@ const emptyISNData = {
   notas_adicionales: "",
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ProceduresSection({ clientId, clientName, userRole }: ProceduresSectionProps) {
   const isClient = userRole === "cliente"
   const [procedures, setProcedures] = useState<Procedure[]>([])
@@ -154,6 +153,15 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
     return d.toISOString().split("T")[0]
   }
 
+  // Log activity for supervision metrics
+  function logAction(action: string, description: string) {
+    fetch("/api/activity/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ module: "procedures", action, clientId, clientName, description }),
+    }).catch(() => { /* fire and forget */ })
+  }
+
   const handleCreateProcedure = async () => {
     const { data: userData } = await supabase.auth.getUser()
     if (!userData?.user) return
@@ -189,6 +197,8 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
         specific_data: {},
       })
       loadProcedures()
+      const typeLabel = PROCEDURE_TYPES.find(t => t.value === newProcedure.procedure_type)?.label || newProcedure.procedure_type
+      logAction("crear_tramite", `Creó trámite: ${typeLabel}`)
       toast({ title: "✅ Trámite creado exitosamente" })
     }
   }
@@ -206,6 +216,8 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
     }
 
     await supabase.from("procedures").update(updateData).eq("id", id)
+    const statusLabel = STATUS_OPTIONS.find(s => s.value === status)?.label || status
+    logAction("cambiar_status_tramite", `Cambió status de trámite a: ${statusLabel}`)
     loadProcedures()
   }
 
@@ -247,6 +259,7 @@ export function ProceduresSection({ clientId, clientName, userRole }: Procedures
       setEditDialogOpen(false)
       setEditingProcedure(null)
       loadProcedures()
+      logAction("editar_tramite", `Editó trámite`)
       toast({ title: "✅ Trámite actualizado" })
     }
   }

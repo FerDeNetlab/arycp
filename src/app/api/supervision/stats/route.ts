@@ -17,7 +17,51 @@ export async function GET(request: Request) {
             ? `${year + 1}-01-01`
             : `${year}-${String(month + 1).padStart(2, "0")}-01`
 
-        // ── Tareas completadas este mes ──
+        // ══════════════════════════════════════════════════════════════════
+        //  1. ACTIVITY LOG — real cross-module activity from all modules
+        // ══════════════════════════════════════════════════════════════════
+
+        const { data: activities } = await supabase
+            .from("activity_log")
+            .select("id, user_id, user_name, module, action, client_id, created_at")
+            .gte("created_at", startDate)
+            .lt("created_at", endDate)
+
+        const allActivities = activities || []
+
+        // Get all employees (admin + contador)
+        const { data: employees } = await supabase
+            .from("system_users")
+            .select("auth_user_id, full_name, role")
+            .in("role", ["admin", "contador"])
+
+        const empList = employees || []
+
+        // Activities per employee
+        const activityByEmployee: Record<string, { name: string; count: number; byModule: Record<string, number> }> = {}
+        for (const emp of empList) {
+            activityByEmployee[emp.auth_user_id] = { name: emp.full_name, count: 0, byModule: {} }
+        }
+        for (const act of allActivities) {
+            if (!activityByEmployee[act.user_id]) {
+                activityByEmployee[act.user_id] = { name: act.user_name || "Desconocido", count: 0, byModule: {} }
+            }
+            activityByEmployee[act.user_id].count++
+            const mod = act.module || "otro"
+            activityByEmployee[act.user_id].byModule[mod] = (activityByEmployee[act.user_id].byModule[mod] || 0) + 1
+        }
+
+        // Total activities by module
+        const activityByModule: Record<string, number> = {}
+        for (const act of allActivities) {
+            const mod = act.module || "otro"
+            activityByModule[mod] = (activityByModule[mod] || 0) + 1
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  2. TASKS TABLE — manual supervision tasks
+        // ══════════════════════════════════════════════════════════════════
+
         const { data: completedTasks } = await supabase
             .from("tasks")
             .select("id, estimated_hours, started_at, completed_at, assigned_to, assigned_to_name, client_id")
@@ -27,7 +71,7 @@ export async function GET(request: Request) {
 
         const tasksCompleted = completedTasks?.length || 0
 
-        // ── Tiempo promedio (horas) ──
+        // Avg time for tasks
         let totalHours = 0
         let tasksWithTime = 0
         for (const t of completedTasks || []) {
@@ -39,7 +83,7 @@ export async function GET(request: Request) {
         }
         const avgTimeHours = tasksWithTime > 0 ? Math.round((totalHours / tasksWithTime) * 10) / 10 : 0
 
-        // ── Cumplimiento % (completadas a tiempo / total completadas) ──
+        // On-time compliance
         let onTime = 0
         for (const t of completedTasks || []) {
             if (!t.estimated_hours) { onTime++; continue }
@@ -50,27 +94,33 @@ export async function GET(request: Request) {
         }
         const complianceRate = tasksCompleted > 0 ? Math.round((onTime / tasksCompleted) * 100) : 0
 
-        // ── Tareas retrasadas (en proceso pasada su due_date) ──
+        // Delayed tasks
         const { count: delayedCount } = await supabase
             .from("tasks")
             .select("*", { count: "exact", head: true })
             .eq("status", "en_proceso")
             .lt("due_date", new Date().toISOString().split("T")[0])
 
-        // ── Todos los empleados (admin + contador) ──
-        const { data: employees } = await supabase
-            .from("system_users")
-            .select("auth_user_id, full_name, role")
-            .in("role", ["admin", "contador"])
+        // ══════════════════════════════════════════════════════════════════
+        //  3. COMBINED EMPLOYEE METRICS — tasks + activities = score
+        // ══════════════════════════════════════════════════════════════════
 
-        // ── Eficiencia por empleado ──
-        const employeeEfficiency: { name: string; efficiency: number; tasksCount: number; hoursWorked: number }[] = []
-        for (const emp of employees || []) {
+        type EmployeeMetric = {
+            name: string
+            activities: number
+            tasksCompleted: number
+            score: number
+            hoursWorked: number
+            efficiency: number
+            byModule: Record<string, number>
+        }
+
+        const employeeMetrics: EmployeeMetric[] = []
+        for (const emp of empList) {
             const empTasks = (completedTasks || []).filter(t => t.assigned_to === emp.auth_user_id)
-            if (empTasks.length === 0) {
-                employeeEfficiency.push({ name: emp.full_name, efficiency: 0, tasksCount: 0, hoursWorked: 0 })
-                continue
-            }
+            const empActivity = activityByEmployee[emp.auth_user_id] || { count: 0, byModule: {} }
+
+            // Task efficiency
             let empOnTime = 0
             let empHours = 0
             for (const t of empTasks) {
@@ -82,32 +132,38 @@ export async function GET(request: Request) {
                     empOnTime++
                 }
             }
-            employeeEfficiency.push({
+
+            // Score = activities count + (tasks * 5 points each, since tasks are heavier)
+            const score = empActivity.count + (empTasks.length * 5)
+
+            employeeMetrics.push({
                 name: emp.full_name,
-                efficiency: Math.round((empOnTime / empTasks.length) * 100),
-                tasksCount: empTasks.length,
+                activities: empActivity.count,
+                tasksCompleted: empTasks.length,
+                score,
                 hoursWorked: Math.round(empHours * 10) / 10,
+                efficiency: empTasks.length > 0 ? Math.round((empOnTime / empTasks.length) * 100) : 0,
+                byModule: empActivity.byModule,
             })
         }
 
-        // Sort to find most/least efficient
-        const sorted = [...employeeEfficiency].sort((a, b) => b.efficiency - a.efficiency)
-        const mostEfficient = sorted[0] || null
-        const mostSaturated = [...employeeEfficiency].sort((a, b) => b.hoursWorked - a.hoursWorked)[0] || null
+        // Sort by score
+        const sortedByScore = [...employeeMetrics].sort((a, b) => b.score - a.score)
+        const mostProductive = sortedByScore[0] || null
+        const mostSaturated = [...employeeMetrics].sort((a, b) => b.hoursWorked - a.hoursWorked)[0] || null
 
-        // ── Team average efficiency ──
-        const avgEfficiency = employeeEfficiency.length > 0
-            ? Math.round(employeeEfficiency.reduce((s, e) => s + e.efficiency, 0) / employeeEfficiency.length)
+        // Team avg
+        const avgScore = employeeMetrics.length > 0
+            ? Math.round(employeeMetrics.reduce((s, e) => s + e.score, 0) / employeeMetrics.length)
             : 0
 
-        // ── Client profitability quick ranking ──
+        // ── Client profitability ──
         const { data: financials } = await supabase
             .from("client_financials")
             .select("client_id, ingreso_mensual")
             .eq("activo", true)
 
         const { data: clients } = await supabase.from("clients").select("id, business_name")
-
         const clientMap = new Map((clients || []).map(c => [c.id, c.business_name]))
 
         let topClient = null
@@ -116,8 +172,13 @@ export async function GET(request: Request) {
             topClient = { name: clientMap.get(best.client_id) || "—", ingreso: best.ingreso_mensual }
         }
 
-        // ── Tendencia 6 meses ──
-        const trend: { month: string; completed: number; avgHours: number }[] = []
+        // ══════════════════════════════════════════════════════════════════
+        //  4. TREND — last 6 months (activities + tasks)
+        // ══════════════════════════════════════════════════════════════════
+
+        const trend: { month: string; activities: number; tasks: number; score: number }[] = []
+        const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
         for (let i = 5; i >= 0; i--) {
             const d = new Date(year, month - 1 - i, 1)
             const mStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`
@@ -125,41 +186,68 @@ export async function GET(request: Request) {
                 ? `${d.getFullYear() + 1}-01-01`
                 : `${d.getFullYear()}-${String(d.getMonth() + 2).padStart(2, "0")}-01`
 
-            const { data: mTasks } = await supabase
+            // Activities count
+            const { count: actCount } = await supabase
+                .from("activity_log")
+                .select("*", { count: "exact", head: true })
+                .gte("created_at", mStart)
+                .lt("created_at", mEnd)
+
+            // Tasks completed count
+            const { count: taskCount } = await supabase
                 .from("tasks")
-                .select("started_at, completed_at")
+                .select("*", { count: "exact", head: true })
                 .eq("status", "completada")
                 .gte("completed_at", mStart)
                 .lt("completed_at", mEnd)
 
-            let mHours = 0; let mCount = 0
-            for (const t of mTasks || []) {
-                if (t.started_at && t.completed_at) {
-                    mHours += (new Date(t.completed_at).getTime() - new Date(t.started_at).getTime()) / 3600000
-                    mCount++
-                }
-            }
+            const acts = actCount || 0
+            const tsks = taskCount || 0
 
-            const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
             trend.push({
                 month: monthNames[d.getMonth()],
-                completed: mTasks?.length || 0,
-                avgHours: mCount > 0 ? Math.round((mHours / mCount) * 10) / 10 : 0,
+                activities: acts,
+                tasks: tsks,
+                score: acts + (tsks * 5),
             })
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  5. MODULE LABELS for the frontend
+        // ══════════════════════════════════════════════════════════════════
+
+        const moduleLabels: Record<string, string> = {
+            accounting: "Contabilidad",
+            invoicing: "Facturación",
+            labor: "Nómina/Laboral",
+            procedures: "Trámites",
+            compliance: "Compliance",
+            fiscal: "Fiscal",
+            legal: "Legal",
+            activity: "Asignaciones",
+            otro: "Otro",
+        }
+
+        const moduleBreakdown = Object.entries(activityByModule).map(([mod, count]) => ({
+            module: mod,
+            label: moduleLabels[mod] || mod,
+            count,
+        })).sort((a, b) => b.count - a.count)
+
         return NextResponse.json({
             kpis: {
+                totalActivities: allActivities.length,
                 tasksCompleted,
                 avgTimeHours,
                 complianceRate,
                 delayedCount: delayedCount || 0,
-                avgEfficiency,
-                mostEfficient: mostEfficient ? { name: mostEfficient.name, efficiency: mostEfficient.efficiency } : null,
+                avgScore,
+                mostProductive: mostProductive ? { name: mostProductive.name, score: mostProductive.score } : null,
                 mostSaturated: mostSaturated ? { name: mostSaturated.name, hours: mostSaturated.hoursWorked } : null,
                 topClient,
             },
-            employeeEfficiency,
+            employeeMetrics,
+            moduleBreakdown,
             trend,
         })
     } catch (error: unknown) {
