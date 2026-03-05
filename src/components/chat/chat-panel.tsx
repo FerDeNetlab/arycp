@@ -138,9 +138,16 @@ export function ChatPanel({
                 },
                 (payload) => {
                     const newMsg = payload.new as Message
-                    setMessages(prev => [...prev, newMsg])
-                    // Mark as read if from other user
-                    if (newMsg.sender_id !== currentUserId) {
+                    if (newMsg.sender_id === currentUserId) {
+                        // Replace the optimistic temp message with the real one
+                        setMessages(prev => {
+                            const withoutTemp = prev.filter(m => !m.id.startsWith("temp-"))
+                            return [...withoutTemp, newMsg]
+                        })
+                    } else {
+                        // Message from other user — add it
+                        setMessages(prev => [...prev, newMsg])
+                        // Mark as read
                         fetch("/api/chat/messages", {
                             method: "PATCH",
                             headers: { "Content-Type": "application/json" },
