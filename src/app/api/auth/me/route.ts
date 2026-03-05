@@ -27,16 +27,20 @@ export async function GET() {
         }
 
         // If client role, get their contracted services and client IDs (supports multi-company)
-        if (userData.role === "cliente") {
+        // Use user.email from Supabase Auth (guaranteed to be the login email)
+        if (userData.role === "cliente" && user.email) {
             const adminClient = createAdminClient()
+            const lookupEmail = user.email.toLowerCase().trim()
             const { data: clientsData, error: clientsError } = await adminClient
                 .from("clients")
                 .select("id, name, business_name, has_accounting, has_fiscal, has_legal, has_labor")
-                .eq("email", userData.email)
-                .order("business_name")
+                .ilike("email", lookupEmail)
+                .order("name")
 
             console.log("[AUTH/ME] Client lookup:", {
-                email: userData.email,
+                authEmail: user.email,
+                sysEmail: userData.email,
+                lookupEmail,
                 found: clientsData?.length || 0,
                 error: clientsError?.message,
                 names: clientsData?.map(c => c.business_name || c.name),
