@@ -29,42 +29,48 @@ export async function GET() {
         // If client role, get their contracted services and client IDs (supports multi-company)
         // Use user.email from Supabase Auth (guaranteed to be the login email)
         if (userData.role === "cliente" && user.email) {
-            const adminClient = createAdminClient()
-            const lookupEmail = user.email.toLowerCase().trim()
-            const { data: clientsData, error: clientsError } = await adminClient
-                .from("clients")
-                .select("id, name, business_name, has_accounting, has_fiscal, has_legal, has_labor")
-                .ilike("email", lookupEmail)
-                .order("name")
+            try {
+                const adminClient = createAdminClient()
+                const lookupEmail = user.email.toLowerCase().trim()
+                const { data: clientsData, error: clientsError } = await adminClient
+                    .from("clients")
+                    .select("id, name, business_name, email, has_accounting, has_fiscal, has_legal, has_labor")
+                    .ilike("email", lookupEmail)
+                    .order("name")
 
-            console.log("[AUTH/ME] Client lookup:", {
-                authEmail: user.email,
-                sysEmail: userData.email,
-                lookupEmail,
-                found: clientsData?.length || 0,
-                error: clientsError?.message,
-                names: clientsData?.map(c => c.business_name || c.name),
-            })
-
-            if (clientsData && clientsData.length > 0) {
-                // First client as default (backwards compatible)
-                const first = clientsData[0]
-                response.clientId = first.id
-                response.services = {
-                    has_accounting: first.has_accounting || false,
-                    has_fiscal: first.has_fiscal || false,
-                    has_legal: first.has_legal || false,
-                    has_labor: first.has_labor || false,
+                // TEMPORARY DEBUG: include in response so we can diagnose
+                response._debug = {
+                    lookupEmail,
+                    authEmail: user.email,
+                    sysEmail: userData.email,
+                    queryResult: clientsData?.length ?? "null",
+                    queryError: clientsError?.message ?? null,
+                    firstRow: clientsData?.[0] ? { id: clientsData[0].id, email: clientsData[0].email, name: clientsData[0].name } : null,
                 }
-                // All clients for company selector
-                response.clients = clientsData.map(c => ({
-                    id: c.id,
-                    name: c.business_name || c.name || "Sin nombre",
-                    has_accounting: c.has_accounting || false,
-                    has_fiscal: c.has_fiscal || false,
-                    has_legal: c.has_legal || false,
-                    has_labor: c.has_labor || false,
-                }))
+
+                if (clientsData && clientsData.length > 0) {
+                    const first = clientsData[0]
+                    response.clientId = first.id
+                    response.services = {
+                        has_accounting: first.has_accounting || false,
+                        has_fiscal: first.has_fiscal || false,
+                        has_legal: first.has_legal || false,
+                        has_labor: first.has_labor || false,
+                    }
+                    response.clients = clientsData.map(c => ({
+                        id: c.id,
+                        name: c.business_name || c.name || "Sin nombre",
+                        has_accounting: c.has_accounting || false,
+                        has_fiscal: c.has_fiscal || false,
+                        has_legal: c.has_legal || false,
+                        has_labor: c.has_labor || false,
+                    }))
+                }
+            } catch (clientLookupErr: unknown) {
+                response._debug = {
+                    error: "Exception in client lookup",
+                    message: clientLookupErr instanceof Error ? clientLookupErr.message : String(clientLookupErr),
+                }
             }
         }
 
