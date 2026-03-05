@@ -22,7 +22,7 @@ export default function InvoicingPage() {
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const router = useRouter()
-    const { role, clientId, loading: roleLoading } = useUserRole()
+    const { role, selectedClientId: clientId, loading: roleLoading } = useUserRole()
 
     // Redirect client to their own data
     useEffect(() => {

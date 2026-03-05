@@ -24,6 +24,7 @@ import {
     Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { CompanySelector } from "@/components/layout/company-selector"
 
 const NAV_SECTIONS = [
     {
@@ -150,6 +151,13 @@ export function Sidebar({ isClient, userRole, collapsed, onToggle, mobileOpen, o
                         <X className="h-5 w-5" />
                     </button>
                 </div>
+
+                {/* Company Selector for multi-company clients */}
+                {(!collapsed || mobileOpen) && (
+                    <div className="px-3 pt-3">
+                        <CompanySelector />
+                    </div>
+                )}
 
                 {/* Navigation */}
                 <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">

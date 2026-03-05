@@ -27,7 +27,7 @@ export default function CompliancePage() {
     const [error, setError] = useState("")
     const [searchTerm, setSearchTerm] = useState("")
     const router = useRouter()
-    const { role, clientId, loading: roleLoading } = useUserRole()
+    const { role, selectedClientId: clientId, loading: roleLoading } = useUserRole()
 
     useEffect(() => {
         if (!roleLoading && isClientRole(role) && clientId) {
@@ -39,7 +39,7 @@ export default function CompliancePage() {
         if (!roleLoading && !isClientRole(role)) {
             fetchClients()
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roleLoading, role])
 
     async function fetchClients() {

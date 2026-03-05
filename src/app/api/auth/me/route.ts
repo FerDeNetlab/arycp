@@ -26,23 +26,34 @@ export async function GET() {
             fullName: userData.fullName,
         }
 
-        // If client role, get their contracted services and client ID
+        // If client role, get their contracted services and client IDs (supports multi-company)
         if (userData.role === "cliente") {
             const adminClient = createAdminClient()
-            const { data: clientData } = await adminClient
+            const { data: clientsData } = await adminClient
                 .from("clients")
-                .select("id, has_accounting, has_fiscal, has_legal, has_labor")
+                .select("id, name, business_name, has_accounting, has_fiscal, has_legal, has_labor")
                 .eq("email", userData.email)
-                .single()
+                .order("business_name")
 
-            if (clientData) {
-                response.clientId = clientData.id
+            if (clientsData && clientsData.length > 0) {
+                // First client as default (backwards compatible)
+                const first = clientsData[0]
+                response.clientId = first.id
                 response.services = {
-                    has_accounting: clientData.has_accounting || false,
-                    has_fiscal: clientData.has_fiscal || false,
-                    has_legal: clientData.has_legal || false,
-                    has_labor: clientData.has_labor || false,
+                    has_accounting: first.has_accounting || false,
+                    has_fiscal: first.has_fiscal || false,
+                    has_legal: first.has_legal || false,
+                    has_labor: first.has_labor || false,
                 }
+                // All clients for company selector
+                response.clients = clientsData.map(c => ({
+                    id: c.id,
+                    name: c.business_name || c.name || "Sin nombre",
+                    has_accounting: c.has_accounting || false,
+                    has_fiscal: c.has_fiscal || false,
+                    has_legal: c.has_legal || false,
+                    has_labor: c.has_labor || false,
+                }))
             }
         }
 

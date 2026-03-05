@@ -29,7 +29,7 @@ export default function LegalPage() {
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
-  const { role, clientId, loading: roleLoading } = useUserRole()
+  const { role, selectedClientId: clientId, loading: roleLoading } = useUserRole()
 
   // Redirect client to their own data
   useEffect(() => {
