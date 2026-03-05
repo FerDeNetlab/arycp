@@ -2,35 +2,8 @@ import { NextResponse } from "next/server"
 import { requireAuth, requireRole } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
 
-// Force Node.js runtime (not edge) for PDF parsing
+// Force Node.js runtime for PDF parsing
 export const runtime = "nodejs"
-
-// Polyfill DOMMatrix for pdfjs-dist in Node.js (it's a browser-only API)
-if (typeof globalThis.DOMMatrix === "undefined") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).DOMMatrix = class DOMMatrix {
-        m: number[]
-        constructor(init?: string | number[]) {
-            this.m = Array.isArray(init) ? init : [1, 0, 0, 1, 0, 0]
-        }
-        get a() { return this.m[0] }
-        get b() { return this.m[1] }
-        get c() { return this.m[2] }
-        get d() { return this.m[3] }
-        get e() { return this.m[4] }
-        get f() { return this.m[5] }
-        get is2D() { return true }
-        get isIdentity() { return this.m[0] === 1 && this.m[3] === 1 }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        inverse() { return new (globalThis as any).DOMMatrix() }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        multiply() { return new (globalThis as any).DOMMatrix() }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        scale() { return new (globalThis as any).DOMMatrix() }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        translate() { return new (globalThis as any).DOMMatrix() }
-    }
-}
 
 export async function GET(request: Request) {
     try {
@@ -71,7 +44,7 @@ export async function POST(request: Request) {
         const clientId = formData.get("clientId") as string
         const year = parseInt(formData.get("year") as string)
         const month = parseInt(formData.get("month") as string)
-        const status = formData.get("status") as string // presentado_con_datos, presentado_sin_datos, no_presentado
+        const status = formData.get("status") as string
         const notes = formData.get("notes") as string | null
         const folioNumber = formData.get("folioNumber") as string | null
         const pdfFile = formData.get("pdf") as File | null
@@ -102,26 +75,15 @@ export async function POST(request: Request) {
             pdfUrl = publicUrl
             pdfName = pdfFile.name
 
-            // Extract folio from PDF server-side if not provided manually
+            // Extract folio from PDF using unpdf (same lib used in compliance/parse-pdf)
             if (!extractedFolio) {
                 try {
-                    console.log("[DIOT] Starting PDF extraction...")
-                    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
-                    console.log("[DIOT] pdfjs-dist loaded, buffer size:", buffer.length)
-                    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
-                    console.log("[DIOT] PDF loaded, pages:", pdf.numPages)
-
-                    let fullText = ""
-                    for (let i = 1; i <= pdf.numPages; i++) {
-                        const page = await pdf.getPage(i)
-                        const textContent = await page.getTextContent()
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const pageText = textContent.items.map((item: any) => item.str).join(" ")
-                        fullText += pageText + "\n"
-                    }
+                    const { extractText } = await import("unpdf")
+                    const { text } = await extractText(new Uint8Array(buffer))
+                    const fullText = Array.isArray(text) ? text.join("\n") : text
 
                     console.log("[DIOT] Text extracted, length:", fullText.length)
-                    console.log("[DIOT] Text preview:", JSON.stringify(fullText.substring(0, 300)))
+                    console.log("[DIOT] Text preview:", fullText.substring(0, 300))
 
                     const patterns = [
                         /N[u\u00fa]mero\s*de\s*operaci[o\u00f3]n[:\s]*(\d+)/i,
@@ -133,7 +95,7 @@ export async function POST(request: Request) {
                         const match = fullText.match(pattern)
                         if (match) {
                             extractedFolio = match[1]
-                            console.log("[DIOT] Folio found with pattern:", pattern.toString(), "=>", extractedFolio)
+                            console.log("[DIOT] Folio found:", extractedFolio)
                             break
                         }
                     }
@@ -144,8 +106,6 @@ export async function POST(request: Request) {
                         if (longNum) {
                             extractedFolio = longNum[1]
                             console.log("[DIOT] Folio (fallback):", extractedFolio)
-                        } else {
-                            console.log("[DIOT] No folio pattern matched. Full text:", JSON.stringify(fullText))
                         }
                     }
                 } catch (parseErr) {
@@ -153,7 +113,7 @@ export async function POST(request: Request) {
                 }
             }
 
-            console.log("[DIOT] Final extractedFolio:", extractedFolio)
+            console.log("[DIOT] Final folio:", extractedFolio)
         }
 
         // Check if record already exists for this month
