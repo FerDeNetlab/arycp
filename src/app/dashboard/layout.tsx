@@ -5,6 +5,7 @@ import { LogOut, UserCircle, Menu } from "lucide-react"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { ChatButton } from "@/components/chat/chat-button"
 import { Sidebar } from "@/components/layout/sidebar"
 import { cn } from "@/lib/utils"
 
@@ -13,7 +14,7 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode
 }) {
-    const { role, fullName, loading } = useUserRole()
+    const { userId, role, fullName, loading } = useUserRole()
     const isClient = isClientRole(role)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -67,6 +68,11 @@ export default function DashboardLayout({
                             {/* Notifications bell — admin/contador only */}
                             {!isClient && !loading && (
                                 <NotificationBell />
+                            )}
+
+                            {/* Chat — admin/contador only */}
+                            {!isClient && !loading && userId && (
+                                <ChatButton currentUserId={userId} />
                             )}
 
                             {/* Admin link — admin/contador only */}

@@ -19,6 +19,7 @@ type ClientInfo = {
 }
 
 type UserRoleData = {
+    userId: string
     role: string
     fullName: string
     email: string
@@ -51,6 +52,7 @@ function storeClientId(id: string) {
 export function useUserRole(): UserRoleData {
     const [data, setData] = useState<Omit<UserRoleData, "loading" | "setSelectedClient" | "selectedClientId">>(
         cachedData || {
+            userId: "",
             role: "",
             fullName: "",
             email: "",
@@ -100,6 +102,7 @@ export function useUserRole(): UserRoleData {
                 .then((json) => {
                     const clients: ClientInfo[] = json.clients || []
                     const result = {
+                        userId: json.id || "",
                         role: json.role || "",
                         fullName: json.fullName || "",
                         email: json.email || "",
@@ -111,6 +114,7 @@ export function useUserRole(): UserRoleData {
                     return result
                 })
                 .catch(() => ({
+                    userId: "",
                     role: "",
                     fullName: "",
                     email: "",
