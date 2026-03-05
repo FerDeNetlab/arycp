@@ -125,7 +125,7 @@ export async function POST(request: Request) {
             .eq("month", month)
             .single()
 
-        const recordData = {
+        const recordData: Record<string, unknown> = {
             client_id: clientId,
             user_id: user.id,
             year,
@@ -135,6 +135,12 @@ export async function POST(request: Request) {
             pdf_url: pdfUrl,
             pdf_name: pdfName,
             notes: notes || null,
+        }
+
+        // Clear assignment when DIOT is submitted (presentado)
+        if (status === "presentado_con_datos" || status === "presentado_sin_datos") {
+            recordData.assigned_to = null
+            recordData.assigned_to_name = null
         }
 
         if (existing?.id) {

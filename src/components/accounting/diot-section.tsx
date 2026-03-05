@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Upload, X, Check, AlertCircle, FileX, Pencil, ExternalLink } from "lucide-react"
+import { FileText, Upload, X, Check, AlertCircle, FileX, Pencil, ExternalLink, Bell } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,11 +22,13 @@ interface DiotRecord {
     id?: string
     month: number
     year: number
-    status: string // presentado_con_datos, presentado_sin_datos, no_presentado
+    status: string // presentado_con_datos, presentado_sin_datos, no_presentado, pendiente
     folio_number?: string | null
     pdf_url?: string | null
     pdf_name?: string | null
     notes?: string | null
+    assigned_to?: string | null
+    assigned_to_name?: string | null
 }
 
 export function DiotSection({ clientId, userRole, selectedYear }: { clientId: string; userRole?: string; selectedYear: number }) {
@@ -139,8 +141,10 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
                 return { label: "Sin datos", badgeClass: "bg-blue-600 text-white hover:bg-blue-600", icon: FileX, badgeVariant: "default" as const }
             case "no_presentado":
                 return { label: "No presentado", badgeClass: "bg-red-600 text-white hover:bg-red-600", icon: AlertCircle, badgeVariant: "default" as const }
+            case "pendiente":
+                return { label: "Pendiente", badgeClass: "bg-orange-500 text-white hover:bg-orange-500", icon: Bell, badgeVariant: "default" as const }
             default:
-                return { label: "Pendiente", badgeClass: "bg-gray-200 text-gray-600", icon: FileText, badgeVariant: "outline" as const }
+                return { label: "Sin registro", badgeClass: "bg-gray-200 text-gray-600", icon: FileText, badgeVariant: "outline" as const }
         }
     }
 
@@ -157,13 +161,18 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
                     {months.map((month, index) => {
                         const record = records[index + 1]
                         const hasRecord = !!record
+                        const isPresentado = hasRecord && (record.status === "presentado_con_datos" || record.status === "presentado_sin_datos")
+                        const isAssigned = hasRecord && !!record.assigned_to && !isPresentado
                         const config = hasRecord ? getStatusConfig(record.status) : getStatusConfig("")
                         const StatusIcon = config.icon
 
                         return (
                             <div
                                 key={index}
-                                className={`border rounded-lg p-4 ${!isClient ? 'hover:border-purple-300 transition-colors' : ''}`}
+                                className={`border-2 rounded-lg p-4 transition-all ${isAssigned
+                                    ? 'border-orange-400 bg-orange-50/50 shadow-sm shadow-orange-100'
+                                    : !isClient ? 'hover:border-purple-300 border-gray-200' : 'border-gray-200'
+                                    }`}
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <h4 className="font-semibold text-sm">{month}</h4>
@@ -172,14 +181,24 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
                                     </Badge>
                                 </div>
 
+                                {isAssigned && (
+                                    <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-orange-100 rounded-md">
+                                        <Bell className="h-3 w-3 text-orange-600 animate-pulse" />
+                                        <span className="text-[11px] font-medium text-orange-700">
+                                            Asignado a: {record.assigned_to_name}
+                                        </span>
+                                    </div>
+                                )}
+
                                 {hasRecord ? (
                                     <div className="space-y-2 mb-3">
                                         <div className="flex items-center gap-2">
-                                            <StatusIcon className={`h-4 w-4 ${record.status === "no_presentado" ? "text-red-500" : record.status === "presentado_sin_datos" ? "text-blue-500" : "text-emerald-500"}`} />
+                                            <StatusIcon className={`h-4 w-4 ${record.status === "no_presentado" ? "text-red-500" : record.status === "presentado_sin_datos" ? "text-blue-500" : record.status === "pendiente" ? "text-orange-500" : "text-emerald-500"}`} />
                                             <span className="text-xs text-muted-foreground">
                                                 {record.status === "presentado_con_datos" ? "Presentado con datos" :
                                                     record.status === "presentado_sin_datos" ? "Presentado sin datos" :
-                                                        "No presentado"}
+                                                        record.status === "pendiente" ? "Pendiente de presentar" :
+                                                            "No presentado"}
                                             </span>
                                         </div>
 

@@ -117,6 +117,32 @@ export async function POST(request: Request) {
             })
             debug.notificationInsert = notifError ? { error: notifError.message, code: notifError.code, details: notifError.details } : "OK"
 
+            // Upsert diot_records to track assignment
+            const { data: existingDiot } = await supabase
+                .from("diot_records")
+                .select("id")
+                .eq("client_id", diotClientId)
+                .eq("year", parseInt(diotYear))
+                .eq("month", parseInt(diotMonth))
+                .single()
+
+            if (existingDiot?.id) {
+                await supabase.from("diot_records").update({
+                    assigned_to: assignToUserId,
+                    assigned_to_name: assignee.full_name,
+                }).eq("id", existingDiot.id)
+            } else {
+                await supabase.from("diot_records").insert({
+                    client_id: diotClientId,
+                    user_id: user.id,
+                    year: parseInt(diotYear),
+                    month: parseInt(diotMonth),
+                    status: "pendiente",
+                    assigned_to: assignToUserId,
+                    assigned_to_name: assignee.full_name,
+                })
+            }
+
             return NextResponse.json({
                 success: true,
                 assignedTo: assignee.full_name,

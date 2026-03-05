@@ -534,6 +534,28 @@ export function ProcessControlDashboard() {
             }
         }
 
+        // --- DIOT Assignments ---
+        const { data: diotPending } = await supabase
+            .from("diot_records")
+            .select("id, month, year, status, created_at, client_id, assigned_to_name")
+            .eq("assigned_to", userId)
+            .eq("status", "pendiente")
+            .order("year", { ascending: false })
+
+        if (diotPending) {
+            for (const d of diotPending) {
+                const clientName = await getClientName(d.client_id)
+                addItem({
+                    id: `diot-${d.id}`, module: "accounting", moduleLabel: "Contabilidad", moduleColor: "text-purple-600",
+                    moduleBgColor: "bg-purple-100", moduleIcon: FileText, clientId: d.client_id, clientName,
+                    title: `DIOT ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`,
+                    description: `Presentar DIOT de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""} — ${clientName}`,
+                    actionNeeded: `Subir acuse DIOT de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`,
+                    status: "pendiente", urgency: "medium", createdAt: d.created_at,
+                })
+            }
+        }
+
         // Sort: high urgency first, then medium, then low
         const urgencyOrder = { high: 0, medium: 1, low: 2 }
         items.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency])
