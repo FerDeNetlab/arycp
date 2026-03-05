@@ -88,11 +88,16 @@ export function DiotSection({ clientId, userRole, selectedYear }: { clientId: st
     async function extractFolioFromPdf(file: File): Promise<string | null> {
         try {
             const pdfjsLib = await import("pdfjs-dist")
-            // Configure worker from CDN
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+            // Configure worker - use .js (not .mjs) for Safari compatibility
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
             const arrayBuffer = await file.arrayBuffer()
-            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
+            const pdf = await pdfjsLib.getDocument({
+                data: new Uint8Array(arrayBuffer),
+                standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/standard_fonts/`,
+                useWorkerFetch: false,
+                isEvalSupported: false,
+            }).promise
 
             let fullText = ""
             for (let i = 1; i <= pdf.numPages; i++) {
