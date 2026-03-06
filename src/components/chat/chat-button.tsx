@@ -61,14 +61,23 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
                 },
                 (payload) => {
                     // If message is from someone else and chat is closed, bump count + alert
-                    const msg = payload.new as { sender_id: string; content?: string; sender_name?: string }
+                    const msg = payload.new as { sender_id: string; content?: string }
                     if (msg.sender_id !== currentUserId && !open) {
                         setUnreadCount(prev => prev + 1)
-                        playChatSound()
-                        showBrowserNotification(
-                            msg.sender_name || "Nuevo mensaje",
-                            msg.content || "Tienes un nuevo mensaje"
-                        )
+                        // Sound + browser notification (wrapped in try-catch to not break realtime)
+                        try {
+                            playChatSound()
+                        } catch (e) {
+                            console.warn("Chat sound error:", e)
+                        }
+                        try {
+                            showBrowserNotification(
+                                "💬 Nuevo mensaje",
+                                msg.content || "Tienes un nuevo mensaje"
+                            )
+                        } catch (e) {
+                            console.warn("Browser notification error:", e)
+                        }
                     }
                 }
             )

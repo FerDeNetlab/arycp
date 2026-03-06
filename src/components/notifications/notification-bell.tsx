@@ -126,10 +126,12 @@ export function NotificationBell() {
         for (const n of fresh) seenIdsRef.current.add(n.id)
 
         if (newOnes.length > 0) {
-            playNotificationSound()
-            const latest = newOnes[0]
-            const url = getNotificationUrl(latest)
-            showBrowserNotification(latest.title, latest.message, url)
+            try { playNotificationSound() } catch (e) { console.warn("Sound error:", e) }
+            try {
+                const latest = newOnes[0]
+                const url = getNotificationUrl(latest)
+                showBrowserNotification(latest.title, latest.message, url)
+            } catch (e) { console.warn("Browser notif error:", e) }
         }
     }, [])
 
