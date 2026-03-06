@@ -2,11 +2,17 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send, ExternalLink } from "lucide-react"
+import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send, ExternalLink, BellRing } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient as createBrowserClient } from "@/lib/supabase/client"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Badge } from "@/components/ui/badge"
+import {
+    playNotificationSound,
+    showBrowserNotification,
+    requestNotificationPermission,
+    getNotificationPermission,
+} from "@/lib/browser-notifications"
 
 interface Notification {
     id: string
@@ -51,11 +57,9 @@ function formatTimeAgo(dateStr: string): string {
 
 // Check if a notification supports replies (payroll alerts/completion from labor module)
 function isPayrollNotification(n: Notification): boolean {
-    // Primary check: module/entity_type fields
     if (n.module === "labor" && n.entity_type === "payroll" && (n.type === "alert" || n.type === "completion" || n.type === "info")) {
         return true
     }
-    // Fallback: detect by title patterns (in case module/entity_type not populated)
     if (n.from_user_id && n.title && (
         n.title.includes("Nómina") || n.title.includes("nómina") ||
         n.title.includes("Respuesta:") || n.title.includes("pendiente") ||
@@ -69,7 +73,6 @@ function isPayrollNotification(n: Notification): boolean {
 // Build URL to navigate to when clicking a notification
 function getNotificationUrl(n: Notification): string | null {
     const mod = n.module || n.entity_type || ""
-    // Use client_id for deep linking to the specific client within a module
     const cid = n.client_id
 
     if (mod === "procedure" || mod === "procedures") return cid ? `/dashboard/procedures/${cid}` : "/dashboard/procedures"
@@ -81,49 +84,6 @@ function getNotificationUrl(n: Notification): string | null {
     if (mod === "compliance") return cid ? `/dashboard/compliance/${cid}` : "/dashboard/compliance"
     if (n.entity_type === "task" || mod === "supervision") return "/dashboard/process-control?tab=tareas"
     return null
-}
-
-// ─── Browser notification + sound helpers ───
-function playNotificationSound() {
-    try {
-        const ctx = new AudioContext()
-        // Two-tone chime
-        const playTone = (freq: number, start: number, dur: number) => {
-            const osc = ctx.createOscillator()
-            const gain = ctx.createGain()
-            osc.connect(gain)
-            gain.connect(ctx.destination)
-            osc.frequency.value = freq
-            osc.type = "sine"
-            gain.gain.setValueAtTime(0.3, ctx.currentTime + start)
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur)
-            osc.start(ctx.currentTime + start)
-            osc.stop(ctx.currentTime + start + dur)
-        }
-        playTone(830, 0, 0.15)
-        playTone(1100, 0.15, 0.2)
-    } catch {
-        // AudioContext not available
-    }
-}
-
-function showBrowserNotification(title: string, body: string, url?: string | null) {
-    if (typeof window === "undefined" || !("Notification" in window)) return
-    if (Notification.permission !== "granted") return
-
-    const notif = new window.Notification(title, {
-        body,
-        icon: "/favicon.ico",
-        tag: "arycp-notif-" + Date.now(),
-    })
-
-    if (url) {
-        notif.onclick = () => {
-            window.focus()
-            window.location.href = url
-            notif.close()
-        }
-    }
 }
 
 export function NotificationBell() {
@@ -143,28 +103,30 @@ export function NotificationBell() {
     const seenIdsRef = useRef<Set<string>>(new Set())
     const initialLoadDone = useRef(false)
 
-    // Request browser notification permission on mount
+    // Notification permission state
+    const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null)
+
     useEffect(() => {
-        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-            Notification.requestPermission()
-        }
+        setNotifPermission(getNotificationPermission())
     }, [])
+
+    async function handleEnableNotifications() {
+        const result = await requestNotificationPermission()
+        setNotifPermission(result)
+    }
 
     const handleNewNotifications = useCallback((fresh: Notification[]) => {
         if (!initialLoadDone.current) {
-            // First load — just record all IDs, don't alert
             for (const n of fresh) seenIdsRef.current.add(n.id)
             initialLoadDone.current = true
             return
         }
 
-        // Find truly new notifications
         const newOnes = fresh.filter(n => !n.is_read && !seenIdsRef.current.has(n.id))
         for (const n of fresh) seenIdsRef.current.add(n.id)
 
         if (newOnes.length > 0) {
             playNotificationSound()
-            // Show browser notification for the most recent new one
             const latest = newOnes[0]
             const url = getNotificationUrl(latest)
             showBrowserNotification(latest.title, latest.message, url)
@@ -325,6 +287,21 @@ export function NotificationBell() {
                             </Button>
                         </div>
                     </div>
+
+                    {/* Permission banner */}
+                    {notifPermission === "default" && (
+                        <div className="px-4 py-2.5 border-b bg-amber-50 flex items-center gap-2">
+                            <BellRing className="h-4 w-4 text-amber-600 shrink-0" />
+                            <p className="text-xs text-amber-800 flex-1">Activa las notificaciones para recibir alertas con sonido</p>
+                            <Button
+                                size="sm"
+                                className="h-6 text-[10px] px-2 bg-amber-600 hover:bg-amber-700"
+                                onClick={handleEnableNotifications}
+                            >
+                                Activar
+                            </Button>
+                        </div>
+                    )}
 
                     {/* Reply panel */}
                     {replyingTo && (
