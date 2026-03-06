@@ -68,7 +68,7 @@ export function MyTasksPanel() {
             if (!user) return
 
             const { data, error } = await supabase
-                .from("supervision_tasks")
+                .from("tasks")
                 .select("*")
                 .eq("assigned_to", user.id)
                 .order("created_at", { ascending: false })
@@ -107,7 +107,7 @@ export function MyTasksPanel() {
     async function handleStatusChange(taskId: string, newStatus: string) {
         setUpdatingId(taskId)
         try {
-            const res = await fetch("/api/supervision/tasks", {
+            const res = await fetch("/api/my-tasks", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ taskId, status: newStatus }),
