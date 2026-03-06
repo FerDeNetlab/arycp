@@ -91,8 +91,8 @@ export function MessagesList({
                     <Card
                         key={msg.id}
                         className={`cursor-pointer transition-all hover:shadow-md ${!msg.is_read
-                                ? "border-l-4 border-l-violet-500 bg-violet-50/30"
-                                : "opacity-80"
+                            ? "border-l-4 border-l-violet-500 bg-violet-50/30"
+                            : "opacity-80"
                             }`}
                         onClick={() => openMessage(msg)}
                     >
@@ -155,7 +155,7 @@ export function MessagesList({
             </div>
 
             <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <MessageSquare className="h-5 w-5 text-violet-600" />

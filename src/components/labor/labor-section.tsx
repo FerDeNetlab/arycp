@@ -380,7 +380,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
                 Nueva Nómina
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Registrar Nómina</DialogTitle>
               </DialogHeader>
@@ -555,7 +555,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
 
       {/* Notification Dialog */}
       <Dialog open={notifyDialog.open} onOpenChange={(open) => setNotifyDialog({ ...notifyDialog, open })}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {notifyDialog.type === "completed" ? "🟢 Avisar Nómina Lista" : "🟡 Reportar Pendiente"}
@@ -613,7 +613,7 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
 
       {/* Edit Payroll Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) setEditingPayroll(null) }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>✏️ Editar Nómina</DialogTitle>
           </DialogHeader>

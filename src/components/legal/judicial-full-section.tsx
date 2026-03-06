@@ -568,7 +568,7 @@ export function JudicialFullSection({ clientId, clientName, userRole }: Judicial
                       Nuevo Asunto
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-lg">
+                  <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Nuevo Asunto Judicial</DialogTitle>
                     </DialogHeader>

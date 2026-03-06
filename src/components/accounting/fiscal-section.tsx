@@ -46,7 +46,7 @@ export function FiscalSection({ clientId, clientData, userRole }: { clientId: st
 
   useEffect(() => {
     loadObservations()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   const loadObservations = async () => {
@@ -256,7 +256,7 @@ export function FiscalSection({ clientId, clientData, userRole }: { clientId: st
                   Nueva Observación
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingObservation ? "Editar Observación" : "Nueva Observación Fiscal"}</DialogTitle>
                 </DialogHeader>
