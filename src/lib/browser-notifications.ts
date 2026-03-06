@@ -89,6 +89,35 @@ export function showBrowserNotification(
     if (typeof window === "undefined" || !("Notification" in window)) return
     if (Notification.permission !== "granted") return
 
+    console.log("[ARYCP] Showing browser notification:", title, body)
+
+    try {
+        // Try ServiceWorker-based notification first (more reliable when tab is in background)
+        if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(title, {
+                    body,
+                    icon: "/favicon.ico",
+                    tag: "arycp-" + Date.now(),
+                    requireInteraction: false,
+                    data: { url },
+                }).catch(() => {
+                    // Fallback to regular Notification
+                    createBasicNotification(title, body, url)
+                })
+            }).catch(() => {
+                createBasicNotification(title, body, url)
+            })
+        } else {
+            createBasicNotification(title, body, url)
+        }
+    } catch {
+        // Last resort fallback
+        createBasicNotification(title, body, url)
+    }
+}
+
+function createBasicNotification(title: string, body: string, url?: string | null) {
     try {
         const notif = new window.Notification(title, {
             body,
@@ -101,8 +130,8 @@ export function showBrowserNotification(
             if (url) window.location.href = url
             notif.close()
         }
-    } catch {
-        // Notification API not available or blocked
+    } catch (e) {
+        console.warn("[ARYCP] Notification creation failed:", e)
     }
 }
 
