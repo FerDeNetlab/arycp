@@ -6,7 +6,6 @@ import { MessageCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ChatPanel } from "./chat-panel"
 import { cn } from "@/lib/utils"
-import { playChatSound, showBrowserNotification } from "@/lib/browser-notifications"
 
 export function ChatButton({ currentUserId }: { currentUserId: string }) {
     const [open, setOpen] = useState(false)
@@ -60,24 +59,15 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
                     table: "chat_messages",
                 },
                 (payload) => {
-                    // If message is from someone else and chat is closed, bump count + alert
-                    const msg = payload.new as { sender_id: string; content?: string }
+                    // If message is from someone else and chat is closed, bump count
+                    const msg = payload.new as { sender_id: string }
                     if (msg.sender_id !== currentUserId && !open) {
                         setUnreadCount(prev => prev + 1)
-                        // Sound + browser notification (wrapped in try-catch to not break realtime)
-                        try {
-                            playChatSound()
-                        } catch (e) {
-                            console.warn("Chat sound error:", e)
-                        }
-                        try {
-                            showBrowserNotification(
-                                "💬 Nuevo mensaje",
-                                msg.content || "Tienes un nuevo mensaje"
-                            )
-                        } catch (e) {
-                            console.warn("Browser notification error:", e)
-                        }
+                        // Sound + notification (dynamic import to avoid disrupting realtime)
+                        import("@/lib/browser-notifications").then(mod => {
+                            try { mod.playChatSound() } catch { /* */ }
+                            try { mod.showBrowserNotification("💬 Nuevo mensaje", "Tienes un nuevo mensaje de chat") } catch { /* */ }
+                        }).catch(() => { })
                     }
                 }
             )
