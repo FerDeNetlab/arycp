@@ -7,6 +7,46 @@ import { createClient } from "@/lib/supabase/client"
 import { ChatPanel } from "./chat-panel"
 import { cn } from "@/lib/utils"
 
+// Softer, lower-pitched sound for chat (distinct from notification chime)
+function playChatSound() {
+    try {
+        const ctx = new AudioContext()
+        const playTone = (freq: number, start: number, dur: number) => {
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.connect(gain)
+            gain.connect(ctx.destination)
+            osc.frequency.value = freq
+            osc.type = "sine"
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + start)
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur)
+            osc.start(ctx.currentTime + start)
+            osc.stop(ctx.currentTime + start + dur)
+        }
+        playTone(600, 0, 0.12)
+        playTone(800, 0.12, 0.12)
+        playTone(600, 0.24, 0.15)
+    } catch {
+        // AudioContext not available
+    }
+}
+
+function showChatBrowserNotification(senderName: string, message: string) {
+    if (typeof window === "undefined" || !("Notification" in window)) return
+    if (Notification.permission !== "granted") return
+
+    const notif = new window.Notification(`💬 ${senderName}`, {
+        body: message.length > 80 ? message.slice(0, 80) + "…" : message,
+        icon: "/favicon.ico",
+        tag: "arycp-chat-" + Date.now(),
+    })
+
+    notif.onclick = () => {
+        window.focus()
+        notif.close()
+    }
+}
+
 export function ChatButton({ currentUserId }: { currentUserId: string }) {
     const [open, setOpen] = useState(false)
     const [unreadCount, setUnreadCount] = useState(0)
@@ -59,10 +99,15 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
                     table: "chat_messages",
                 },
                 (payload) => {
-                    // If message is from someone else and chat is closed, bump count
-                    const msg = payload.new as { sender_id: string }
+                    // If message is from someone else and chat is closed, bump count + alert
+                    const msg = payload.new as { sender_id: string; content?: string; sender_name?: string }
                     if (msg.sender_id !== currentUserId && !open) {
                         setUnreadCount(prev => prev + 1)
+                        playChatSound()
+                        showChatBrowserNotification(
+                            msg.sender_name || "Nuevo mensaje",
+                            msg.content || "Tienes un nuevo mensaje"
+                        )
                     }
                 }
             )
