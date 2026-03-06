@@ -1285,20 +1285,59 @@ function IMSSSection({ clientId, isClient, filterYear, filterMonth }: { clientId
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
-                  {!isClient && (
+                  {!isClient ? (
                     <>
-                      <Button
-                        variant={mov.confirmed ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleToggleConfirmed(mov)}
-                        className={mov.confirmed ? "bg-green-600 hover:bg-green-700" : ""}
+                      <Select
+                        value={mov.confirmed ? "registrado" : mov.sent_to_imss ? "enviado" : "pendiente"}
+                        onValueChange={async (v) => {
+                          const confirmed = v === "registrado"
+                          const sent = v === "enviado" || v === "registrado"
+                          try {
+                            await fetch("/api/labor/imss", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                id: mov.id,
+                                confirmed,
+                                sent_to_imss: sent,
+                                confirmation_date: confirmed ? new Date().toISOString().split("T")[0] : null,
+                                sent_date: sent ? (mov.sent_date || new Date().toISOString().split("T")[0]) : null,
+                              }),
+                            })
+                            loadMovements()
+                          } catch (err) {
+                            console.error("Error updating status:", err)
+                          }
+                        }}
                       >
-                        {mov.confirmed ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                      </Button>
+                        <SelectTrigger className={`w-40 ${mov.confirmed
+                          ? "bg-green-100 text-green-700 border-green-300"
+                          : mov.sent_to_imss
+                            ? "bg-blue-100 text-blue-700 border-blue-300"
+                            : "bg-yellow-100 text-yellow-700 border-yellow-300"
+                          }`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendiente">⏳ Pendiente</SelectItem>
+                          <SelectItem value="enviado">📤 Enviado al IMSS</SelectItem>
+                          <SelectItem value="registrado">✅ Registrado</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(mov.id)} className="text-red-500">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </>
+                  ) : (
+                    <Badge variant="outline" className={
+                      mov.confirmed
+                        ? "bg-green-100 text-green-700"
+                        : mov.sent_to_imss
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                    }>
+                      {mov.confirmed ? "✅ Registrado" : mov.sent_to_imss ? "📤 Enviado" : "⏳ Pendiente"}
+                    </Badge>
                   )}
                 </div>
               </div>

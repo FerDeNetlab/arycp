@@ -63,11 +63,6 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
                     const msg = payload.new as { sender_id: string }
                     if (msg.sender_id !== currentUserId && !open) {
                         setUnreadCount(prev => prev + 1)
-                        // Sound + notification (dynamic import to avoid disrupting realtime)
-                        import("@/lib/browser-notifications").then(mod => {
-                            try { mod.playChatSound() } catch { /* */ }
-                            try { mod.showBrowserNotification("💬 Nuevo mensaje", "Tienes un nuevo mensaje de chat") } catch { /* */ }
-                        }).catch(() => { })
                     }
                 }
             )
