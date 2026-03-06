@@ -46,7 +46,22 @@ export function SettingsPanel() {
                 setCapacities(data.capacities || [])
                 setFinancials(data.financials || [])
                 setEmployees(data.employees || [])
-                setClients(data.clients || [])
+
+                // Use clients from settings, fallback to /api/clients/list
+                let clientList = data.clients || []
+                if (clientList.length === 0) {
+                    try {
+                        const clientsRes = await fetch("/api/clients/list")
+                        const clientsData = await clientsRes.json()
+                        clientList = (clientsData.clients || []).map(
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (c: any) => ({ id: c.id, name: c.business_name || c.name || "Sin nombre" })
+                        )
+                    } catch (e) {
+                        console.error("Error fetching clients fallback:", e)
+                    }
+                }
+                setClients(clientList)
 
                 // Initialize forms
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,13 +89,15 @@ export function SettingsPanel() {
                         costo: f.costo_operativo_estimado,
                     }
                 }
-                for (const cl of data.clients || []) {
+                for (const cl of clientList) {
                     if (!finMap[cl.id]) {
                         finMap[cl.id] = { ingreso: 0, costo: 0 }
                     }
                 }
                 setFinForms(finMap)
-            } catch { /* empty */ } finally {
+            } catch (e) {
+                console.error("Error loading settings:", e)
+            } finally {
                 setLoading(false)
             }
         }
@@ -105,7 +122,7 @@ export function SettingsPanel() {
             })
             if (!res.ok) throw new Error("Error al guardar")
             toast({ title: "✅ Capacidad guardada" })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" })
         } finally {
@@ -130,7 +147,7 @@ export function SettingsPanel() {
             })
             if (!res.ok) throw new Error("Error al guardar")
             toast({ title: "✅ Datos financieros guardados" })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" })
         } finally {
@@ -225,55 +242,61 @@ export function SettingsPanel() {
                     <DollarSign className="h-5 w-5 text-emerald-600" />
                     Datos Financieros por Cliente
                 </h2>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {clients.map(cl => {
-                        const form = finForms[cl.id] || { ingreso: 0, costo: 0 }
-                        return (
-                            <Card key={cl.id} className="border shadow-sm">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium truncate">{cl.name}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <Label className="text-xs">Ingreso mensual $</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.ingreso}
-                                                onChange={e => setFinForms({
-                                                    ...finForms,
-                                                    [cl.id]: { ...form, ingreso: parseFloat(e.target.value) || 0 },
-                                                })}
-                                                className="h-8 text-sm"
-                                            />
+                {clients.length === 0 ? (
+                    <div className="col-span-full text-center py-8 text-muted-foreground text-sm">
+                        No se encontraron clientes registrados.
+                    </div>
+                ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {clients.map(cl => {
+                            const form = finForms[cl.id] || { ingreso: 0, costo: 0 }
+                            return (
+                                <Card key={cl.id} className="border shadow-sm">
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium truncate">{cl.name}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <Label className="text-xs">Ingreso mensual $</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={form.ingreso}
+                                                    onChange={e => setFinForms({
+                                                        ...finForms,
+                                                        [cl.id]: { ...form, ingreso: parseFloat(e.target.value) || 0 },
+                                                    })}
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs">Costo operativo $</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={form.costo}
+                                                    onChange={e => setFinForms({
+                                                        ...finForms,
+                                                        [cl.id]: { ...form, costo: parseFloat(e.target.value) || 0 },
+                                                    })}
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <Label className="text-xs">Costo operativo $</Label>
-                                            <Input
-                                                type="number"
-                                                value={form.costo}
-                                                onChange={e => setFinForms({
-                                                    ...finForms,
-                                                    [cl.id]: { ...form, costo: parseFloat(e.target.value) || 0 },
-                                                })}
-                                                className="h-8 text-sm"
-                                            />
-                                        </div>
-                                    </div>
-                                    <Button
-                                        size="sm"
-                                        onClick={() => saveFinancial(cl.id)}
-                                        disabled={saving === `fin-${cl.id}`}
-                                        className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-                                    >
-                                        <Save className="h-3 w-3 mr-1" />
-                                        {saving === `fin-${cl.id}` ? "Guardando..." : "Guardar"}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        )
-                    })}
-                </div>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => saveFinancial(cl.id)}
+                                            disabled={saving === `fin-${cl.id}`}
+                                            className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                                        >
+                                            <Save className="h-3 w-3 mr-1" />
+                                            {saving === `fin-${cl.id}` ? "Guardando..." : "Guardar"}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            )
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     )
