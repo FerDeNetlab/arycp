@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,11 +19,20 @@ import {
   MessageSquare,
   ArrowUpRight,
   Receipt,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 import { ActivityFeed } from "@/components/activity/activity-feed"
 import { ComplianceAlerts } from "@/components/compliance/compliance-alerts"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 
 // Module definitions with their service flags
 const ALL_MODULES = [
@@ -169,11 +178,45 @@ const CLIENT_EXTRA_MODULES = [
   },
 ]
 
+type DetailItem = {
+  id: string
+  title: string
+  status: string
+  date: string
+  source: string
+  href?: string
+}
+
+const KPI_TYPE_MAP: Record<string, string> = {
+  "Trámites Activos": "active",
+  "Pendientes": "pending",
+  "Eventos Próximos": "events",
+  "Alertas": "alerts",
+}
+
 export default function DashboardPage() {
   const { role, fullName, services, loading } = useUserRole()
   const isClient = isClientRole(role)
 
   const [stats, setStats] = useState({ totalActive: 0, totalPending: 0, upcomingEvents: 0, alerts: 0 })
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogTitle, setDialogTitle] = useState("")
+  const [detailItems, setDetailItems] = useState<DetailItem[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  const handleKpiClick = useCallback((label: string) => {
+    const type = KPI_TYPE_MAP[label]
+    if (!type) return
+    setDialogTitle(label)
+    setDialogOpen(true)
+    setDetailLoading(true)
+    setDetailItems([])
+    fetch(`/api/dashboard/stats/details?type=${type}`)
+      .then(res => res.json())
+      .then(data => setDetailItems(data.items || []))
+      .catch(() => setDetailItems([]))
+      .finally(() => setDetailLoading(false))
+  }, [])
 
   useEffect(() => {
     if (!isClient && !loading) {
@@ -257,8 +300,9 @@ export default function DashboardPage() {
             return (
               <Card
                 key={kpi.label}
-                className={`kpi-card border ${kpi.borderColor} ${kpi.bgColor} animate-fade-in-up`}
+                className={`kpi-card border ${kpi.borderColor} ${kpi.bgColor} animate-fade-in-up cursor-pointer hover:shadow-md transition-shadow`}
                 style={{ animationDelay: `${i * 0.05}s` }}
+                onClick={() => handleKpiClick(kpi.label)}
               >
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between mb-3">
@@ -349,6 +393,55 @@ export default function DashboardPage() {
           <ActivityFeed />
         </div>
       </div>
+
+      {/* KPI Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{dialogTitle}</DialogTitle>
+            <DialogDescription>
+              Detalle de los registros que componen este indicador.
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : detailItems.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">Sin registros.</p>
+          ) : (
+            <div className="space-y-2">
+              {detailItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    {item.href ? (
+                      <Link
+                        href={item.href}
+                        className="text-sm font-medium text-foreground hover:underline"
+                        onClick={() => setDialogOpen(false)}
+                      >
+                        {item.title}
+                      </Link>
+                    ) : (
+                      <p className="text-sm font-medium text-foreground">{item.title}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {item.source} · {item.date ? new Date(item.date).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {item.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
