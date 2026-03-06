@@ -11,11 +11,13 @@ import { EmployeeView } from "@/components/supervision/employee-view"
 import { ClientProfitability } from "@/components/supervision/client-profitability"
 import { AlertsPanel } from "@/components/supervision/alerts-panel"
 import { SettingsPanel } from "@/components/supervision/settings-panel"
+import { TasksPanel } from "@/components/supervision/tasks-panel"
 
 const TABS = [
     { id: "dashboard", label: "Dashboard" },
     { id: "empleados", label: "Empleados" },
     { id: "clientes", label: "Clientes" },
+    { id: "tareas", label: "Tareas" },
     { id: "alertas", label: "Alertas" },
     { id: "config", label: "Configuración" },
 ]
@@ -82,6 +84,7 @@ export default function SupervisionPage() {
             {activeTab === "dashboard" && <SupervisionDashboard />}
             {activeTab === "empleados" && <EmployeeView />}
             {activeTab === "clientes" && <ClientProfitability />}
+            {activeTab === "tareas" && <TasksPanel />}
             {activeTab === "alertas" && <AlertsPanel />}
             {activeTab === "config" && <SettingsPanel />}
         </div>

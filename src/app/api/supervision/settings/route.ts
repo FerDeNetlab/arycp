@@ -27,10 +27,10 @@ export async function GET() {
 
         const { data: clients } = await supabase
             .from("clients")
-            .select("id, business_name")
+            .select("id, business_name, name")
 
         const empMap = new Map((employees || []).map(e => [e.auth_user_id, e.full_name]))
-        const clientMap = new Map((clients || []).map(c => [c.id, c.business_name]))
+        const clientMap = new Map((clients || []).map(c => [c.id, c.business_name || c.name]))
 
         const enrichedCapacities = (capacities || []).map(c => ({
             ...c,
@@ -46,7 +46,7 @@ export async function GET() {
             capacities: enrichedCapacities,
             financials: enrichedFinancials,
             employees: (employees || []).map(e => ({ id: e.auth_user_id, name: e.full_name })),
-            clients: (clients || []).map(c => ({ id: c.id, name: c.business_name })),
+            clients: (clients || []).map(c => ({ id: c.id, name: c.business_name || c.name || "Sin nombre" })),
         })
     } catch (error: unknown) {
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })

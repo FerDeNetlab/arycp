@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/supervision/admin-guard"
 import { getErrorMessage } from "@/lib/api/errors"
+import { logActivity, createNotification } from "@/lib/activity"
 
 // GET: list tasks with filters
 export async function GET(request: Request) {
@@ -75,6 +76,46 @@ export async function POST(request: Request) {
             to_status: "pendiente",
             notes: "Tarea creada",
         })
+
+        // Notify assignee if task is assigned
+        if (assigned_to) {
+            // Get client name for context
+            let clientName = ""
+            if (client_id) {
+                const { data: client } = await supabase
+                    .from("clients")
+                    .select("business_name, name")
+                    .eq("id", client_id)
+                    .single()
+                clientName = client?.business_name || client?.name || ""
+            }
+
+            await createNotification({
+                userId: assigned_to,
+                fromUserId: user.id,
+                fromUserName: auth.sysUser.full_name,
+                type: "assignment",
+                title: `Nueva tarea: ${title}`,
+                message: `${auth.sysUser.full_name} te asignó la tarea "${title}"${clientName ? ` — Cliente: ${clientName}` : ""}${due_date ? ` — Fecha límite: ${due_date}` : ""}.`,
+                module: module || "supervision",
+                entityType: "task",
+                entityId: task.id,
+                clientId: client_id || undefined,
+                clientName: clientName || undefined,
+            })
+
+            await logActivity({
+                userId: user.id,
+                userName: auth.sysUser.full_name,
+                clientId: client_id || undefined,
+                clientName: clientName || undefined,
+                module: module || "supervision",
+                action: "assigned",
+                entityType: "task",
+                entityId: task.id,
+                description: `${auth.sysUser.full_name} asignó tarea "${title}" a ${assigned_to_name || "un empleado"}`,
+            })
+        }
 
         return NextResponse.json({ task })
     } catch (error: unknown) {
