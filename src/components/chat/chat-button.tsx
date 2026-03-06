@@ -1,15 +1,17 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { createPortal } from "react-dom"
 import { MessageCircle } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { ChatPanel } from "./chat-panel"
 import { cn } from "@/lib/utils"
+
+const POLL_INTERVAL = 8000 // Check for new messages every 8 seconds
 
 export function ChatButton({ currentUserId }: { currentUserId: string }) {
     const [open, setOpen] = useState(false)
     const [unreadCount, setUnreadCount] = useState(0)
+    const prevUnreadRef = useRef(0)
 
     const loadUnreadCount = useCallback(async () => {
         try {
@@ -19,6 +21,16 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
                 const total = (data.data as { unreadCount: number }[]).reduce(
                     (sum, c) => sum + c.unreadCount, 0
                 )
+                // Play sound if unread count increased (new messages)
+                if (total > prevUnreadRef.current && prevUnreadRef.current >= 0) {
+                    try {
+                        import("@/lib/browser-notifications").then(mod => {
+                            mod.playChatSound()
+                            mod.showBrowserNotification("💬 Nuevo mensaje", "Tienes un nuevo mensaje de chat")
+                        }).catch(() => { })
+                    } catch { /* silent */ }
+                }
+                prevUnreadRef.current = total
                 setUnreadCount(total)
             }
         } catch {
@@ -26,56 +38,27 @@ export function ChatButton({ currentUserId }: { currentUserId: string }) {
         }
     }, [])
 
+    // Initial load
     useEffect(() => {
-        let cancelled = false
-        async function load() {
-            try {
-                const res = await fetch("/api/chat/conversations")
-                const data = await res.json()
-                if (!cancelled && res.ok && data.data) {
-                    const total = (data.data as { unreadCount: number }[]).reduce(
-                        (sum, c) => sum + c.unreadCount, 0
-                    )
-                    setUnreadCount(total)
-                }
-            } catch {
-                // Silent fail
-            }
-        }
-        load()
-        return () => { cancelled = true }
-    }, [])
+        // Set to -1 so the first load doesn't trigger sound
+        prevUnreadRef.current = -1
+        loadUnreadCount().then(() => {
+            // After first load, start tracking increases
+            // prevUnreadRef is already set inside loadUnreadCount
+        })
+    }, [loadUnreadCount])
 
-    // Realtime: listen for new messages to update badge
+    // Poll for new messages (replaces broken Supabase Realtime for chat_messages)
     useEffect(() => {
-        const supabase = createClient()
-        const channel = supabase
-            .channel("chat-unread-badge")
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "chat_messages",
-                },
-                (payload) => {
-                    // If message is from someone else and chat is closed, bump count
-                    const msg = payload.new as { sender_id: string }
-                    if (msg.sender_id !== currentUserId && !open) {
-                        setUnreadCount(prev => prev + 1)
-                    }
-                }
-            )
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(channel)
-        }
-    }, [currentUserId, open])
+        if (open) return // Don't poll while chat is open
+        const interval = setInterval(loadUnreadCount, POLL_INTERVAL)
+        return () => clearInterval(interval)
+    }, [open, loadUnreadCount])
 
     // When panel closes, refresh unread
     function handleClose() {
         setOpen(false)
+        prevUnreadRef.current = 0
         setTimeout(loadUnreadCount, 500)
     }
 
