@@ -55,7 +55,7 @@ const MODULES = [
     { value: "legal", label: "Legal" },
     { value: "labor", label: "Laboral" },
     { value: "procedures", label: "Trámites" },
-    { value: "compliance", label: "Compliance" },
+    { value: "compliance", label: "Cumplimiento" },
     { value: "invoicing", label: "Facturación" },
     { value: "general", label: "General" },
 ]

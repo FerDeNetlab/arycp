@@ -47,7 +47,7 @@ const MODULES: Record<string, string> = {
     legal: "Legal",
     labor: "Laboral",
     procedures: "Trámites",
-    compliance: "Compliance",
+    compliance: "Cumplimiento",
     invoicing: "Facturación",
     general: "General",
     supervision: "Supervisión",
