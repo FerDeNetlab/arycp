@@ -79,6 +79,7 @@ function getNotificationUrl(n: Notification): string | null {
     if (mod === "accounting") return cid ? `/dashboard/accounting/${cid}` : "/dashboard/accounting"
     if (mod === "invoicing") return cid ? `/dashboard/invoicing/${cid}` : "/dashboard/invoicing"
     if (mod === "compliance") return cid ? `/dashboard/compliance/${cid}` : "/dashboard/compliance"
+    if (n.entity_type === "task" || mod === "supervision") return "/dashboard/process-control?tab=tareas"
     return null
 }
 
