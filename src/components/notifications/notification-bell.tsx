@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, CheckCheck, UserPlus, AlertCircle, Info, Clock, CheckCircle2, X, MessageSquare, Send, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -83,6 +83,49 @@ function getNotificationUrl(n: Notification): string | null {
     return null
 }
 
+// ─── Browser notification + sound helpers ───
+function playNotificationSound() {
+    try {
+        const ctx = new AudioContext()
+        // Two-tone chime
+        const playTone = (freq: number, start: number, dur: number) => {
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.connect(gain)
+            gain.connect(ctx.destination)
+            osc.frequency.value = freq
+            osc.type = "sine"
+            gain.gain.setValueAtTime(0.3, ctx.currentTime + start)
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur)
+            osc.start(ctx.currentTime + start)
+            osc.stop(ctx.currentTime + start + dur)
+        }
+        playTone(830, 0, 0.15)
+        playTone(1100, 0.15, 0.2)
+    } catch {
+        // AudioContext not available
+    }
+}
+
+function showBrowserNotification(title: string, body: string, url?: string | null) {
+    if (typeof window === "undefined" || !("Notification" in window)) return
+    if (Notification.permission !== "granted") return
+
+    const notif = new window.Notification(title, {
+        body,
+        icon: "/favicon.ico",
+        tag: "arycp-notif-" + Date.now(),
+    })
+
+    if (url) {
+        notif.onclick = () => {
+            window.focus()
+            window.location.href = url
+            notif.close()
+        }
+    }
+}
+
 export function NotificationBell() {
     const router = useRouter()
     const [notifications, setNotifications] = useState<Notification[]>([])
@@ -95,6 +138,38 @@ export function NotificationBell() {
     const [replyingTo, setReplyingTo] = useState<Notification | null>(null)
     const [replyText, setReplyText] = useState("")
     const [replySending, setReplySending] = useState(false)
+
+    // Track seen notification IDs to detect new ones
+    const seenIdsRef = useRef<Set<string>>(new Set())
+    const initialLoadDone = useRef(false)
+
+    // Request browser notification permission on mount
+    useEffect(() => {
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission()
+        }
+    }, [])
+
+    const handleNewNotifications = useCallback((fresh: Notification[]) => {
+        if (!initialLoadDone.current) {
+            // First load — just record all IDs, don't alert
+            for (const n of fresh) seenIdsRef.current.add(n.id)
+            initialLoadDone.current = true
+            return
+        }
+
+        // Find truly new notifications
+        const newOnes = fresh.filter(n => !n.is_read && !seenIdsRef.current.has(n.id))
+        for (const n of fresh) seenIdsRef.current.add(n.id)
+
+        if (newOnes.length > 0) {
+            playNotificationSound()
+            // Show browser notification for the most recent new one
+            const latest = newOnes[0]
+            const url = getNotificationUrl(latest)
+            showBrowserNotification(latest.title, latest.message, url)
+        }
+    }, [])
 
     useEffect(() => {
         loadNotifications()
@@ -120,6 +195,7 @@ export function NotificationBell() {
         return () => {
             supabase.removeChannel(channel)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {
@@ -138,8 +214,10 @@ export function NotificationBell() {
             const res = await fetch("/api/notifications?limit=15")
             const result = await res.json()
             if (res.ok) {
-                setNotifications(result.data || [])
+                const data = result.data || []
+                setNotifications(data)
                 setUnreadCount(result.unreadCount || 0)
+                handleNewNotifications(data)
             }
         } catch (err) {
             console.error("Error loading notifications:", err)
