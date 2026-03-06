@@ -93,7 +93,22 @@ export function TasksPanel() {
             const settingsData = await settingsRes.json()
             setTasks(tasksData.tasks || [])
             setEmployees(settingsData.employees || [])
-            setClients(settingsData.clients || [])
+
+            // Use clients from settings, fallback to /api/clients/list
+            let clientList = settingsData.clients || []
+            if (clientList.length === 0) {
+                try {
+                    const clientsRes = await fetch("/api/clients/list")
+                    const clientsData = await clientsRes.json()
+                    clientList = (clientsData.clients || []).map(
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (c: any) => ({ id: c.id, name: c.business_name || c.name || "Sin nombre" })
+                    )
+                } catch (e) {
+                    console.error("Error fetching clients fallback:", e)
+                }
+            }
+            setClients(clientList)
         } catch {
             toast({ title: "Error al cargar tareas", variant: "destructive" })
         } finally {
