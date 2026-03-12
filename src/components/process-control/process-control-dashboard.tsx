@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -86,6 +87,7 @@ const MONTHS = [
 ]
 
 export function ProcessControlDashboard() {
+    const router = useRouter()
     const supabase = createClient()
     const [loading, setLoading] = useState(true)
     const [userId, setUserId] = useState<string | null>(null)
@@ -570,6 +572,21 @@ export function ProcessControlDashboard() {
         setExpandedModules(prev => ({ ...prev, [module]: !prev[module] }))
     }
 
+    const getItemUrl = (item: PendingItem): string => {
+        const moduleRoutes: Record<string, string> = {
+            fiscal: "fiscal",
+            legal: "legal",
+            procedures: "procedures",
+            labor: "labor",
+            accounting: "accounting",
+        }
+        const route = moduleRoutes[item.module] || item.module
+        if (item.clientId) {
+            return `/dashboard/${route}/${item.clientId}`
+        }
+        return `/dashboard/${route}`
+    }
+
     const loadModuleStats = async () => {
         if (!userId) return
 
@@ -1023,7 +1040,11 @@ export function ProcessControlDashboard() {
                                         {isExpanded && (
                                             <div className="border-t divide-y">
                                                 {moduleItems.map(item => (
-                                                    <div key={item.id} className="p-3 hover:bg-muted/30 transition-colors">
+                                                    <div
+                                                        key={item.id}
+                                                        className="p-3 hover:bg-muted/50 transition-colors cursor-pointer group"
+                                                        onClick={() => router.push(getItemUrl(item))}
+                                                    >
                                                         <div className="flex items-start gap-3">
                                                             {/* Urgency indicator */}
                                                             <div className={`mt-1 h-2.5 w-2.5 rounded-full flex-shrink-0 ${item.urgency === "high" ? "bg-red-500 animate-pulse" :
@@ -1033,7 +1054,7 @@ export function ProcessControlDashboard() {
                                                             <div className="flex-1 min-w-0">
                                                                 {/* Title and client */}
                                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                                    <span className="font-medium text-sm">{item.title}</span>
+                                                                    <span className="font-medium text-sm group-hover:text-emerald-700 transition-colors">{item.title}</span>
                                                                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">{item.clientName}</Badge>
                                                                     {item.status === "en_proceso" && (
                                                                         <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">En proceso</Badge>
@@ -1054,6 +1075,9 @@ export function ProcessControlDashboard() {
                                                                     </div>
                                                                 )}
                                                             </div>
+
+                                                            {/* Navigation arrow indicator */}
+                                                            <ArrowRight className="h-4 w-4 text-muted-foreground/0 group-hover:text-emerald-600 transition-all flex-shrink-0 mt-1" />
                                                         </div>
                                                     </div>
                                                 ))}
