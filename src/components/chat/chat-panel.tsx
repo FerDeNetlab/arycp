@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState, useEffect, useRef, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
@@ -11,8 +13,18 @@ import {
     Users,
     Check,
     CheckCheck,
+    Smile,
+    Sticker,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { EmojiPicker } from "@/components/chat/emoji-picker-wrapper"
+import {
+    STICKERS,
+    STICKER_CATEGORIES,
+    isSticker,
+    getStickerFromContent,
+    stickerToContent,
+} from "@/lib/chat/stickers"
 
 type ChatUser = {
     id: string
@@ -66,6 +78,16 @@ const roleColors: Record<string, string> = {
     contador: "bg-indigo-500",
 }
 
+// Format last message preview (handle stickers)
+function formatLastMessage(content: string, isOwn: boolean): string {
+    const prefix = isOwn ? "Tú: " : ""
+    if (isSticker(content)) {
+        const sticker = getStickerFromContent(content)
+        return prefix + (sticker ? `${sticker.emoji} ${sticker.label}` : "Sticker")
+    }
+    return prefix + content
+}
+
 export function ChatPanel({
     open,
     onClose,
@@ -83,8 +105,27 @@ export function ChatPanel({
     const [newMessage, setNewMessage] = useState("")
     const [searchQuery, setSearchQuery] = useState("")
     const [loading, setLoading] = useState(false)
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+    const [showStickerPicker, setShowStickerPicker] = useState(false)
+    const [activeCategory, setActiveCategory] = useState(STICKER_CATEGORIES[0].id)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
+    const emojiPickerRef = useRef<HTMLDivElement>(null)
+    const stickerPickerRef = useRef<HTMLDivElement>(null)
+
+    // Close pickers on click outside
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+                setShowEmojiPicker(false)
+            }
+            if (stickerPickerRef.current && !stickerPickerRef.current.contains(e.target as Node)) {
+                setShowStickerPicker(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
 
     // Load conversations
     const loadConversations = useCallback(async () => {
@@ -229,13 +270,13 @@ export function ChatPanel({
         }
     }
 
-    // Send message
-    async function sendMessage(e: React.FormEvent) {
-        e.preventDefault()
-        if (!newMessage.trim() || !activeConversation) return
+    // Send message (text or sticker)
+    async function sendMessageContent(content: string) {
+        if (!content.trim() || !activeConversation) return
 
-        const content = newMessage.trim()
-        setNewMessage("")
+        // Close pickers
+        setShowEmojiPicker(false)
+        setShowStickerPicker(false)
 
         // Optimistic update
         const optimistic: Message = {
@@ -256,6 +297,27 @@ export function ChatPanel({
         } catch (err) {
             console.error("Error sending message:", err)
         }
+    }
+
+    // Send text message from form
+    async function sendMessage(e: React.FormEvent) {
+        e.preventDefault()
+        if (!newMessage.trim()) return
+        const content = newMessage.trim()
+        setNewMessage("")
+        await sendMessageContent(content)
+    }
+
+    // Send sticker
+    async function sendSticker(stickerId: string) {
+        await sendMessageContent(stickerToContent(stickerId))
+    }
+
+    // Handle emoji selection
+    function onEmojiSelect(emoji: string) {
+        setNewMessage(prev => prev + emoji)
+        setShowEmojiPicker(false)
+        inputRef.current?.focus()
     }
 
     // Load users for new chat
@@ -279,6 +341,8 @@ export function ChatPanel({
         setView("conversations")
         setActiveConversation(null)
         setMessages([])
+        setShowEmojiPicker(false)
+        setShowStickerPicker(false)
         loadConversations()
     }
 
@@ -289,6 +353,27 @@ export function ChatPanel({
     const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
     if (!open) return null
+
+    // Render message content (text vs sticker)
+    function renderMessageContent(content: string, isOwn: boolean) {
+        if (isSticker(content)) {
+            const sticker = getStickerFromContent(content)
+            if (sticker) {
+                return (
+                    <div className="flex flex-col items-center py-1">
+                        <span className="text-5xl leading-none">{sticker.emoji}</span>
+                        <span className={cn(
+                            "text-[10px] mt-1 opacity-70",
+                            isOwn ? "text-white/70" : "text-muted-foreground"
+                        )}>
+                            {sticker.label}
+                        </span>
+                    </div>
+                )
+            }
+        }
+        return <p className="whitespace-pre-wrap break-words">{content}</p>
+    }
 
     return (
         <>
@@ -415,7 +500,7 @@ export function ChatPanel({
                                                     conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
                                                 )}>
                                                     {conv.lastMessage
-                                                        ? (conv.lastMessage.isOwn ? "Tú: " : "") + conv.lastMessage.content
+                                                        ? formatLastMessage(conv.lastMessage.content, conv.lastMessage.isOwn)
                                                         : "Sin mensajes aún"
                                                     }
                                                 </p>
@@ -492,6 +577,7 @@ export function ChatPanel({
                                         const isOwn = msg.sender_id === currentUserId
                                         const showTime = i === 0 ||
                                             new Date(msg.created_at).getTime() - new Date(messages[i - 1].created_at).getTime() > 300000
+                                        const msgIsSticker = isSticker(msg.content)
 
                                         return (
                                             <div key={msg.id}>
@@ -507,26 +593,33 @@ export function ChatPanel({
                                                     isOwn ? "justify-end" : "justify-start"
                                                 )}>
                                                     <div className={cn(
-                                                        "max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed",
-                                                        isOwn
-                                                            ? "bg-indigo-600 text-white rounded-br-md"
-                                                            : "bg-muted text-foreground rounded-bl-md"
+                                                        "max-w-[80%] rounded-2xl text-sm leading-relaxed",
+                                                        msgIsSticker
+                                                            ? "px-3 py-1 bg-transparent"
+                                                            : cn(
+                                                                "px-3 py-2",
+                                                                isOwn
+                                                                    ? "bg-indigo-600 text-white rounded-br-md"
+                                                                    : "bg-muted text-foreground rounded-bl-md"
+                                                            )
                                                     )}>
-                                                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                                        {renderMessageContent(msg.content, isOwn)}
                                                         <div className={cn(
                                                             "flex items-center gap-1 mt-0.5",
                                                             isOwn ? "justify-end" : "justify-start"
                                                         )}>
                                                             <span className={cn(
                                                                 "text-[10px]",
-                                                                isOwn ? "text-white/60" : "text-muted-foreground"
+                                                                msgIsSticker
+                                                                    ? "text-muted-foreground"
+                                                                    : isOwn ? "text-white/60" : "text-muted-foreground"
                                                             )}>
                                                                 {formatMessageTime(msg.created_at)}
                                                             </span>
                                                             {isOwn && (
                                                                 msg.is_read
-                                                                    ? <CheckCheck className="h-3 w-3 text-blue-300" />
-                                                                    : <Check className="h-3 w-3 text-white/40" />
+                                                                    ? <CheckCheck className={cn("h-3 w-3", msgIsSticker ? "text-blue-500" : "text-blue-300")} />
+                                                                    : <Check className={cn("h-3 w-3", msgIsSticker ? "text-muted-foreground" : "text-white/40")} />
                                                             )}
                                                         </div>
                                                     </div>
@@ -543,29 +636,126 @@ export function ChatPanel({
 
                 {/* Input Area */}
                 {view === "chat" && (
-                    <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-3 border-t border-border bg-card">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            placeholder="Escribe un mensaje..."
-                            className="flex-1 px-4 py-2.5 text-sm rounded-full border border-border bg-background focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
-                            value={newMessage}
-                            onChange={e => setNewMessage(e.target.value)}
-                            autoFocus
-                        />
-                        <button
-                            type="submit"
-                            disabled={!newMessage.trim()}
-                            className={cn(
-                                "h-10 w-10 rounded-full flex items-center justify-center transition-all shrink-0",
-                                newMessage.trim()
-                                    ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md"
-                                    : "bg-muted text-muted-foreground"
-                            )}
-                        >
-                            <Send className="h-4 w-4" />
-                        </button>
-                    </form>
+                    <div className="relative">
+                        {/* Emoji Picker */}
+                        {showEmojiPicker && (
+                            <div
+                                ref={emojiPickerRef}
+                                className="absolute bottom-full left-0 right-0 z-10 flex justify-center pb-2 px-2"
+                            >
+                                <div className="shadow-2xl rounded-xl overflow-hidden border border-border">
+                                    <EmojiPicker onSelect={onEmojiSelect} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Sticker Picker */}
+                        {showStickerPicker && (
+                            <div
+                                ref={stickerPickerRef}
+                                className="absolute bottom-full left-0 right-0 z-10 pb-2 px-2"
+                            >
+                                <div className="bg-card shadow-2xl rounded-xl border border-border overflow-hidden">
+                                    {/* Category tabs */}
+                                    <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/30">
+                                        {STICKER_CATEGORIES.map(cat => (
+                                            <button
+                                                key={cat.id}
+                                                onClick={() => setActiveCategory(cat.id)}
+                                                className={cn(
+                                                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                                                    activeCategory === cat.id
+                                                        ? "bg-indigo-100 text-indigo-700"
+                                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                )}
+                                            >
+                                                <span className="text-sm">{cat.emoji}</span>
+                                                <span className="hidden sm:inline">{cat.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {/* Sticker grid */}
+                                    <div className="grid grid-cols-4 gap-1 p-3 max-h-[200px] overflow-y-auto">
+                                        {STICKERS.filter(s => s.category === activeCategory).map(sticker => (
+                                            <button
+                                                key={sticker.id}
+                                                onClick={() => sendSticker(sticker.id)}
+                                                className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl hover:bg-indigo-50 transition-colors group"
+                                                title={sticker.label}
+                                            >
+                                                <span className="text-3xl group-hover:scale-110 transition-transform">
+                                                    {sticker.emoji}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground group-hover:text-indigo-600 truncate w-full text-center">
+                                                    {sticker.label}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-3 border-t border-border bg-card">
+                            {/* Emoji button */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowEmojiPicker(!showEmojiPicker)
+                                    setShowStickerPicker(false)
+                                }}
+                                className={cn(
+                                    "h-9 w-9 rounded-full flex items-center justify-center transition-colors shrink-0",
+                                    showEmojiPicker
+                                        ? "bg-indigo-100 text-indigo-600"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                )}
+                                title="Emojis"
+                            >
+                                <Smile className="h-5 w-5" />
+                            </button>
+
+                            {/* Sticker button */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowStickerPicker(!showStickerPicker)
+                                    setShowEmojiPicker(false)
+                                }}
+                                className={cn(
+                                    "h-9 w-9 rounded-full flex items-center justify-center transition-colors shrink-0",
+                                    showStickerPicker
+                                        ? "bg-indigo-100 text-indigo-600"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                )}
+                                title="Stickers"
+                            >
+                                <Sticker className="h-5 w-5" />
+                            </button>
+
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                placeholder="Escribe un mensaje..."
+                                className="flex-1 px-4 py-2.5 text-sm rounded-full border border-border bg-background focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+                                value={newMessage}
+                                onChange={e => setNewMessage(e.target.value)}
+                                autoFocus
+                            />
+                            <button
+                                type="submit"
+                                disabled={!newMessage.trim()}
+                                className={cn(
+                                    "h-10 w-10 rounded-full flex items-center justify-center transition-all shrink-0",
+                                    newMessage.trim()
+                                        ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md"
+                                        : "bg-muted text-muted-foreground"
+                                )}
+                            >
+                                <Send className="h-4 w-4" />
+                            </button>
+                        </form>
+                    </div>
                 )}
             </div>
         </>
