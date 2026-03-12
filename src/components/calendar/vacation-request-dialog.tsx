@@ -82,10 +82,7 @@ export default function VacationRequestDialog({ open, onOpenChange, onRequestCre
         }
     }
 
-    // Get min date (tomorrow)
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const minDate = tomorrow.toISOString().split("T")[0]
+
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -120,7 +117,6 @@ export default function VacationRequestDialog({ open, onOpenChange, onRequestCre
                                     setStartDate(e.target.value)
                                     if (!endDate || e.target.value > endDate) setEndDate(e.target.value)
                                 }}
-                                min={minDate}
                                 required
                             />
                         </div>
@@ -131,7 +127,7 @@ export default function VacationRequestDialog({ open, onOpenChange, onRequestCre
                                 type="date"
                                 value={endDate}
                                 onChange={e => setEndDate(e.target.value)}
-                                min={startDate || minDate}
+                                min={startDate}
                                 required
                             />
                         </div>
@@ -176,7 +172,7 @@ export default function VacationRequestDialog({ open, onOpenChange, onRequestCre
                         </Button>
                         <Button
                             type="submit"
-                            disabled={loading || !startDate || !endDate || businessDays === 0}
+                            disabled={loading || !startDate || !endDate}
                             className="bg-pink-600 hover:bg-pink-700"
                         >
                             {loading ? "Enviando..." : "Solicitar Vacaciones"}
