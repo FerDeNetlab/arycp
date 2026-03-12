@@ -1,105 +1,132 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Clock, MapPin, FileText } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
-
-interface Event {
-  id?: string
-  summary?: string
-  description?: string
-  start?: { dateTime?: string; date?: string }
-  end?: { dateTime?: string; date?: string }
-  location?: string
-}
+import { CalendarDays, Clock, MapPin, Trash2, User } from "lucide-react"
+import { cn } from "@/lib/utils"
+import type { CalendarEvent } from "./calendar-grid"
 
 interface EventsListProps {
-  events: Event[]
-  loading: boolean
+    events: CalendarEvent[]
+    selectedDate: Date | null
+    onDelete?: (id: string) => void
+    currentUserId?: string
 }
 
-export default function EventsList({ events, loading }: EventsListProps) {
-  if (loading) {
-    return (
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-6 w-3/4" />
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
+function formatEventTime(event: CalendarEvent) {
+    if (event.all_day) return "Todo el día"
+    const start = new Date(event.start_date)
+    const end = new Date(event.end_date)
+    return `${start.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} — ${end.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`
+}
 
-  if (events.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No hay eventos próximos</p>
-          <p className="text-sm mt-2">Crea tu primer evento para comenzar</p>
-        </CardContent>
-      </Card>
-    )
-  }
+function formatDateRange(event: CalendarEvent) {
+    const start = new Date(event.start_date)
+    const end = new Date(event.end_date)
+    const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }
+    return `${start.toLocaleDateString("es-MX", opts)} — ${end.toLocaleDateString("es-MX", opts)}`
+}
 
-  return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {events.map((event) => {
-        const startDate = event.start?.dateTime || event.start?.date
-        const formattedDate = startDate
-          ? new Date(startDate).toLocaleDateString("es-MX", {
-              weekday: "short",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })
-          : ""
-        const formattedTime = event.start?.dateTime
-          ? new Date(event.start.dateTime).toLocaleTimeString("es-MX", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : ""
+const TYPE_LABELS: Record<string, string> = {
+    manual: "General",
+    meeting: "Reunión",
+    reminder: "Recordatorio",
+    fiscal: "Fiscal",
+    legal: "Jurídico",
+    labor: "Laboral",
+    vacation: "Vacaciones",
+}
 
+export default function EventsList({ events, selectedDate, onDelete, currentUserId }: EventsListProps) {
+    if (events.length === 0) {
         return (
-          <Card key={event.id} className="hover:border-primary/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="text-base line-clamp-2">{event.summary || "Sin título"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <span className="text-muted-foreground">{formattedDate}</span>
-              </div>
-              {formattedTime && (
-                <div className="flex items-start gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span className="text-muted-foreground">{formattedTime}</span>
-                </div>
-              )}
-              {event.location && (
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span className="text-muted-foreground line-clamp-1">{event.location}</span>
-                </div>
-              )}
-              {event.description && (
-                <div className="flex items-start gap-2 text-sm">
-                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span className="text-muted-foreground line-clamp-2">{event.description}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+                <CalendarDays className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                    {selectedDate
+                        ? "No hay eventos para esta fecha"
+                        : "No hay eventos próximos"
+                    }
+                </p>
+            </div>
         )
-      })}
-    </div>
-  )
+    }
+
+    return (
+        <div className="space-y-2">
+            {events.map(event => (
+                <div
+                    key={event.id}
+                    className={cn(
+                        "flex items-start gap-3 p-3 rounded-xl border transition-colors hover:bg-accent/30",
+                        event.event_type === "vacation" && "border-pink-200/60 bg-pink-50/20"
+                    )}
+                    style={{ borderLeftWidth: 3, borderLeftColor: event.color }}
+                >
+                    {/* Color dot */}
+                    <div
+                        className="h-2.5 w-2.5 rounded-full mt-1.5 shrink-0"
+                        style={{ backgroundColor: event.color }}
+                    />
+
+                    <div className="flex-1 min-w-0">
+                        <p className={cn(
+                            "text-sm font-semibold text-foreground",
+                            event.event_type === "vacation" && "text-pink-800"
+                        )}>
+                            {event.title}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {formatEventTime(event)}
+                            </span>
+                            {!event.all_day && (
+                                <span className="text-[11px] text-muted-foreground">
+                                    {formatDateRange(event)}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                            <span
+                                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                style={{ backgroundColor: event.color + "20", color: event.color }}
+                            >
+                                {TYPE_LABELS[event.event_type] || event.event_type}
+                            </span>
+                            {event.user_name && (
+                                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                    <User className="h-3 w-3" />
+                                    {event.user_name}
+                                </span>
+                            )}
+                            {event.client_name && (
+                                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                    <MapPin className="h-3 w-3" />
+                                    {event.client_name}
+                                </span>
+                            )}
+                        </div>
+
+                        {event.description && (
+                            <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                                {event.description}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Delete button (only for own non-vacation events) */}
+                    {onDelete && currentUserId && event.event_type !== "vacation" && (
+                        <button
+                            onClick={() => onDelete(event.id)}
+                            className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                            title="Eliminar evento"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                    )}
+                </div>
+            ))}
+        </div>
+    )
 }
