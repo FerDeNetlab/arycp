@@ -758,7 +758,8 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
       faltas: "Faltas",
       vacaciones: "Vacaciones",
       horas_extra: "Horas Extra",
-      incapacidades: "Incapacidades"
+      incapacidades: "Incapacidades",
+      modificacion_infonavit: "Modificación de Infonavit"
     }
     return types[type] || type
   }
@@ -767,6 +768,7 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
     switch (type) {
       case "vacaciones": return <Calendar className="h-4 w-4" />
       case "incapacidades": return <AlertCircle className="h-4 w-4" />
+      case "modificacion_infonavit": return <FileText className="h-4 w-4" />
       default: return <Clock className="h-4 w-4" />
     }
   }
@@ -807,6 +809,7 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
                       <SelectItem value="vacaciones">Vacaciones</SelectItem>
                       <SelectItem value="horas_extra">Horas Extra</SelectItem>
                       <SelectItem value="incapacidades">Incapacidades</SelectItem>
+                      <SelectItem value="modificacion_infonavit">Modificación de Infonavit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
