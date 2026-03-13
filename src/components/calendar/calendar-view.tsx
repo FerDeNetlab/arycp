@@ -47,6 +47,7 @@ export default function CalendarView({ userRole, currentUserId }: CalendarViewPr
     const [loading, setLoading] = useState(false)
 
     const isAdmin = userRole === "admin"
+    const isClient = userRole === "cliente"
 
     // Calculate date range for fetching events
     function getDateRange() {
@@ -201,6 +202,7 @@ export default function CalendarView({ userRole, currentUserId }: CalendarViewPr
                     </div>
                 </div>
 
+                {!isClient && (
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Vacation manager */}
                     <Button
@@ -239,11 +241,14 @@ export default function CalendarView({ userRole, currentUserId }: CalendarViewPr
                         Nuevo Evento
                     </Button>
                 </div>
+                )}
             </div>
 
-            {/* Type Filters */}
+            {/* Type Filters — hide vacation/internal filters for clients */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {EVENT_TYPE_FILTERS.map(f => (
+                {EVENT_TYPE_FILTERS
+                .filter(f => !isClient || !["vacation", "labor"].includes(f.value))
+                .map(f => (
                     <button
                         key={f.value}
                         onClick={() => setTypeFilter(f.value)}

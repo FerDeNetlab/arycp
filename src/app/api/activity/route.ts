@@ -40,17 +40,19 @@ export async function GET(request: Request) {
         // Role-based filtering
         if (role === "cliente") {
             // Look up all client records matching this user's email (multi-company support)
+            const lookupEmail = userEmail.toLowerCase().trim()
             const { data: clientRecords } = await supabase
                 .from("clients")
                 .select("id")
-                .ilike("email", userEmail)
+                .ilike("email", lookupEmail)
 
             const clientIds = (clientRecords || []).map(c => c.id)
             if (clientIds.length > 0) {
-                query = query.in("client_id", clientIds)
+                // Show activities linked to any of their client IDs OR performed by them
+                query = query.or(`client_id.in.(${clientIds.join(",")}),user_id.eq.${user.id}`)
             } else {
-                // No client linked — show nothing
-                return NextResponse.json({ data: [] })
+                // No client linked — only show their own activity
+                query = query.eq("user_id", user.id)
             }
         } else if (role === "contador") {
             // Contadores see:

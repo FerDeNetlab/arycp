@@ -20,16 +20,39 @@ export async function GET(request: NextRequest) {
         }
 
         const adminClient = createAdminClient()
+        const userData = await getUserRole(user.id)
 
         let query = adminClient
             .from("calendar_events")
             .select("*")
             .or(`and(start_date.lte.${end},end_date.gte.${start})`)
-            .or(`visibility.eq.team,created_by.eq.${user.id}`)
             .order("start_date", { ascending: true })
 
         if (type && type !== "all") {
             query = query.eq("event_type", type)
+        }
+
+        // Role-based filtering
+        if (userData.role === "cliente") {
+            // Get client IDs linked to this user's email
+            const lookupEmail = (userData.email || "").toLowerCase().trim()
+            const { data: clientRecords } = await adminClient
+                .from("clients")
+                .select("id")
+                .ilike("email", lookupEmail)
+
+            const clientIds = (clientRecords || []).map(c => c.id)
+
+            if (clientIds.length > 0) {
+                // Only show events linked to their client records or created by them
+                query = query.or(`client_id.in.(${clientIds.join(",")}),created_by.eq.${user.id}`)
+            } else {
+                // No client linked — only show events they created
+                query = query.eq("created_by", user.id)
+            }
+        } else {
+            // Admin/contador: show team events + own personal events
+            query = query.or(`visibility.eq.team,created_by.eq.${user.id}`)
         }
 
         const { data, error } = await query
