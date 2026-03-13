@@ -2,17 +2,20 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Check, X, Clock, Palmtree, User, CalendarDays, MessageSquare } from "lucide-react"
+import { Check, X, Clock, Palmtree, User, CalendarDays, MessageSquare, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface VacationRequest {
     id: string
+    user_id: string
     user_name: string
     user_email: string
     start_date: string
@@ -30,6 +33,7 @@ interface VacationManagerProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     isAdmin: boolean
+    currentUserId?: string
     onUpdated: () => void
 }
 
@@ -46,11 +50,27 @@ function formatDate(dateStr: string) {
     })
 }
 
-export default function VacationManager({ open, onOpenChange, isAdmin, onUpdated }: VacationManagerProps) {
+function getBusinessDays(start: string, end: string): number {
+    if (!start || !end) return 0
+    const s = new Date(start + "T12:00:00")
+    const e = new Date(end + "T12:00:00")
+    let count = 0
+    const current = new Date(s)
+    while (current <= e) {
+        const dow = current.getDay()
+        if (dow !== 0 && dow !== 6) count++
+        current.setDate(current.getDate() + 1)
+    }
+    return count
+}
+
+export default function VacationManager({ open, onOpenChange, isAdmin, currentUserId, onUpdated }: VacationManagerProps) {
     const [requests, setRequests] = useState<VacationRequest[]>([])
     const [loading, setLoading] = useState(false)
     const [reviewNotes, setReviewNotes] = useState("")
     const [reviewingId, setReviewingId] = useState<string | null>(null)
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editForm, setEditForm] = useState({ start_date: "", end_date: "", reason: "" })
     const [actionLoading, setActionLoading] = useState(false)
     const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all")
 
@@ -94,7 +114,64 @@ export default function VacationManager({ open, onOpenChange, isAdmin, onUpdated
         }
     }
 
+    function startEdit(req: VacationRequest) {
+        setEditingId(req.id)
+        setEditForm({
+            start_date: req.start_date,
+            end_date: req.end_date,
+            reason: req.reason || "",
+        })
+    }
+
+    async function handleSaveEdit() {
+        if (!editingId) return
+        setActionLoading(true)
+        try {
+            const res = await fetch("/api/calendar/vacations", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: editingId,
+                    start_date: editForm.start_date,
+                    end_date: editForm.end_date,
+                    reason: editForm.reason.trim() || null,
+                }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                alert(data.error || "Error al actualizar")
+                return
+            }
+            setEditingId(null)
+            loadRequests()
+            onUpdated()
+        } catch (err) {
+            console.error("Error saving edit:", err)
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    async function handleCancel(id: string) {
+        if (!confirm("¿Estás seguro de cancelar esta solicitud?")) return
+        setActionLoading(true)
+        try {
+            const res = await fetch(`/api/calendar/vacations?id=${id}`, {
+                method: "DELETE",
+            })
+            if (res.ok) {
+                loadRequests()
+                onUpdated()
+            }
+        } catch (err) {
+            console.error("Error cancelling:", err)
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
     const pendingCount = requests.filter(r => r.status === "pending").length
+    const editBusinessDays = getBusinessDays(editForm.start_date, editForm.end_date)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,6 +220,9 @@ export default function VacationManager({ open, onOpenChange, isAdmin, onUpdated
                         requests.map(req => {
                             const badge = STATUS_BADGES[req.status]
                             const isReviewing = reviewingId === req.id
+                            const isEditing = editingId === req.id
+                            const isOwn = currentUserId === req.user_id
+                            const canEdit = isOwn && req.status === "pending"
 
                             return (
                                 <div key={req.id} className={cn(
@@ -164,82 +244,175 @@ export default function VacationManager({ open, onOpenChange, isAdmin, onUpdated
                                         </span>
                                     </div>
 
-                                    <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
-                                        <span className="flex items-center gap-1">
-                                            <CalendarDays className="h-3.5 w-3.5" />
-                                            {formatDate(req.start_date)} — {formatDate(req.end_date)}
-                                        </span>
-                                        <span className="font-medium text-foreground">
-                                            {req.days_count} {req.days_count === 1 ? "día" : "días"}
-                                        </span>
-                                    </div>
-
-                                    {req.reason && (
-                                        <p className="text-xs text-muted-foreground mb-2 flex items-start gap-1">
-                                            <MessageSquare className="h-3 w-3 mt-0.5 shrink-0" />
-                                            {req.reason}
-                                        </p>
-                                    )}
-
-                                    {req.reviewed_by_name && (
-                                        <p className="text-[11px] text-muted-foreground/70 mt-1">
-                                            Revisado por {req.reviewed_by_name}
-                                            {req.review_notes && ` — "${req.review_notes}"`}
-                                        </p>
-                                    )}
-
-                                    {/* Admin actions for pending requests */}
-                                    {isAdmin && req.status === "pending" && (
-                                        <div className="mt-3 pt-2 border-t border-border">
-                                            {isReviewing ? (
-                                                <div className="space-y-2">
-                                                    <textarea
-                                                        value={reviewNotes}
-                                                        onChange={e => setReviewNotes(e.target.value)}
-                                                        placeholder="Notas (opcional)..."
-                                                        className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background resize-none h-14 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                    {isEditing ? (
+                                        /* Edit form */
+                                        <div className="space-y-3 mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Fecha inicio</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={editForm.start_date}
+                                                        onChange={e => {
+                                                            setEditForm(f => ({
+                                                                ...f,
+                                                                start_date: e.target.value,
+                                                                end_date: e.target.value > f.end_date ? e.target.value : f.end_date,
+                                                            }))
+                                                        }}
+                                                        className="h-8 text-xs"
                                                     />
-                                                    <div className="flex items-center gap-2">
-                                                        <Button
-                                                            size="sm"
-                                                            onClick={() => handleReview(req.id, "approve")}
-                                                            disabled={actionLoading}
-                                                            className="bg-green-600 hover:bg-green-700 text-xs h-8"
-                                                        >
-                                                            <Check className="h-3.5 w-3.5 mr-1" />
-                                                            Aprobar
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            onClick={() => handleReview(req.id, "reject")}
-                                                            disabled={actionLoading}
-                                                            className="text-xs h-8"
-                                                        >
-                                                            <X className="h-3.5 w-3.5 mr-1" />
-                                                            Rechazar
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => { setReviewingId(null); setReviewNotes("") }}
-                                                            className="text-xs h-8"
-                                                        >
-                                                            Cancelar
-                                                        </Button>
-                                                    </div>
                                                 </div>
-                                            ) : (
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Fecha fin</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={editForm.end_date}
+                                                        onChange={e => setEditForm(f => ({ ...f, end_date: e.target.value }))}
+                                                        min={editForm.start_date}
+                                                        className="h-8 text-xs"
+                                                    />
+                                                </div>
+                                            </div>
+                                            {editBusinessDays > 0 && (
+                                                <p className="text-xs font-medium text-indigo-700">
+                                                    {editBusinessDays} {editBusinessDays === 1 ? "día hábil" : "días hábiles"}
+                                                </p>
+                                            )}
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Motivo</Label>
+                                                <textarea
+                                                    value={editForm.reason}
+                                                    onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))}
+                                                    placeholder="Motivo (opcional)..."
+                                                    className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background resize-none h-14"
+                                                />
+                                            </div>
+                                            <div className="flex gap-2">
                                                 <Button
                                                     size="sm"
-                                                    variant="outline"
-                                                    onClick={() => setReviewingId(req.id)}
-                                                    className="text-xs h-8"
+                                                    onClick={handleSaveEdit}
+                                                    disabled={actionLoading || editBusinessDays === 0}
+                                                    className="text-xs h-7 bg-blue-600 hover:bg-blue-700"
                                                 >
-                                                    Revisar solicitud
+                                                    Guardar Cambios
                                                 </Button>
-                                            )}
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => setEditingId(null)}
+                                                    className="text-xs h-7"
+                                                >
+                                                    Cancelar
+                                                </Button>
+                                            </div>
                                         </div>
+                                    ) : (
+                                        /* Normal display */
+                                        <>
+                                            <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
+                                                <span className="flex items-center gap-1">
+                                                    <CalendarDays className="h-3.5 w-3.5" />
+                                                    {formatDate(req.start_date)} — {formatDate(req.end_date)}
+                                                </span>
+                                                <span className="font-medium text-foreground">
+                                                    {req.days_count} {req.days_count === 1 ? "día" : "días"}
+                                                </span>
+                                            </div>
+
+                                            {req.reason && (
+                                                <p className="text-xs text-muted-foreground mb-2 flex items-start gap-1">
+                                                    <MessageSquare className="h-3 w-3 mt-0.5 shrink-0" />
+                                                    {req.reason}
+                                                </p>
+                                            )}
+
+                                            {req.reviewed_by_name && (
+                                                <p className="text-[11px] text-muted-foreground/70 mt-1">
+                                                    Revisado por {req.reviewed_by_name}
+                                                    {req.review_notes && ` — "${req.review_notes}"`}
+                                                </p>
+                                            )}
+
+                                            {/* User actions for own pending requests */}
+                                            {canEdit && !isAdmin && (
+                                                <div className="mt-3 pt-2 border-t border-border flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => startEdit(req)}
+                                                        className="text-xs h-7"
+                                                    >
+                                                        <Pencil className="h-3 w-3 mr-1" />
+                                                        Editar Fechas
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleCancel(req.id)}
+                                                        disabled={actionLoading}
+                                                        className="text-xs h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-3 w-3 mr-1" />
+                                                        Cancelar Solicitud
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            {/* Admin actions for pending requests */}
+                                            {isAdmin && req.status === "pending" && (
+                                                <div className="mt-3 pt-2 border-t border-border">
+                                                    {isReviewing ? (
+                                                        <div className="space-y-2">
+                                                            <textarea
+                                                                value={reviewNotes}
+                                                                onChange={e => setReviewNotes(e.target.value)}
+                                                                placeholder="Notas (opcional)..."
+                                                                className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-background resize-none h-14 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                            />
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => handleReview(req.id, "approve")}
+                                                                    disabled={actionLoading}
+                                                                    className="bg-green-600 hover:bg-green-700 text-xs h-8"
+                                                                >
+                                                                    <Check className="h-3.5 w-3.5 mr-1" />
+                                                                    Aprobar
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    onClick={() => handleReview(req.id, "reject")}
+                                                                    disabled={actionLoading}
+                                                                    className="text-xs h-8"
+                                                                >
+                                                                    <X className="h-3.5 w-3.5 mr-1" />
+                                                                    Rechazar
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => { setReviewingId(null); setReviewNotes("") }}
+                                                                    className="text-xs h-8"
+                                                                >
+                                                                    Cancelar
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => setReviewingId(req.id)}
+                                                            className="text-xs h-8"
+                                                        >
+                                                            Revisar solicitud
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             )

@@ -57,8 +57,8 @@ export async function POST(request: Request) {
         }
 
         // Calculate business days
-        const start = new Date(start_date)
-        const end = new Date(end_date)
+        const start = new Date(start_date + "T12:00:00")
+        const end = new Date(end_date + "T12:00:00")
         let days = 0
         const current = new Date(start)
         while (current <= end) {
@@ -139,5 +139,112 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error("Error creating vacation request:", error)
         return NextResponse.json({ error: "Error al crear solicitud" }, { status: 500 })
+    }
+}
+
+// PATCH — Edit own pending vacation request
+export async function PATCH(request: Request) {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+
+        const body = await request.json()
+        const { id, start_date, end_date, reason } = body
+
+        if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 })
+
+        const adminClient = createAdminClient()
+
+        // Get existing request
+        const { data: existing } = await adminClient
+            .from("vacation_requests")
+            .select("*")
+            .eq("id", id)
+            .single()
+
+        if (!existing) return NextResponse.json({ error: "Solicitud no encontrada" }, { status: 404 })
+        if (existing.user_id !== user.id) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+        if (existing.status !== "pending") return NextResponse.json({ error: "Solo se pueden editar solicitudes pendientes" }, { status: 400 })
+
+        const updates: Record<string, unknown> = {}
+
+        if (start_date && end_date) {
+            // Recalculate business days
+            const start = new Date(start_date + "T12:00:00")
+            const end = new Date(end_date + "T12:00:00")
+            let days = 0
+            const current = new Date(start)
+            while (current <= end) {
+                const dow = current.getDay()
+                if (dow !== 0 && dow !== 6) days++
+                current.setDate(current.getDate() + 1)
+            }
+
+            if (days === 0) {
+                return NextResponse.json({ error: "El rango seleccionado no incluye días hábiles" }, { status: 400 })
+            }
+
+            updates.start_date = start_date
+            updates.end_date = end_date
+            updates.days_count = days
+        }
+
+        if (reason !== undefined) {
+            updates.reason = reason || null
+        }
+
+        const { data, error } = await adminClient
+            .from("vacation_requests")
+            .update(updates)
+            .eq("id", id)
+            .select()
+            .single()
+
+        if (error) throw error
+
+        return NextResponse.json({ data })
+    } catch (error) {
+        console.error("Error updating vacation:", error)
+        return NextResponse.json({ error: "Error al actualizar solicitud" }, { status: 500 })
+    }
+}
+
+// DELETE — Cancel own pending vacation request
+export async function DELETE(request: Request) {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get("id")
+
+        if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 })
+
+        const adminClient = createAdminClient()
+
+        // Get existing request
+        const { data: existing } = await adminClient
+            .from("vacation_requests")
+            .select("*")
+            .eq("id", id)
+            .single()
+
+        if (!existing) return NextResponse.json({ error: "Solicitud no encontrada" }, { status: 404 })
+        if (existing.user_id !== user.id) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+        if (existing.status !== "pending") return NextResponse.json({ error: "Solo se pueden cancelar solicitudes pendientes" }, { status: 400 })
+
+        const { error } = await adminClient
+            .from("vacation_requests")
+            .update({ status: "cancelled" })
+            .eq("id", id)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        console.error("Error cancelling vacation:", error)
+        return NextResponse.json({ error: "Error al cancelar solicitud" }, { status: 500 })
     }
 }

@@ -346,6 +346,7 @@ export default function CalendarView({ userRole, currentUserId }: CalendarViewPr
                 open={showVacationManager}
                 onOpenChange={setShowVacationManager}
                 isAdmin={isAdmin}
+                currentUserId={currentUserId}
                 onUpdated={handleVacationUpdated}
             />
         </div>

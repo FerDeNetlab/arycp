@@ -28,8 +28,8 @@ export default function VacationRequestDialog({ open, onOpenChange, onRequestCre
     // Calculate business days
     function getBusinessDays(start: string, end: string): number {
         if (!start || !end) return 0
-        const s = new Date(start)
-        const e = new Date(end)
+        const s = new Date(start + "T12:00:00")
+        const e = new Date(end + "T12:00:00")
         let count = 0
         const current = new Date(s)
         while (current <= e) {
