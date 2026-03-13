@@ -7,7 +7,8 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { ClientHeader } from "@/components/accounting/client-header"
 import { JudicialFullSection } from "@/components/legal/judicial-full-section"
-import { useUserRole } from "@/hooks/use-user-role"
+import { useUserRole, isClientRole } from "@/hooks/use-user-role"
+import { ClientRequestButton } from "@/components/service-requests/client-request-button"
 
 type Client = {
   id: string
@@ -96,10 +97,18 @@ export default function LegalClientPage({ params }: { params: Promise<{ id: stri
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-purple-700">Jurídico - {client.name}</h1>
           <p className="text-sm text-muted-foreground">{client.company || "Sin empresa asignada"}</p>
         </div>
+        {isClientRole(role) && (
+          <ClientRequestButton
+            module="legal"
+            clientId={client.id}
+            clientName={client.name}
+            label="Solicitar Servicio"
+          />
+        )}
       </div>
 
       <div className="space-y-8">

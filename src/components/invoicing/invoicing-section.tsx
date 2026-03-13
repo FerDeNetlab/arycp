@@ -7,6 +7,7 @@ import { InvoicesTab } from "./invoices-tab"
 import { CancellationsTab } from "./cancellations-tab"
 import { TemplatesTab } from "./templates-tab"
 import { SummaryTab } from "./summary-tab"
+import { ClientRequestButton } from "@/components/service-requests/client-request-button"
 
 interface InvoicingSectionProps {
     clientId: string
@@ -19,6 +20,17 @@ export function InvoicingSection({ clientId, clientName, canEdit }: InvoicingSec
 
     return (
         <div className="space-y-6">
+            {/* Client request button */}
+            {!canEdit && (
+                <div className="flex justify-end">
+                    <ClientRequestButton
+                        module="invoicing"
+                        clientId={clientId}
+                        clientName={clientName}
+                        label="Solicitar Factura"
+                    />
+                </div>
+            )}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 h-12">
                     <TabsTrigger value="invoices" className="flex items-center gap-2 text-sm">

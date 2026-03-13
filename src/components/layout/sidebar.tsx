@@ -22,6 +22,7 @@ import {
     Receipt,
     X,
     Shield,
+    Send,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CompanySelector } from "@/components/layout/company-selector"
@@ -48,6 +49,7 @@ const NAV_SECTIONS = [
         label: "Gestión",
         items: [
             { href: "/dashboard/clients", icon: Users, label: "Clientes" },
+            { href: "/dashboard/service-requests", icon: Send, label: "Solicitudes" },
             { href: "/dashboard/compliance", icon: ClipboardList, label: "Registros" },
             { href: "/dashboard/process-control", icon: ClipboardCheck, label: "Control de Procesos" },
             { href: "/dashboard/calendar", icon: Calendar, label: "Calendario" },
@@ -86,6 +88,12 @@ const CLIENT_NAV = [
             { href: "/dashboard/labor", icon: Briefcase, label: "Laboral" },
             { href: "/dashboard/invoicing", icon: Receipt, label: "Facturación" },
             { href: "/dashboard/procedures", icon: FileText, label: "Mis Trámites" },
+        ],
+    },
+    {
+        label: "Herramientas",
+        items: [
+            { href: "/dashboard/service-requests", icon: Send, label: "Mis Solicitudes" },
             { href: "/dashboard/calendar", icon: Calendar, label: "Calendario" },
         ],
     },

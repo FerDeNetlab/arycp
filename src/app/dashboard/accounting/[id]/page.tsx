@@ -10,7 +10,8 @@ import { DocumentsSection } from "@/components/accounting/documents-section"
 import { AccountingSection } from "@/components/accounting/accounting-section"
 import { DiotSection } from "@/components/accounting/diot-section"
 import { FiscalSection } from "@/components/accounting/fiscal-section"
-import { useUserRole } from "@/hooks/use-user-role"
+import { useUserRole, isClientRole } from "@/hooks/use-user-role"
+import { ClientRequestButton } from "@/components/service-requests/client-request-button"
 
 type Client = {
   id: string
@@ -101,6 +102,14 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
           </Button>
         </Link>
         <ClientHeader client={client} />
+        {isClientRole(role) && (
+          <ClientRequestButton
+            module="accounting"
+            clientId={client.id}
+            clientName={client.name}
+            label="Solicitar Servicio"
+          />
+        )}
       </div>
 
       <div className="space-y-6">

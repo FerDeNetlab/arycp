@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, FileText, Building2 } from "lucide-react"
 import Link from "next/link"
 import { ProceduresSection } from "@/components/procedures/procedures-section"
-import { useUserRole } from "@/hooks/use-user-role"
+import { useUserRole, isClientRole } from "@/hooks/use-user-role"
+import { ClientRequestButton } from "@/components/service-requests/client-request-button"
 
 type Client = {
   id: string
@@ -98,7 +99,7 @@ export default function ClientProceduresPage({ params }: { params: Promise<{ id:
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1">
           <div className="h-10 w-10 rounded-lg bg-cyan-100 flex items-center justify-center">
             <FileText className="h-5 w-5 text-cyan-600" />
           </div>
@@ -107,6 +108,14 @@ export default function ClientProceduresPage({ params }: { params: Promise<{ id:
             <p className="text-sm text-muted-foreground">{client.business_name || client.name}</p>
           </div>
         </div>
+        {isClientRole(role) && (
+          <ClientRequestButton
+            module="procedures"
+            clientId={client.id}
+            clientName={client.business_name || client.name}
+            label="Solicitar Trámite"
+          />
+        )}
       </div>
 
       {/* Info del Cliente */}
