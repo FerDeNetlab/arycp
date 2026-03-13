@@ -651,6 +651,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
         <TabsContent value="obligations" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-semibold">Obligaciones Fiscales - {MONTHS[selectedMonth - 1]} {selectedYear}</h3>
+            {!isClient && (
             <Dialog open={showObligationDialog} onOpenChange={setShowObligationDialog}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
@@ -725,6 +726,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {obligations.length === 0 ? (
@@ -752,6 +754,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                           {ob.comments && <p>Notas: {ob.comments}</p>}
                         </div>
                       </div>
+                      {!isClient && (
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
                           <Checkbox
@@ -764,9 +767,11 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
+                      )}
                     </div>
 
-                    {/* Controles de estado y resultado */}
+                    {/* Controles de estado y resultado - solo admin/contador */}
+                    {!isClient && (
                     <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
                       <Select value={ob.status} onValueChange={(v) => updateObligationStatus(ob.id, v)}>
                         <SelectTrigger className="w-40">
@@ -799,6 +804,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                         />
                       )}
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -810,6 +816,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
         <TabsContent value="payments" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-semibold">Pagos Fiscales</h3>
+            {!isClient && (
             <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
@@ -875,6 +882,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {payments.length === 0 ? (
@@ -904,6 +912,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                           {pay.payment_date && <p>Fecha: {new Date(pay.payment_date).toLocaleDateString()}</p>}
                         </div>
                       </div>
+                      {!isClient && (
                       <div className="flex items-center gap-2">
                         {pay.status !== "pagado" && (
                           <Button variant="outline" size="sm" onClick={() => markPaymentAsPaid(pay.id)}>
@@ -915,6 +924,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -927,6 +937,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
         <TabsContent value="documents" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-semibold">Documentos Fiscales</h3>
+            {!isClient && (
             <Dialog open={showDocumentDialog} onOpenChange={setShowDocumentDialog}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
@@ -993,6 +1004,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {documents.length === 0 ? (
@@ -1024,6 +1036,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                           </a>
                         )}
                       </div>
+                      {!isClient && (
                       <div className="flex flex-col items-end gap-2">
                         <div className="flex items-center gap-1">
                           <Checkbox
@@ -1036,6 +1049,7 @@ export function FiscalFullSection({ clientId, clientName, clientEmail, userRole 
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
