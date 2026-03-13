@@ -4,6 +4,20 @@
 
 BEGIN;
 
+-- Drop old tables if they exist (safe since this is a new feature with no production data)
+DROP TABLE IF EXISTS public.vacation_requests CASCADE;
+DROP TABLE IF EXISTS public.calendar_events CASCADE;
+DROP TABLE IF EXISTS public.google_calendar_tokens CASCADE;
+
+-- Create updated_at trigger function if it doesn't exist
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================
 -- Table: calendar_events
 -- ============================================

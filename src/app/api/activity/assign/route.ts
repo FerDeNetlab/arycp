@@ -44,6 +44,7 @@ export async function POST(request: Request) {
             procedure: "procedures",
             fiscal_obligation: "fiscal_obligations",
             legal_process: "legal_processes",
+            labor_incident: "labor_incidents",
         }
 
         // Special handling for DIOT assignments (no DB table to update)
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
             clientName = client?.business_name || client?.name || ""
         }
 
-        const entityLabel = entityType === "procedure" ? "trámite" : entityType === "fiscal_obligation" ? "obligación fiscal" : "proceso legal"
+        const entityLabel = entityType === "procedure" ? "trámite" : entityType === "fiscal_obligation" ? "obligación fiscal" : entityType === "labor_incident" ? "incidencia laboral" : "proceso legal"
 
         // Get a human-readable name for the entity
         const procedureTypeMap: Record<string, string> = {

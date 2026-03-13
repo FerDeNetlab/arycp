@@ -41,6 +41,8 @@ interface Incident {
   comments: string | null
   status: string
   created_at: string
+  assigned_to: string | null
+  assigned_to_name: string | null
 }
 
 interface IMSSMovement {
@@ -94,6 +96,16 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
   const [activeTab, setActiveTab] = useState("payroll")
   const [filterYear, setFilterYear] = useState<number | null>(null)
   const [filterMonth, setFilterMonth] = useState<number | null>(null)
+  const [contadores, setContadores] = useState<{ id: string; name: string; role: string }[]>([])
+
+  useEffect(() => {
+    if (!isClient) {
+      fetch("/api/labor/contadores")
+        .then(r => r.json())
+        .then(data => { if (data.contadores) setContadores(data.contadores) })
+        .catch(err => console.error("Error loading contadores:", err))
+    }
+  }, [isClient])
 
   return (
     <Card className="border-2 border-green-200 shadow-sm">
@@ -169,11 +181,11 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
           </TabsList>
 
           <TabsContent value="payroll" className="mt-6">
-            <PayrollSection clientId={clientId} isClient={isClient} filterYear={filterYear} filterMonth={filterMonth} />
+            <PayrollSection clientId={clientId} isClient={isClient} filterYear={filterYear} filterMonth={filterMonth} contadores={contadores} />
           </TabsContent>
 
           <TabsContent value="incidents" className="mt-6">
-            <IncidentsSection clientId={clientId} isClient={isClient} filterYear={filterYear} filterMonth={filterMonth} />
+            <IncidentsSection clientId={clientId} isClient={isClient} filterYear={filterYear} filterMonth={filterMonth} contadores={contadores} />
           </TabsContent>
 
           <TabsContent value="imss" className="mt-6">
@@ -192,7 +204,7 @@ export function LaborSection({ clientId, userRole }: { clientId: string; userRol
 // ===========================================
 // Sección de Nóminas (Enhanced)
 // ===========================================
-function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clientId: string; isClient: boolean; filterYear: number | null; filterMonth: number | null }) {
+function PayrollSection({ clientId, isClient, filterYear, filterMonth, contadores }: { clientId: string; isClient: boolean; filterYear: number | null; filterMonth: number | null; contadores: { id: string; name: string; role: string }[] }) {
   const { toast } = useToast()
   const [payrolls, setPayrolls] = useState<Payroll[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -210,7 +222,6 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   // Notification state
-  const [contadores, setContadores] = useState<{ id: string; name: string; role: string }[]>([])
   const [notifyDialog, setNotifyDialog] = useState<{ open: boolean; type: "completed" | "blocked"; payrollId: string; payrollLabel: string }>({
     open: false, type: "completed", payrollId: "", payrollLabel: ""
   })
@@ -220,7 +231,6 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
 
   useEffect(() => {
     loadPayrolls()
-    if (!isClient) loadContadores()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
@@ -234,16 +244,6 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
       console.error("Error loading payrolls:", err)
     }
     setIsLoading(false)
-  }
-
-  const loadContadores = async () => {
-    try {
-      const res = await fetch("/api/labor/contadores")
-      const result = await res.json()
-      if (result.contadores) setContadores(result.contadores)
-    } catch (err) {
-      console.error("Error loading contadores:", err)
-    }
   }
 
   const handleSave = async () => {
@@ -692,8 +692,9 @@ function PayrollSection({ clientId, isClient, filterYear, filterMonth }: { clien
 // ===========================================
 // Sección de Incidencias (unchanged)
 // ===========================================
-function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { clientId: string; isClient: boolean; filterYear: number | null; filterMonth: number | null }) {
+function IncidentsSection({ clientId, isClient, filterYear, filterMonth, contadores }: { clientId: string; isClient: boolean; filterYear: number | null; filterMonth: number | null; contadores: { id: string; name: string; role: string }[] }) {
   const supabase = createClient()
+  const { toast } = useToast()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -702,7 +703,8 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
     incident_type: "faltas",
     start_date: "",
     end_date: "",
-    comments: ""
+    comments: "",
+    assigned_to: ""
   })
 
   useEffect(() => {
@@ -726,7 +728,9 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
     const { data: { user } } = await supabase.auth.getUser()
     if (!user || !formData.employee_name.trim() || !formData.start_date) return
 
-    await supabase.from("labor_incidents").insert({
+    const assignee = contadores.find(c => c.id === formData.assigned_to)
+
+    const { data: inserted } = await supabase.from("labor_incidents").insert({
       client_id: clientId,
       user_id: user.id,
       employee_name: formData.employee_name,
@@ -734,10 +738,30 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
       start_date: formData.start_date,
       end_date: formData.end_date || null,
       comments: formData.comments || null,
-      status: "pendiente"
-    })
+      status: "pendiente",
+      assigned_to: formData.assigned_to || null,
+      assigned_to_name: assignee?.name || null,
+    }).select("id").single()
 
-    setFormData({ employee_name: "", incident_type: "faltas", start_date: "", end_date: "", comments: "" })
+    // Send notification to assigned person
+    if (formData.assigned_to && inserted?.id) {
+      try {
+        await fetch("/api/activity/assign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entityType: "labor_incident",
+            entityId: inserted.id,
+            assignToUserId: formData.assigned_to,
+            module: "labor",
+          }),
+        })
+      } catch (err) {
+        console.error("Error sending assignment notification:", err)
+      }
+    }
+
+    setFormData({ employee_name: "", incident_type: "faltas", start_date: "", end_date: "", comments: "", assigned_to: "" })
     setIsDialogOpen(false)
     loadIncidents()
   }
@@ -839,6 +863,20 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
                     onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                   />
                 </div>
+                {/* Assign to */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Asignar a (opcional)</label>
+                  <Select value={formData.assigned_to} onValueChange={(v) => setFormData({ ...formData, assigned_to: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar persona..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contadores.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name} ({c.role})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button onClick={handleSave} className="w-full" disabled={!formData.employee_name.trim() || !formData.start_date}>
                   Registrar Incidencia
                 </Button>
@@ -880,11 +918,50 @@ function IncidentsSection({ clientId, isClient, filterYear, filterMonth }: { cli
                       </p>
                       <p className="text-xs text-muted-foreground/60">Registrado: {new Date(incident.created_at).toLocaleDateString()}</p>
                       {incident.comments && <p className="text-xs text-muted-foreground mt-1">{incident.comments}</p>}
+                      {incident.assigned_to_name && (
+                        <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          Asignado a: {incident.assigned_to_name}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {!isClient && (
                       <>
+                        {/* Assign dropdown */}
+                        <Select
+                          value={incident.assigned_to || ""}
+                          onValueChange={async (userId) => {
+                            try {
+                              const res = await fetch("/api/activity/assign", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  entityType: "labor_incident",
+                                  entityId: incident.id,
+                                  assignToUserId: userId,
+                                  module: "labor",
+                                }),
+                              })
+                              const result = await res.json()
+                              if (!res.ok) throw new Error(result.error)
+                              toast({ title: `Asignado a ${result.assignedTo}` })
+                              loadIncidents()
+                            } catch (err) {
+                              console.error("Error assigning:", err)
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-36 text-xs">
+                            <SelectValue placeholder="Asignar a..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {contadores.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Select value={incident.status} onValueChange={(v) => handleUpdateStatus(incident.id, v)}>
                           <SelectTrigger className={`w-32 ${incident.status === "aplicada" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                             <SelectValue />
