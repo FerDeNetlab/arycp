@@ -89,7 +89,7 @@ export async function GET(request: Request) {
 
         if (error) throw error
 
-        return NextResponse.json({ data })
+        return NextResponse.json({ data, _debug: { role, userEmail, userId: user.id } })
     } catch (error: unknown) {
         console.error("Error fetching activity:", error)
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
