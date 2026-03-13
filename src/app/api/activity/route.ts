@@ -39,14 +39,29 @@ export async function GET(request: Request) {
 
         // Role-based filtering
         if (role === "cliente") {
-            // Look up all client records matching this user's email (multi-company support)
-            const lookupEmail = userEmail.toLowerCase().trim()
-            const { data: clientRecords } = await supabase
-                .from("clients")
-                .select("id")
-                .ilike("email", lookupEmail)
-
-            const clientIds = (clientRecords || []).map(c => c.id)
+            // Try multiple email sources to find client records
+            const authEmail = (user.email || "").toLowerCase().trim()
+            const sysEmail = (sysUser?.email || "").toLowerCase().trim()
+            
+            // Use the auth email as primary (most reliable), fallback to system_users email
+            const emailsToSearch = [...new Set([authEmail, sysEmail].filter(Boolean))]
+            
+            let clientIds: string[] = []
+            for (const email of emailsToSearch) {
+                if (!email) continue
+                const { data: clientRecords } = await supabase
+                    .from("clients")
+                    .select("id")
+                    .ilike("email", email)
+                
+                if (clientRecords && clientRecords.length > 0) {
+                    clientIds = [...clientIds, ...clientRecords.map(c => c.id)]
+                }
+            }
+            
+            // Deduplicate
+            clientIds = [...new Set(clientIds)]
+            
             if (clientIds.length > 0) {
                 // Show activities linked to any of their client IDs OR performed by them
                 query = query.or(`client_id.in.(${clientIds.join(",")}),user_id.eq.${user.id}`)
@@ -89,7 +104,7 @@ export async function GET(request: Request) {
 
         if (error) throw error
 
-        return NextResponse.json({ data, _debug: { role, userEmail, userId: user.id } })
+        return NextResponse.json({ data })
     } catch (error: unknown) {
         console.error("Error fetching activity:", error)
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })

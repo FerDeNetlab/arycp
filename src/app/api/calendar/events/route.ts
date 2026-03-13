@@ -34,14 +34,23 @@ export async function GET(request: NextRequest) {
 
         // Role-based filtering
         if (userData.role === "cliente") {
-            // Get client IDs linked to this user's email
-            const lookupEmail = (userData.email || "").toLowerCase().trim()
-            const { data: clientRecords } = await adminClient
-                .from("clients")
-                .select("id")
-                .ilike("email", lookupEmail)
+            // Try multiple email sources to find client records
+            const authEmail = (user.email || "").toLowerCase().trim()
+            const sysEmail = (userData.email || "").toLowerCase().trim()
+            const emailsToSearch = [...new Set([authEmail, sysEmail].filter(Boolean))]
 
-            const clientIds = (clientRecords || []).map(c => c.id)
+            let clientIds: string[] = []
+            for (const email of emailsToSearch) {
+                if (!email) continue
+                const { data: clientRecords } = await adminClient
+                    .from("clients")
+                    .select("id")
+                    .ilike("email", email)
+                if (clientRecords && clientRecords.length > 0) {
+                    clientIds = [...clientIds, ...clientRecords.map(c => c.id)]
+                }
+            }
+            clientIds = [...new Set(clientIds)]
 
             if (clientIds.length > 0) {
                 // Only show events linked to their client records or created by them
