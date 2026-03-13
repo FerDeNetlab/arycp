@@ -104,6 +104,37 @@ export async function POST(request: Request) {
 
         if (error) throw error
 
+        // Notify all admins about the new vacation request
+        const { data: admins } = await adminClient
+            .from("system_users")
+            .select("auth_user_id, full_name")
+            .eq("role", "admin")
+
+        if (admins && admins.length > 0) {
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            const sDate = new Date(start_date + "T12:00:00")
+            const eDate = new Date(end_date + "T12:00:00")
+            const dateRange = `${sDate.getDate()} ${monthNames[sDate.getMonth()]} — ${eDate.getDate()} ${monthNames[eDate.getMonth()]} ${eDate.getFullYear()}`
+
+            const notifications = admins
+                .filter(a => a.auth_user_id !== user.id) // Don't notify yourself
+                .map(admin => ({
+                    user_id: admin.auth_user_id,
+                    from_user_id: user.id,
+                    from_user_name: userData.fullName,
+                    type: "vacation_request",
+                    title: `🏖️ Solicitud de vacaciones — ${userData.fullName}`,
+                    message: `${userData.fullName} solicita vacaciones del ${dateRange} (${days} día${days !== 1 ? "s" : ""} hábil${days !== 1 ? "es" : ""}). ${reason ? `Motivo: ${reason}` : ""}`.trim(),
+                    module: "calendar",
+                    entity_type: "vacation_request",
+                    entity_id: data?.id || null,
+                }))
+
+            if (notifications.length > 0) {
+                await adminClient.from("notifications").insert(notifications)
+            }
+        }
+
         return NextResponse.json({ data })
     } catch (error) {
         console.error("Error creating vacation request:", error)
