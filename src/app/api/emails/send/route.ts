@@ -4,14 +4,20 @@ import { createClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/api/errors"
 
 export async function POST(req: NextRequest) {
-
   try {
     const body = await req.json()
+    const { to, subject, html, clientId, templateId, cc, bcc, senderName } = body
 
-    const { to, subject, html, clientId, templateId, cc, bcc, attachmentUrl, apiKey, fromEmail } = body
+    // Use server-side env vars — never trust client-sent keys
+    const apiKey = process.env.RESEND_API_KEY
+    const fromEmail = process.env.RESEND_FROM_EMAIL
 
-    if (!to || !subject || !html || !apiKey || !fromEmail) {
-      return NextResponse.json({ error: "Faltan parámetros requeridos" }, { status: 400 })
+    if (!apiKey || !fromEmail) {
+      return NextResponse.json({ error: "Variables de entorno de correo no configuradas" }, { status: 500 })
+    }
+
+    if (!to || !subject || !html) {
+      return NextResponse.json({ error: "Faltan parámetros requeridos (to, subject, html)" }, { status: 400 })
     }
 
     const resend = new Resend(apiKey)
@@ -23,7 +29,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const fromWithName = `Robot contador de AR&CP <${fromEmail}>`
+    // Use personalized sender name if provided, fallback to company name
+    const displayName = senderName || "AR&CP Soluciones Corporativas"
+    const fromWithName = `${displayName} — AR&CP <${fromEmail}>`
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emailPayload: any = {
@@ -36,32 +44,12 @@ export async function POST(req: NextRequest) {
     if (cc) emailPayload.cc = Array.isArray(cc) ? cc : [cc]
     if (bcc) emailPayload.bcc = Array.isArray(bcc) ? bcc : [bcc]
 
-    if (attachmentUrl) {
-      try {
-        const attachmentResponse = await fetch(attachmentUrl)
-
-        if (attachmentResponse.ok) {
-          const attachmentBuffer = await attachmentResponse.arrayBuffer()
-          emailPayload.attachments = [
-            {
-              filename: "declaracion.pdf",
-              content: Buffer.from(attachmentBuffer),
-            },
-          ]
-        } else {
-          console.warn("[v0] No se pudo descargar el adjunto:", attachmentResponse.status)
-        }
-      } catch (attachError) {
-        console.error("[v0] Error al procesar adjunto:", attachError)
-      }
-    }
-
     const { data, error: resendError } = await resend.emails.send(emailPayload)
 
     if (resendError) {
-      console.error("[v0] Error de Resend:", resendError)
+      console.error("Error de Resend:", resendError)
 
-      // Guardar en historial como fallido
+      // Save to history as failed
       await supabase.from("email_history").insert({
         client_id: clientId || null,
         user_id: userData.user.id,
