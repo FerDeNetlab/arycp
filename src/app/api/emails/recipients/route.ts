@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
-// GET — Returns sender info + list of clients for the email compose dialog
+// GET — Returns sender info + list of ALL clients for the email compose dialog
 export async function GET() {
     try {
         const supabase = await createClient()
@@ -18,12 +18,22 @@ export async function GET() {
             .eq("auth_user_id", user.id)
             .single()
 
-        // Get clients list
+        // Get ALL clients from the clients table (not just system users)
         const { data: clientsData } = await adminClient
-            .from("system_users")
-            .select("id, full_name, email")
-            .eq("role", "cliente")
-            .order("full_name")
+            .from("clients")
+            .select("id, business_name, email, contact_name")
+            .order("business_name")
+
+        // Build recipients list — use business_name as display, with contact_name if available
+        const recipients = (clientsData || [])
+            .filter(c => c.email) // Only include clients with email
+            .map(c => ({
+                id: c.id,
+                name: c.contact_name
+                    ? `${c.business_name} (${c.contact_name})`
+                    : c.business_name,
+                email: c.email,
+            }))
 
         return NextResponse.json({
             sender: senderData ? {
@@ -31,11 +41,7 @@ export async function GET() {
                 email: senderData.email,
                 role: senderData.role,
             } : null,
-            clients: (clientsData || []).map(c => ({
-                id: c.id,
-                name: c.full_name,
-                email: c.email,
-            })),
+            clients: recipients,
         })
     } catch (error) {
         console.error("Error loading email recipients:", error)
