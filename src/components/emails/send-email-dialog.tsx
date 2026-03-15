@@ -113,54 +113,24 @@ export function SendEmailDialog({ open, onOpenChange, clientId, clientEmail, cli
 
   const supabase = createClient()
 
-  // Load sender info
-  const loadSenderInfo = useCallback(async () => {
+  // Load sender info + clients list via API (system_users needs adminClient due to RLS)
+  const loadRecipients = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data } = await supabase
-        .from("system_users")
-        .select("full_name, email, role")
-        .eq("auth_user_id", user.id)
-        .single()
-
-      if (data) {
-        setSenderInfo({
-          fullName: data.full_name,
-          email: data.email,
-          role: data.role,
-        })
+      const res = await fetch("/api/emails/recipients")
+      const data = await res.json()
+      if (res.ok) {
+        if (data.sender) setSenderInfo(data.sender)
+        if (data.clients) setClients(data.clients)
       }
     } catch (err) {
-      console.error("Error loading sender info:", err)
+      console.error("Error loading recipients:", err)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Load clients list for recipient selector
-  const loadClients = useCallback(async () => {
-    try {
-      const { data } = await supabase
-        .from("system_users")
-        .select("id, email, full_name")
-        .eq("role", "cliente")
-        .order("full_name")
-
-      if (data) {
-        setClients(data.map(c => ({ id: c.id, email: c.email, name: c.full_name })))
-      }
-    } catch (err) {
-      console.error("Error loading clients:", err)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     if (open) {
-      loadSenderInfo()
+      loadRecipients()
       loadTemplates()
-      loadClients()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
