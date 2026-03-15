@@ -27,6 +27,7 @@ const EVENT_TYPE_FILTERS = [
     { value: "manual", label: "General", color: "#6366f1" },
     { value: "meeting", label: "Reuniones", color: "#3b82f6" },
     { value: "vacation", label: "Vacaciones", color: "#ec4899" },
+    { value: "expiration", label: "Vencimientos", color: "#ef4444" },
     { value: "fiscal", label: "Fiscal", color: "#f97316" },
     { value: "legal", label: "Jurídico", color: "#8b5cf6" },
     { value: "labor", label: "Laboral", color: "#10b981" },
