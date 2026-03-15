@@ -21,17 +21,15 @@ export async function GET() {
         // Get ALL clients from the clients table (not just system users)
         const { data: clientsData } = await adminClient
             .from("clients")
-            .select("id, business_name, email, contact_name")
-            .order("business_name")
+            .select("id, name, email, phone")
+            .order("name")
 
-        // Build recipients list — use business_name as display, with contact_name if available
+        // Build recipients list
         const recipients = (clientsData || [])
             .filter(c => c.email) // Only include clients with email
             .map(c => ({
                 id: c.id,
-                name: c.contact_name
-                    ? `${c.business_name} (${c.contact_name})`
-                    : c.business_name,
+                name: c.name,
                 email: c.email,
             }))
 
