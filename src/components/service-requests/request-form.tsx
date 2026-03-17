@@ -114,7 +114,7 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
 
         try {
             // Upload files if any
-            let attachments: { name: string; url: string; size: number }[] = []
+            const attachments: { name: string; url: string; size: number }[] = []
             if (files.length > 0) {
                 for (const file of files) {
                     const formData = new FormData()

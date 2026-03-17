@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url)
         const status = searchParams.get("status")
-        const module = searchParams.get("module")
+        const reqModule = searchParams.get("module")
         const limit = parseInt(searchParams.get("limit") || "50")
 
         let query = adminClient
@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
         }
 
         // Module filter
-        if (module && module !== "all") {
-            query = query.eq("module", module)
+        if (reqModule && reqModule !== "all") {
+            query = query.eq("module", reqModule)
         }
 
         // Role-based filtering

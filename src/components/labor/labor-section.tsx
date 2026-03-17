@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Briefcase, Plus, Trash2, Edit2, Users, FileText, Calendar,
   DollarSign, UserPlus, UserMinus, AlertCircle, Clock,
-  CheckCircle2, XCircle, ArrowUpDown, Search
+  CheckCircle2, ArrowUpDown, Search
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
@@ -1070,7 +1070,7 @@ function IMSSSection({ clientId, isClient, filterYear, filterMonth }: { clientId
     }
   }
 
-  const handleToggleConfirmed = async (mov: IMSSMovement) => {
+  const _handleToggleConfirmed = async (mov: IMSSMovement) => {
     const newConfirmed = !mov.confirmed
     try {
       await fetch("/api/labor/imss", {

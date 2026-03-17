@@ -1,6 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Send } from "lucide-react"
 import Link from "next/link"
@@ -9,7 +8,6 @@ import { useUserRole, isClientRole } from "@/hooks/use-user-role"
 
 export default function ServiceRequestsPage() {
     const { role, loading } = useUserRole()
-    const router = useRouter()
     const isClient = isClientRole(role)
 
     if (loading) {

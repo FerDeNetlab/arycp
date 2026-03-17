@@ -21,19 +21,20 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const supabase = createClient()
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      if (error) throw error
+      if (authError) throw authError
       router.push("/dashboard")
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Error al iniciar sesión")
+    } catch (err: unknown) {
+      console.error("Login error:", err)
+      setError(err instanceof Error ? err.message : "Error al iniciar sesión")
     } finally {
       setIsLoading(false)
     }

@@ -18,14 +18,10 @@ function ProcessControlContent() {
     const { role, loading: roleLoading } = useUserRole()
     const router = useRouter()
     const searchParams = useSearchParams()
-    const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "panel")
-
-    useEffect(() => {
+    const [activeTab, setActiveTab] = useState(() => {
         const tab = searchParams.get("tab")
-        if (tab && TABS.some(t => t.id === tab)) {
-            setActiveTab(tab)
-        }
-    }, [searchParams])
+        return tab && TABS.some(t => t.id === tab) ? tab : "panel"
+    })
 
     useEffect(() => {
         if (!roleLoading && isClientRole(role)) {

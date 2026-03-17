@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -81,6 +80,7 @@ export function RequestList({ isClient = false }: RequestListProps) {
 
     useEffect(() => {
         loadRequests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusFilter, moduleFilter])
 
     async function loadRequests() {

@@ -25,7 +25,7 @@ export async function GET(request: Request) {
             .single()
 
         const role = sysUser?.role || ""
-        const userEmail = sysUser?.email || user.email || ""
+        const _userEmail = sysUser?.email || user.email || ""
 
         let query = supabase
             .from("activity_log")
