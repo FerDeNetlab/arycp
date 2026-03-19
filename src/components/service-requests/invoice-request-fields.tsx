@@ -318,81 +318,81 @@ function ConceptosSection({
                 </Button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
                 {conceptos.map((c, i) => (
-                    <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                        {/* Clave SAT */}
-                        <div className="col-span-4 sm:col-span-2 space-y-1">
-                            {i === 0 && <label className="text-[11px] text-muted-foreground">Clave SAT</label>}
-                            <Input
-                                placeholder="Ej: 80161500"
-                                value={c.claveSat || ""}
-                                onChange={(e) => updateConcept(i, { claveSat: e.target.value.replace(/\D/g, "") })}
-                                className="font-mono text-xs"
-                            />
+                    <div key={i} className="rounded-lg border border-purple-100 bg-white p-3 space-y-2">
+                        {/* Row 1: Clave SAT + Descripción */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1">
+                                <label className="text-[11px] text-muted-foreground">Clave SAT</label>
+                                <Input
+                                    placeholder="Ej: 80161500"
+                                    value={c.claveSat || ""}
+                                    onChange={(e) => updateConcept(i, { claveSat: e.target.value.replace(/\D/g, "") })}
+                                    className="font-mono"
+                                />
+                            </div>
+                            <div className="col-span-2 space-y-1">
+                                <label className="text-[11px] text-muted-foreground">Descripción</label>
+                                <Input
+                                    placeholder="Descripción del concepto"
+                                    value={c.description}
+                                    onChange={(e) => updateConcept(i, { description: e.target.value })}
+                                />
+                            </div>
                         </div>
-                        {/* Description */}
-                        <div className="col-span-8 sm:col-span-3 space-y-1">
-                            {i === 0 && <label className="text-[11px] text-muted-foreground">Descripción</label>}
-                            <Input
-                                placeholder="Descripción del concepto"
-                                value={c.description}
-                                onChange={(e) => updateConcept(i, { description: e.target.value })}
-                            />
-                        </div>
-                        {/* Quantity */}
-                        <div className="col-span-3 sm:col-span-2 space-y-1">
-                            {i === 0 && <label className="text-[11px] text-muted-foreground">Cantidad</label>}
-                            <Input
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                value={c.quantity || ""}
-                                onChange={(e) => updateConcept(i, { quantity: parseFloat(e.target.value) || 0 })}
-                            />
-                        </div>
-                        {/* Unit */}
-                        <div className="col-span-4 sm:col-span-2 space-y-1">
-                            {i === 0 && <label className="text-[11px] text-muted-foreground">Unidad</label>}
-                            <Select value={c.unit} onValueChange={(v) => updateConcept(i, { unit: v })}>
-                                <SelectTrigger className="h-9">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {UNIDAD_OPTIONS.map((o) => (
-                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {/* Price */}
-                        <div className="col-span-3 sm:col-span-2 space-y-1">
-                            {i === 0 && <label className="text-[11px] text-muted-foreground">P. Unitario</label>}
-                            <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="$0.00"
-                                value={c.unitPrice || ""}
-                                onChange={(e) => updateConcept(i, { unitPrice: parseFloat(e.target.value) || 0 })}
-                            />
-                        </div>
-                        {/* Subtotal + delete */}
-                        <div className="col-span-2 flex items-center gap-1">
-                            <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                                ${(c.quantity * c.unitPrice).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
-                            </span>
-                            {conceptos.length > 1 && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                                    onClick={() => removeConcept(i)}
-                                >
-                                    <Trash2 className="h-3 w-3" />
-                                </Button>
-                            )}
+                        {/* Row 2: Cantidad + Unidad + P.Unitario + Subtotal + Delete */}
+                        <div className="grid grid-cols-4 gap-2 items-end">
+                            <div className="space-y-1">
+                                <label className="text-[11px] text-muted-foreground">Cantidad</label>
+                                <Input
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    value={c.quantity || ""}
+                                    onChange={(e) => updateConcept(i, { quantity: parseFloat(e.target.value) || 0 })}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[11px] text-muted-foreground">Unidad</label>
+                                <Select value={c.unit} onValueChange={(v) => updateConcept(i, { unit: v })}>
+                                    <SelectTrigger className="h-9">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {UNIDAD_OPTIONS.map((o) => (
+                                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[11px] text-muted-foreground">P. Unitario</label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="$0.00"
+                                    value={c.unitPrice || ""}
+                                    onChange={(e) => updateConcept(i, { unitPrice: parseFloat(e.target.value) || 0 })}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between h-9">
+                                <span className="text-sm font-semibold text-purple-700">
+                                    ${(c.quantity * c.unitPrice).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                                </span>
+                                {conceptos.length > 1 && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                        onClick={() => removeConcept(i)}
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}

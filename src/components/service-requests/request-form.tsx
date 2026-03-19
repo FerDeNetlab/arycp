@@ -192,7 +192,7 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
 
     return (
         <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className={`${showInvoiceFields ? "max-w-3xl" : "max-w-lg"} max-h-[90vh] overflow-y-auto`}>
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Send className="h-5 w-5 text-indigo-600" />
