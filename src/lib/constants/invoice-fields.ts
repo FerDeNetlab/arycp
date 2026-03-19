@@ -92,6 +92,7 @@ export const MOTIVO_CANCELACION_OPTIONS = [
 
 // --- Types ---
 export interface InvoiceConcept {
+  claveSat: string
   description: string
   quantity: number
   unit: string
@@ -167,7 +168,7 @@ export function createEmptyInvoiceData(): InvoiceData {
     usoCfdi: "",
     formaPago: "",
     metodoPago: "",
-    conceptos: [{ description: "", quantity: 1, unit: "E48", unitPrice: 0 }],
+    conceptos: [{ claveSat: "", description: "", quantity: 1, unit: "E48", unitPrice: 0 }],
     notas: "",
   }
 }

@@ -51,7 +51,7 @@ export function InvoiceRequestFields({ requestType, value, onChange }: InvoiceRe
 
     const addConcept = useCallback(() => {
         update({
-            conceptos: [...value.conceptos, { description: "", quantity: 1, unit: "E48", unitPrice: 0 }],
+            conceptos: [...value.conceptos, { claveSat: "", description: "", quantity: 1, unit: "E48", unitPrice: 0 }],
         })
     }, [value.conceptos, update])
 
@@ -321,8 +321,18 @@ function ConceptosSection({
             <div className="space-y-2">
                 {conceptos.map((c, i) => (
                     <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                        {/* Clave SAT */}
+                        <div className="col-span-4 sm:col-span-2 space-y-1">
+                            {i === 0 && <label className="text-[11px] text-muted-foreground">Clave SAT</label>}
+                            <Input
+                                placeholder="Ej: 80161500"
+                                value={c.claveSat || ""}
+                                onChange={(e) => updateConcept(i, { claveSat: e.target.value.replace(/\D/g, "") })}
+                                className="font-mono text-xs"
+                            />
+                        </div>
                         {/* Description */}
-                        <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <div className="col-span-8 sm:col-span-3 space-y-1">
                             {i === 0 && <label className="text-[11px] text-muted-foreground">Descripción</label>}
                             <Input
                                 placeholder="Descripción del concepto"

@@ -107,6 +107,7 @@ export function InvoiceRequestView({ data, requestType }: InvoiceRequestViewProp
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-purple-200 text-xs text-muted-foreground">
+                                        <th className="text-left py-1.5 pr-2">Clave SAT</th>
                                         <th className="text-left py-1.5 pr-2">Descripción</th>
                                         <th className="text-center py-1.5 px-2">Cant.</th>
                                         <th className="text-center py-1.5 px-2">Unidad</th>
@@ -117,6 +118,7 @@ export function InvoiceRequestView({ data, requestType }: InvoiceRequestViewProp
                                 <tbody>
                                     {data.conceptos.map((c, i) => (
                                         <tr key={i} className="border-b border-purple-100 last:border-0">
+                                            <td className="py-2 pr-2 font-mono text-xs">{c.claveSat || "—"}</td>
                                             <td className="py-2 pr-2">{c.description || "—"}</td>
                                             <td className="py-2 px-2 text-center">{c.quantity}</td>
                                             <td className="py-2 px-2 text-center text-xs">
@@ -133,7 +135,7 @@ export function InvoiceRequestView({ data, requestType }: InvoiceRequestViewProp
                                 </tbody>
                                 <tfoot>
                                     <tr className="border-t-2 border-purple-200">
-                                        <td colSpan={4} className="py-2 text-right font-medium text-muted-foreground">
+                                        <td colSpan={5} className="py-2 text-right font-medium text-muted-foreground">
                                             Subtotal:
                                         </td>
                                         <td className="py-2 pl-2 text-right font-bold text-purple-700 font-mono">
