@@ -25,6 +25,7 @@ import {
     Paperclip,
     MessageSquare,
 } from "lucide-react"
+import { InvoiceRequestView } from "./invoice-request-view"
 
 interface ServiceRequest {
     id: string
@@ -41,7 +42,8 @@ interface ServiceRequest {
     assigned_to_name: string | null
     admin_notes: string | null
     attachments: { name: string; url: string; size: number }[]
-    metadata: Record<string, string>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    metadata: Record<string, any>
     created_at: string
     updated_at: string
 }
@@ -190,6 +192,14 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
                                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{request.description}</p>
                             </CardContent>
                         </Card>
+                    )}
+
+                    {/* Invoice data (structured CFDI fields) */}
+                    {request.metadata?.invoiceData && (
+                        <InvoiceRequestView
+                            data={request.metadata.invoiceData}
+                            requestType={request.request_type}
+                        />
                     )}
 
                     {/* Attachments */}

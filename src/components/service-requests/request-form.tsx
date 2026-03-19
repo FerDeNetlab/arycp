@@ -18,6 +18,8 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Send, Paperclip, AlertTriangle } from "lucide-react"
+import { InvoiceRequestFields, createEmptyInvoiceData, type InvoiceData } from "./invoice-request-fields"
+import { isInvoiceFormType, type InvoiceFormType } from "@/lib/constants/invoice-fields"
 
 // Request types per module
 const MODULE_REQUEST_TYPES: Record<string, { label: string; value: string }[]> = {
@@ -86,8 +88,10 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
     const [files, setFiles] = useState<File[]>([])
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState("")
+    const [invoiceData, setInvoiceData] = useState<InvoiceData>(createEmptyInvoiceData())
 
     const types = MODULE_REQUEST_TYPES[module] || MODULE_REQUEST_TYPES.general
+    const showInvoiceFields = module === "invoicing" && isInvoiceFormType(requestType)
 
     function resetForm() {
         setRequestType("")
@@ -96,6 +100,7 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
         setPriority("normal")
         setFiles([])
         setError("")
+        setInvoiceData(createEmptyInvoiceData())
     }
 
     function handleClose() {
@@ -104,13 +109,26 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
     }
 
     async function handleSubmit() {
-        if (!requestType || !title.trim()) {
+        const selectedType = types.find(t => t.value === requestType)
+
+        // Auto-generate title from receptor name for invoice requests
+        const effectiveTitle = showInvoiceFields && !title.trim() && invoiceData.nombreReceptor
+            ? `${selectedType?.label || requestType} — ${invoiceData.nombreReceptor}`
+            : title.trim()
+
+        if (!requestType || (!effectiveTitle && !showInvoiceFields)) {
             setError("Selecciona un tipo y escribe un título")
+            return
+        }
+
+        if (showInvoiceFields && !invoiceData.rfcReceptor && !invoiceData.uuidCancelar) {
+            setError("Llena al menos el RFC o UUID según el tipo de solicitud")
             return
         }
 
         setSubmitting(true)
         setError("")
+
 
         try {
             // Upload files if any
@@ -137,8 +155,6 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
                 }
             }
 
-            const selectedType = types.find(t => t.value === requestType)
-
             const res = await fetch("/api/service-requests", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -147,13 +163,14 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
                     clientName,
                     module,
                     requestType,
-                    title: title.trim(),
+                    title: effectiveTitle || `${selectedType?.label || requestType}`,
                     description: description.trim() || null,
                     priority,
                     attachments,
                     metadata: {
                         requestTypeLabel: selectedType?.label || requestType,
                         moduleLabel: MODULE_LABELS[module] || module,
+                        ...(showInvoiceFields ? { invoiceData } : {}),
                     },
                 }),
             })
@@ -206,27 +223,35 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
                     {/* Title */}
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-muted-foreground">
-                            Título / Asunto *
+                            Título / Asunto {showInvoiceFields ? "(opcional — se genera del nombre)" : "*"}
                         </label>
                         <Input
-                            placeholder="Ej: Factura para venta de servicios"
+                            placeholder={showInvoiceFields ? "Se genera automáticamente del nombre del receptor" : "Ej: Factura para venta de servicios"}
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                         />
                     </div>
 
-                    {/* Description */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">
-                            Descripción / Detalles
-                        </label>
-                        <Textarea
-                            placeholder="Describe lo que necesitas con el mayor detalle posible..."
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            rows={4}
+                    {/* Invoice-specific fields OR Description */}
+                    {showInvoiceFields ? (
+                        <InvoiceRequestFields
+                            requestType={requestType as InvoiceFormType}
+                            value={invoiceData}
+                            onChange={setInvoiceData}
                         />
-                    </div>
+                    ) : (
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">
+                                Descripción / Detalles
+                            </label>
+                            <Textarea
+                                placeholder="Describe lo que necesitas con el mayor detalle posible..."
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                rows={4}
+                            />
+                        </div>
+                    )}
 
                     {/* Priority */}
                     <div className="space-y-1.5">
