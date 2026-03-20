@@ -26,6 +26,7 @@ import {
     MessageSquare,
 } from "lucide-react"
 import { InvoiceRequestView } from "./invoice-request-view"
+import { EmployeeRequestView } from "./employee-request-view"
 
 interface ServiceRequest {
     id: string
@@ -198,6 +199,14 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
                     {request.metadata?.invoiceData && (
                         <InvoiceRequestView
                             data={request.metadata.invoiceData}
+                            requestType={request.request_type}
+                        />
+                    )}
+
+                    {/* Employee data (structured alta/baja fields) */}
+                    {request.metadata?.employeeData && (
+                        <EmployeeRequestView
+                            data={request.metadata.employeeData}
                             requestType={request.request_type}
                         />
                     )}

@@ -20,6 +20,8 @@ import {
 import { Send, Paperclip, AlertTriangle } from "lucide-react"
 import { InvoiceRequestFields, createEmptyInvoiceData, type InvoiceData } from "./invoice-request-fields"
 import { isInvoiceFormType, type InvoiceFormType } from "@/lib/constants/invoice-fields"
+import { EmployeeRequestFields, type EmployeeData } from "./employee-request-fields"
+import { isEmployeeFormType, createEmptyEmployeeData, type EmployeeFormType } from "@/lib/constants/employee-fields"
 
 // Request types per module
 const MODULE_REQUEST_TYPES: Record<string, { label: string; value: string }[]> = {
@@ -51,7 +53,8 @@ const MODULE_REQUEST_TYPES: Record<string, { label: string; value: string }[]> =
     ],
     labor: [
         { label: "Nómina", value: "nomina" },
-        { label: "Alta/Baja IMSS", value: "alta_baja_imss" },
+        { label: "Alta de empleado (IMSS)", value: "alta_empleado" },
+        { label: "Baja de empleado (IMSS)", value: "baja_empleado" },
         { label: "Incidencia laboral", value: "incidencia" },
         { label: "Consulta laboral", value: "consulta_laboral" },
     ],
@@ -89,9 +92,12 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState("")
     const [invoiceData, setInvoiceData] = useState<InvoiceData>(createEmptyInvoiceData())
+    const [employeeData, setEmployeeData] = useState<EmployeeData>(createEmptyEmployeeData("alta"))
 
     const types = MODULE_REQUEST_TYPES[module] || MODULE_REQUEST_TYPES.general
     const showInvoiceFields = module === "invoicing" && isInvoiceFormType(requestType)
+    const showEmployeeFields = module === "labor" && isEmployeeFormType(requestType)
+    const showDynamicFields = showInvoiceFields || showEmployeeFields
 
     function resetForm() {
         setRequestType("")
@@ -101,6 +107,7 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
         setFiles([])
         setError("")
         setInvoiceData(createEmptyInvoiceData())
+        setEmployeeData(createEmptyEmployeeData("alta"))
     }
 
     function handleClose() {
@@ -111,18 +118,26 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
     async function handleSubmit() {
         const selectedType = types.find(t => t.value === requestType)
 
-        // Auto-generate title from receptor name for invoice requests
-        const effectiveTitle = showInvoiceFields && !title.trim() && invoiceData.nombreReceptor
-            ? `${selectedType?.label || requestType} — ${invoiceData.nombreReceptor}`
-            : title.trim()
+        // Auto-generate title for dynamic forms
+        let effectiveTitle = title.trim()
+        if (showInvoiceFields && !effectiveTitle && invoiceData.nombreReceptor) {
+            effectiveTitle = `${selectedType?.label || requestType} — ${invoiceData.nombreReceptor}`
+        } else if (showEmployeeFields && !effectiveTitle && employeeData.nombre) {
+            effectiveTitle = `${selectedType?.label || requestType} — ${employeeData.nombre}`
+        }
 
-        if (!requestType || (!effectiveTitle && !showInvoiceFields)) {
+        if (!requestType || (!effectiveTitle && !showDynamicFields)) {
             setError("Selecciona un tipo y escribe un título")
             return
         }
 
         if (showInvoiceFields && !invoiceData.rfcReceptor && !invoiceData.uuidCancelar) {
             setError("Llena al menos el RFC o UUID según el tipo de solicitud")
+            return
+        }
+
+        if (showEmployeeFields && !employeeData.nombre) {
+            setError("El nombre del empleado es requerido")
             return
         }
 
@@ -171,6 +186,7 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
                         requestTypeLabel: selectedType?.label || requestType,
                         moduleLabel: MODULE_LABELS[module] || module,
                         ...(showInvoiceFields ? { invoiceData } : {}),
+                        ...(showEmployeeFields ? { employeeData } : {}),
                     },
                 }),
             })
@@ -192,7 +208,7 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
 
     return (
         <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-            <DialogContent className={`${showInvoiceFields ? "max-w-3xl" : "max-w-lg"} max-h-[90vh] overflow-y-auto`}>
+            <DialogContent className={`${showDynamicFields ? "max-w-3xl" : "max-w-lg"} max-h-[90vh] overflow-y-auto`}>
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Send className="h-5 w-5 text-indigo-600" />
@@ -223,21 +239,27 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
                     {/* Title */}
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-muted-foreground">
-                            Título / Asunto {showInvoiceFields ? "(opcional — se genera del nombre)" : "*"}
+                            Título / Asunto {showDynamicFields ? "(opcional — se genera del nombre)" : "*"}
                         </label>
                         <Input
-                            placeholder={showInvoiceFields ? "Se genera automáticamente del nombre del receptor" : "Ej: Factura para venta de servicios"}
+                            placeholder={showDynamicFields ? "Se genera automáticamente del nombre" : "Ej: Factura para venta de servicios"}
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                         />
                     </div>
 
-                    {/* Invoice-specific fields OR Description */}
+                    {/* Dynamic fields OR Description */}
                     {showInvoiceFields ? (
                         <InvoiceRequestFields
                             requestType={requestType as InvoiceFormType}
                             value={invoiceData}
                             onChange={setInvoiceData}
+                        />
+                    ) : showEmployeeFields ? (
+                        <EmployeeRequestFields
+                            requestType={requestType as EmployeeFormType}
+                            value={employeeData}
+                            onChange={setEmployeeData}
                         />
                     ) : (
                         <div className="space-y-1.5">
