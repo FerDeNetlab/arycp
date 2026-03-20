@@ -29,6 +29,7 @@ import {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     CircleDot,
     AlertCircle,
+    Send,
 } from "lucide-react"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Button } from "@/components/ui/button"
@@ -554,6 +555,48 @@ export function ProcessControlDashboard() {
                     description: `Presentar DIOT de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""} — ${clientName}`,
                     actionNeeded: `Subir acuse DIOT de ${MONTHS[(d.month || 1) - 1]} ${d.year || ""}`,
                     status: "pendiente", urgency: "medium", createdAt: d.created_at,
+                })
+            }
+        }
+
+        // --- Service Requests assigned to this user ---
+        const { data: serviceReqs } = await supabase
+            .from("service_requests")
+            .select("id, title, description, module, request_type, status, priority, client_id, client_name, metadata, created_at")
+            .eq("assigned_to", userId)
+            .in("status", ["pendiente", "en_proceso"])
+            .order("created_at", { ascending: false })
+
+        if (serviceReqs) {
+            const moduleMap: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
+                invoicing: { label: "Facturación", color: "text-emerald-600", bgColor: "bg-emerald-100", icon: Send },
+                fiscal: { label: "Fiscal", color: "text-orange-600", bgColor: "bg-orange-100", icon: FileText },
+                legal: { label: "Jurídico", color: "text-purple-600", bgColor: "bg-purple-100", icon: Scale },
+                labor: { label: "Laboral", color: "text-green-600", bgColor: "bg-green-100", icon: Briefcase },
+                accounting: { label: "Contabilidad", color: "text-blue-600", bgColor: "bg-blue-100", icon: Calculator },
+                procedures: { label: "Tramitología", color: "text-cyan-600", bgColor: "bg-cyan-100", icon: ClipboardCheck },
+                general: { label: "General", color: "text-gray-600", bgColor: "bg-gray-100", icon: Send },
+            }
+
+            for (const sr of serviceReqs) {
+                const mod = moduleMap[sr.module] || moduleMap.general
+                const urgency: "high" | "medium" | "low" = sr.priority === "urgente" ? "high" : sr.status === "pendiente" ? "medium" : "low"
+
+                addItem({
+                    id: `sr-${sr.id}`,
+                    module: sr.module,
+                    moduleLabel: mod.label,
+                    moduleColor: mod.color,
+                    moduleBgColor: mod.bgColor,
+                    moduleIcon: mod.icon,
+                    clientId: sr.client_id,
+                    clientName: sr.client_name || "",
+                    title: `📩 ${sr.title}`,
+                    description: sr.description || `Solicitud de ${sr.client_name || "cliente"}`,
+                    actionNeeded: `Atender solicitud: ${sr.metadata?.requestTypeLabel || sr.request_type}`,
+                    status: sr.status,
+                    urgency,
+                    createdAt: sr.created_at,
                 })
             }
         }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +25,7 @@ import {
     Loader2,
     Paperclip,
     MessageSquare,
+    UserCheck,
 } from "lucide-react"
 import { InvoiceRequestView } from "./invoice-request-view"
 import { EmployeeRequestView } from "./employee-request-view"
@@ -77,6 +79,8 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
     const [sending, setSending] = useState(false)
     const [status, setStatus] = useState(request.status)
     const [updating, setUpdating] = useState(false)
+    const [assignedName, setAssignedName] = useState(request.assigned_to_name || "")
+    const [taking, setTaking] = useState(false)
     const commentsEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -133,6 +137,41 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
             console.error("Error updating status:", err)
         } finally {
             setUpdating(false)
+        }
+    }
+
+    async function handleTakeRequest() {
+        setTaking(true)
+        try {
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            // Get user name
+            const { data: profile } = await supabase
+                .from("users")
+                .select("full_name")
+                .eq("id", user.id)
+                .single()
+            const userName = profile?.full_name || user.email || "Contador"
+
+            const res = await fetch(`/api/service-requests/${request.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    assignedTo: user.id,
+                    assignedToName: userName,
+                    status: "en_proceso",
+                }),
+            })
+            if (res.ok) {
+                setAssignedName(userName)
+                setStatus("en_proceso")
+            }
+        } catch (err) {
+            console.error("Error taking request:", err)
+        } finally {
+            setTaking(false)
         }
     }
 
@@ -336,10 +375,13 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
                                         {formatDate(request.created_at)}
                                     </p>
                                 </div>
-                                {request.assigned_to_name && (
+                                {assignedName && (
                                     <div>
                                         <span className="text-xs text-muted-foreground">Asignada a</span>
-                                        <p className="font-medium">{request.assigned_to_name}</p>
+                                        <p className="font-medium flex items-center gap-1">
+                                            <UserCheck className="h-3.5 w-3.5 text-green-600" />
+                                            {assignedName}
+                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -351,6 +393,25 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
                         <Card>
                             <CardContent className="p-4 space-y-3">
                                 <h3 className="text-xs font-semibold text-muted-foreground uppercase">Gestionar</h3>
+
+                                {/* Take request button — shown when unassigned */}
+                                {!assignedName && status === "pendiente" && (
+                                    <Button
+                                        className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+                                        onClick={handleTakeRequest}
+                                        disabled={taking}
+                                    >
+                                        <UserCheck className="h-4 w-4" />
+                                        {taking ? "Tomando..." : "Tomar Solicitud"}
+                                    </Button>
+                                )}
+
+                                {assignedName && status === "pendiente" && (
+                                    <p className="text-xs text-muted-foreground text-center">
+                                        Asignada — cambia estado a "En Proceso" para comenzar
+                                    </p>
+                                )}
+
                                 <div className="space-y-1.5">
                                     <label className="text-xs text-muted-foreground">Cambiar estado</label>
                                     <Select value={status} onValueChange={handleStatusChange} disabled={updating}>
