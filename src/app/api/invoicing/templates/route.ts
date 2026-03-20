@@ -61,6 +61,25 @@ export async function POST(request: Request) {
         const fileName = `${clientId}/${Date.now()}_${file.name}`
         const buffer = await file.arrayBuffer()
 
+        // Ensure the bucket exists (create if missing)
+        const { data: buckets } = await supabase.storage.listBuckets()
+        const bucketExists = buckets?.some(b => b.name === "invoice-templates")
+        if (!bucketExists) {
+            await supabase.storage.createBucket("invoice-templates", {
+                public: true,
+                fileSizeLimit: 10 * 1024 * 1024, // 10MB
+                allowedMimeTypes: [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.ms-excel",
+                    "application/pdf",
+                    "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "image/jpeg",
+                    "image/png",
+                ],
+            })
+        }
+
         const { error: uploadError } = await supabase.storage
             .from("invoice-templates")
             .upload(fileName, buffer, {
@@ -69,7 +88,6 @@ export async function POST(request: Request) {
             })
 
         if (uploadError) {
-            // If bucket doesn't exist, store just the file name
             console.error("Storage upload error:", uploadError)
         }
 
