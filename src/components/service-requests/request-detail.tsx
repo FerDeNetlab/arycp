@@ -29,6 +29,8 @@ import {
 } from "lucide-react"
 import { InvoiceRequestView } from "./invoice-request-view"
 import { EmployeeRequestView } from "./employee-request-view"
+import { CartaPorteView } from "./carta-porte-view"
+import { ComplementoPagoView } from "./complemento-pago-view"
 
 interface ServiceRequest {
     id: string
@@ -248,6 +250,16 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
                             data={request.metadata.employeeData}
                             requestType={request.request_type}
                         />
+                    )}
+
+                    {/* Carta Porte data */}
+                    {request.metadata?.cartaPorteData && (
+                        <CartaPorteView data={request.metadata.cartaPorteData} />
+                    )}
+
+                    {/* Complemento de Pago data */}
+                    {request.metadata?.complementoData && (
+                        <ComplementoPagoView data={request.metadata.complementoData} />
                     )}
 
                     {/* Attachments */}

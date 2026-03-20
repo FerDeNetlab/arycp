@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/select"
 import { Send, Paperclip, AlertTriangle } from "lucide-react"
 import { InvoiceRequestFields, createEmptyInvoiceData, type InvoiceData } from "./invoice-request-fields"
-import { isInvoiceFormType, type InvoiceFormType } from "@/lib/constants/invoice-fields"
+import { isInvoiceFormType, needsCartaPorteForm, needsComplementoForm, createEmptyCartaPorteData, createEmptyComplementoPagoData, type InvoiceFormType, type CartaPorteData, type ComplementoPagoData } from "@/lib/constants/invoice-fields"
+import { CartaPorteFields } from "./carta-porte-fields"
+import { ComplementoPagoFields } from "./complemento-pago-fields"
 import { EmployeeRequestFields, type EmployeeData } from "./employee-request-fields"
 import { isEmployeeFormType, createEmptyEmployeeData, type EmployeeFormType } from "@/lib/constants/employee-fields"
 
@@ -30,6 +32,8 @@ const MODULE_REQUEST_TYPES: Record<string, { label: string; value: string }[]> =
         { label: "Factura — Persona Moral", value: "factura_pm" },
         { label: "Factura — RESICO", value: "factura_resico" },
         { label: "Factura — Otro tipo", value: "factura_otro" },
+        { label: "Carta Porte", value: "carta_porte" },
+        { label: "Complemento de Pago (REP)", value: "complemento" },
         { label: "Cancelación de factura", value: "cancelacion" },
         { label: "Nota de crédito", value: "nota_credito" },
     ],
@@ -92,12 +96,16 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState("")
     const [invoiceData, setInvoiceData] = useState<InvoiceData>(createEmptyInvoiceData())
+    const [cartaPorteData, setCartaPorteData] = useState<CartaPorteData>(createEmptyCartaPorteData())
+    const [complementoData, setComplementoData] = useState<ComplementoPagoData>(createEmptyComplementoPagoData())
     const [employeeData, setEmployeeData] = useState<EmployeeData>(createEmptyEmployeeData("alta"))
 
     const types = MODULE_REQUEST_TYPES[module] || MODULE_REQUEST_TYPES.general
-    const showInvoiceFields = module === "invoicing" && isInvoiceFormType(requestType)
+    const showInvoiceFields = module === "invoicing" && isInvoiceFormType(requestType) && !needsCartaPorteForm(requestType as InvoiceFormType) && !needsComplementoForm(requestType as InvoiceFormType)
+    const showCartaPorteFields = module === "invoicing" && isInvoiceFormType(requestType) && needsCartaPorteForm(requestType as InvoiceFormType)
+    const showComplementoFields = module === "invoicing" && isInvoiceFormType(requestType) && needsComplementoForm(requestType as InvoiceFormType)
     const showEmployeeFields = module === "labor" && isEmployeeFormType(requestType)
-    const showDynamicFields = showInvoiceFields || showEmployeeFields
+    const showDynamicFields = showInvoiceFields || showCartaPorteFields || showComplementoFields || showEmployeeFields
 
     function resetForm() {
         setRequestType("")
@@ -107,6 +115,8 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
         setFiles([])
         setError("")
         setInvoiceData(createEmptyInvoiceData())
+        setCartaPorteData(createEmptyCartaPorteData())
+        setComplementoData(createEmptyComplementoPagoData())
         setEmployeeData(createEmptyEmployeeData("alta"))
     }
 
@@ -122,6 +132,10 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
         let effectiveTitle = title.trim()
         if (showInvoiceFields && !effectiveTitle && invoiceData.nombreReceptor) {
             effectiveTitle = `${selectedType?.label || requestType} — ${invoiceData.nombreReceptor}`
+        } else if (showCartaPorteFields && !effectiveTitle && cartaPorteData.cliente) {
+            effectiveTitle = `Carta Porte — ${cartaPorteData.cliente}`
+        } else if (showComplementoFields && !effectiveTitle && complementoData.clienteQuePaga) {
+            effectiveTitle = `Complemento de Pago — ${complementoData.clienteQuePaga}`
         } else if (showEmployeeFields && !effectiveTitle && employeeData.nombre) {
             effectiveTitle = `${selectedType?.label || requestType} — ${employeeData.nombre}`
         }
@@ -186,6 +200,8 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
                         requestTypeLabel: selectedType?.label || requestType,
                         moduleLabel: MODULE_LABELS[module] || module,
                         ...(showInvoiceFields ? { invoiceData } : {}),
+                        ...(showCartaPorteFields ? { cartaPorteData } : {}),
+                        ...(showComplementoFields ? { complementoData } : {}),
                         ...(showEmployeeFields ? { employeeData } : {}),
                     },
                 }),
@@ -254,6 +270,16 @@ export function RequestForm({ open, onClose, module, clientId, clientName, onSuc
                             requestType={requestType as InvoiceFormType}
                             value={invoiceData}
                             onChange={setInvoiceData}
+                        />
+                    ) : showCartaPorteFields ? (
+                        <CartaPorteFields
+                            value={cartaPorteData}
+                            onChange={setCartaPorteData}
+                        />
+                    ) : showComplementoFields ? (
+                        <ComplementoPagoFields
+                            value={complementoData}
+                            onChange={setComplementoData}
                         />
                     ) : showEmployeeFields ? (
                         <EmployeeRequestFields

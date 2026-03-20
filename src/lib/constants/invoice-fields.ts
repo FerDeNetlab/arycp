@@ -126,6 +126,8 @@ export const INVOICE_FORM_TYPES = [
   "factura_pm",
   "factura_resico",
   "factura_otro",
+  "carta_porte",
+  "complemento",
   "cancelacion",
   "nota_credito",
 ] as const
@@ -142,6 +144,8 @@ export const INVOICE_TYPE_LABELS: Record<InvoiceFormType, string> = {
   factura_pm: "Factura — Persona Moral",
   factura_resico: "Factura — RESICO",
   factura_otro: "Factura — Otro tipo",
+  carta_porte: "Carta Porte",
+  complemento: "Complemento de Pago (REP)",
   cancelacion: "Cancelación de factura",
   nota_credito: "Nota de crédito",
 }
@@ -159,6 +163,96 @@ export function needsCreditNoteForm(type: InvoiceFormType): boolean {
   return type === "nota_credito"
 }
 
+export function needsCartaPorteForm(type: InvoiceFormType): boolean {
+  return type === "carta_porte"
+}
+
+export function needsComplementoForm(type: InvoiceFormType): boolean {
+  return type === "complemento"
+}
+
+// Whether a type uses RESICO ISR retention
+export function isResicoType(type: InvoiceFormType): boolean {
+  return type === "factura_resico"
+}
+
+// --- Carta Porte types ---
+export interface CartaPorteOperador {
+  nombre: string
+  rfc: string
+  licencia: string
+}
+
+export interface CartaPorteMercancia {
+  claveSat: string
+  cantidad: number
+  unidad: string
+  descripcion: string
+  peso: string
+}
+
+export interface CartaPorteData {
+  // Transporte
+  unidadTransporte: string
+  nombreUnidad: string
+  placas: string
+  especificacion: string
+  permiso: string
+  poliza: string
+  aseguradora: string
+  // Operadores
+  operadores: CartaPorteOperador[]
+  // Cliente
+  cliente: string
+  regimenFiscal: string
+  usoCfdi: string
+  formaPago: string
+  metodoPago: string
+  domicilioFiscal: string
+  // Ruta
+  fechaSalida: string
+  horaSalida: string
+  fechaLlegada: string
+  horaLlegada: string
+  kilometraje: string
+  origen: string
+  destino: string
+  remitente: string
+  destinatario: string
+  domicilioOrigen: string
+  domicilioDestino: string
+  seRecogeEn: string
+  seEntregaEn: string
+  valorDeclarado: string
+  fechaEntrega: string
+  // Mercancías
+  mercancias: CartaPorteMercancia[]
+  // Servicio
+  descripcionServicio: string
+  importe: number
+  // Notas
+  observaciones: string
+}
+
+// --- Complemento de Pago (REP) types ---
+export interface ComplementoFactura {
+  uuid: string
+  monto: string
+}
+
+export interface ComplementoPagoData {
+  fechaDeposito: string
+  bancoReceptor: string
+  cantidadDepositada: string
+  formaPagoCliente: string
+  clienteQuePaga: string
+  bancoCliente: string
+  clabeCliente: string
+  cuentaCliente: string
+  facturas: ComplementoFactura[]
+  observaciones: string
+}
+
 export function createEmptyInvoiceData(): InvoiceData {
   return {
     rfcReceptor: "",
@@ -170,5 +264,31 @@ export function createEmptyInvoiceData(): InvoiceData {
     metodoPago: "",
     conceptos: [{ claveSat: "", description: "", quantity: 1, unit: "E48", unitPrice: 0 }],
     notas: "",
+  }
+}
+
+export function createEmptyCartaPorteData(): CartaPorteData {
+  return {
+    unidadTransporte: "", nombreUnidad: "", placas: "", especificacion: "",
+    permiso: "", poliza: "", aseguradora: "",
+    operadores: [{ nombre: "", rfc: "", licencia: "" }],
+    cliente: "", regimenFiscal: "", usoCfdi: "", formaPago: "", metodoPago: "", domicilioFiscal: "",
+    fechaSalida: "", horaSalida: "", fechaLlegada: "", horaLlegada: "",
+    kilometraje: "", origen: "", destino: "",
+    remitente: "", destinatario: "", domicilioOrigen: "", domicilioDestino: "",
+    seRecogeEn: "", seEntregaEn: "", valorDeclarado: "", fechaEntrega: "",
+    mercancias: [{ claveSat: "", cantidad: 1, unidad: "E48", descripcion: "", peso: "" }],
+    descripcionServicio: "SERVICIOS TRANSPORTE", importe: 0,
+    observaciones: "",
+  }
+}
+
+export function createEmptyComplementoPagoData(): ComplementoPagoData {
+  return {
+    fechaDeposito: "", bancoReceptor: "", cantidadDepositada: "",
+    formaPagoCliente: "", clienteQuePaga: "", bancoCliente: "",
+    clabeCliente: "", cuentaCliente: "",
+    facturas: [{ uuid: "", monto: "" }],
+    observaciones: "",
   }
 }

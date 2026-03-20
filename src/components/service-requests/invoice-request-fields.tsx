@@ -22,6 +22,7 @@ import {
     needsFullForm,
     needsCancelForm,
     needsCreditNoteForm,
+    isResicoType,
     createEmptyInvoiceData,
     type InvoiceData,
     type InvoiceConcept,
@@ -137,6 +138,7 @@ export function InvoiceRequestFields({ requestType, value, onChange }: InvoiceRe
                     addConcept={addConcept}
                     removeConcept={removeConcept}
                     subtotal={subtotal}
+                    requestType={requestType}
                     label="Conceptos a acreditar"
                 />
                 <div className="space-y-1.5">
@@ -206,6 +208,7 @@ export function InvoiceRequestFields({ requestType, value, onChange }: InvoiceRe
                     addConcept={addConcept}
                     removeConcept={removeConcept}
                     subtotal={subtotal}
+                    requestType={requestType}
                 />
 
                 {/* Notas */}
@@ -300,6 +303,7 @@ function ConceptosSection({
     addConcept,
     removeConcept,
     subtotal,
+    requestType,
     label = "Conceptos / Partidas",
 }: {
     conceptos: InvoiceConcept[]
@@ -307,8 +311,13 @@ function ConceptosSection({
     addConcept: () => void
     removeConcept: (i: number) => void
     subtotal: number
+    requestType: InvoiceFormType
     label?: string
 }) {
+    const isResico = isResicoType(requestType)
+    const iva = subtotal * 0.16
+    const retencionIsr = isResico ? subtotal * 0.0125 : 0
+    const total = subtotal - retencionIsr + iva
     return (
         <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -398,13 +407,35 @@ function ConceptosSection({
                 ))}
             </div>
 
-            {/* Total */}
-            <div className="flex justify-end pt-2 border-t border-purple-200">
-                <div className="text-right">
-                    <span className="text-xs text-muted-foreground mr-3">Subtotal:</span>
-                    <span className="text-sm font-bold text-purple-700">
-                        ${subtotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
-                    </span>
+            {/* Desglose */}
+            <div className="pt-2 border-t border-purple-200">
+                <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">Subtotal:</span>
+                        <span className="text-sm font-semibold text-purple-700 w-28 text-right">
+                            ${subtotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                    {isResico && (
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-red-600">− Retención ISR 1.25%:</span>
+                            <span className="text-sm font-semibold text-red-600 w-28 text-right">
+                                −${retencionIsr.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">+ IVA 16%:</span>
+                        <span className="text-sm font-semibold text-purple-700 w-28 text-right">
+                            ${iva.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-3 pt-1 border-t border-purple-300">
+                        <span className="text-xs font-bold text-foreground">Total:</span>
+                        <span className="text-base font-bold text-purple-800 w-28 text-right">
+                            ${total.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
