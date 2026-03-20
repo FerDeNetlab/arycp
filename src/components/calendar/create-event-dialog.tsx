@@ -40,7 +40,7 @@ export default function CreateEventDialog({ open, onOpenChange, onEventCreated, 
     const [description, setDescription] = useState("")
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
-    const [allDay, setAllDay] = useState(true)
+    const [allDay, setAllDay] = useState(false)
     const [eventType, setEventType] = useState("manual")
     const [color, setColor] = useState("#6366f1")
     const [visibility, setVisibility] = useState("team")
@@ -51,21 +51,34 @@ export default function CreateEventDialog({ open, onOpenChange, onEventCreated, 
     function handleOpenChange(open: boolean) {
         if (open && defaultDate) {
             const dateStr = defaultDate.toISOString().split("T")[0]
-            setStartDate(dateStr)
-            setEndDate(dateStr)
+            setStartDate(dateStr + "T09:00")
+            setEndDate(dateStr + "T10:00")
         }
         if (!open) {
             setTitle("")
             setDescription("")
             setStartDate("")
             setEndDate("")
-            setAllDay(true)
+            setAllDay(false)
             setEventType("manual")
             setColor("#6366f1")
             setVisibility("team")
             setError(null)
         }
         onOpenChange(open)
+    }
+
+    function handleAllDayChange(checked: boolean) {
+        setAllDay(checked)
+        if (checked && startDate) {
+            // datetime-local → date: strip time part
+            setStartDate(startDate.split("T")[0])
+            setEndDate(endDate ? endDate.split("T")[0] : startDate.split("T")[0])
+        } else if (!checked && startDate) {
+            // date → datetime-local: add default times
+            setStartDate(startDate.split("T")[0] + "T09:00")
+            setEndDate((endDate || startDate).split("T")[0] + "T10:00")
+        }
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -195,7 +208,7 @@ export default function CreateEventDialog({ open, onOpenChange, onEventCreated, 
                         <input
                             type="checkbox"
                             checked={allDay}
-                            onChange={e => setAllDay(e.target.checked)}
+                            onChange={e => handleAllDayChange(e.target.checked)}
                             className="rounded border-border"
                         />
                         <span className="text-sm text-muted-foreground">Todo el día</span>
