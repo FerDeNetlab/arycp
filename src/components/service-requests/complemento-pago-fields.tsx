@@ -123,9 +123,9 @@ export function ComplementoPagoFields({ value, onChange }: ComplementoPagoFields
                     {value.facturas.map((f, i) => (
                         <div key={i} className="flex gap-2 items-end">
                             <div className="flex-1 space-y-1">
-                                <label className="text-[11px] text-muted-foreground">UUID de factura {i + 1}</label>
+                                <label className="text-[11px] text-muted-foreground">No. de factura {i + 1}</label>
                                 <Input
-                                    placeholder="Ej: 6A1B2C3D-4E5F-6789-ABCD-EFGHIJK12345"
+                                    placeholder="Ej: A-123 o folio de la factura"
                                     value={f.uuid}
                                     onChange={e => updateFactura(i, { uuid: e.target.value })}
                                     className="font-mono text-sm"

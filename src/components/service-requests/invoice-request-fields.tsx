@@ -75,12 +75,11 @@ export function InvoiceRequestFields({ requestType, value, onChange }: InvoiceRe
                 </p>
                 <div className="grid grid-cols-1 gap-3">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">UUID de la factura a cancelar *</label>
+                        <label className="text-xs font-medium text-muted-foreground">Número de factura a cancelar *</label>
                         <Input
-                            placeholder="Ej: 6A1B2C3D-4E5F-6789-ABCD-EFGHIJK12345"
+                            placeholder="Ej: A-123 o folio de la factura"
                             value={value.uuidCancelar || ""}
                             onChange={(e) => update({ uuidCancelar: e.target.value })}
-                            className="font-mono text-sm"
                         />
                     </div>
                     <div className="space-y-1.5">
@@ -122,12 +121,11 @@ export function InvoiceRequestFields({ requestType, value, onChange }: InvoiceRe
                         Datos de la Nota de Crédito
                     </p>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">UUID de la factura relacionada *</label>
+                        <label className="text-xs font-medium text-muted-foreground">Número de factura relacionada *</label>
                         <Input
-                            placeholder="UUID de la factura original"
+                            placeholder="Número o folio de la factura original"
                             value={value.uuidRelacionada || ""}
                             onChange={(e) => update({ uuidRelacionada: e.target.value })}
-                            className="font-mono text-sm"
                         />
                     </div>
                     <ReceptorFields value={value} update={update} />
