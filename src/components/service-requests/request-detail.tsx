@@ -26,6 +26,8 @@ import {
     Paperclip,
     MessageSquare,
     UserCheck,
+    Ban,
+    Trash2,
 } from "lucide-react"
 import { InvoiceRequestView } from "./invoice-request-view"
 import { EmployeeRequestView } from "./employee-request-view"
@@ -67,6 +69,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
     en_proceso: { label: "En Proceso", color: "bg-blue-100 text-blue-700", icon: Loader2 },
     completada: { label: "Completada", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
     rechazada: { label: "Rechazada", color: "bg-red-100 text-red-700", icon: XCircle },
+    cancelada: { label: "Cancelada", color: "bg-gray-100 text-gray-500", icon: Ban },
 }
 
 interface RequestDetailProps {
@@ -83,6 +86,8 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
     const [updating, setUpdating] = useState(false)
     const [assignedName, setAssignedName] = useState(request.assigned_to_name || "")
     const [taking, setTaking] = useState(false)
+    const [cancelling, setCancelling] = useState(false)
+    const [deleting, setDeleting] = useState(false)
     const commentsEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -174,6 +179,48 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
             console.error("Error taking request:", err)
         } finally {
             setTaking(false)
+        }
+    }
+
+    async function handleCancelRequest() {
+        if (!confirm("¿Estás seguro de cancelar esta solicitud?")) return
+        setCancelling(true)
+        try {
+            const res = await fetch(`/api/service-requests/${request.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "cancelada" }),
+            })
+            if (res.ok) {
+                setStatus("cancelada")
+            } else {
+                const data = await res.json()
+                alert(data.error || "Error al cancelar")
+            }
+        } catch (err) {
+            console.error("Error cancelling:", err)
+        } finally {
+            setCancelling(false)
+        }
+    }
+
+    async function handleDeleteRequest() {
+        if (!confirm("¿Eliminar esta solicitud permanentemente? Esta acción no se puede deshacer.")) return
+        setDeleting(true)
+        try {
+            const res = await fetch(`/api/service-requests/${request.id}`, {
+                method: "DELETE",
+            })
+            if (res.ok) {
+                onBack()
+            } else {
+                const data = await res.json()
+                alert(data.error || "Error al eliminar")
+            }
+        } catch (err) {
+            console.error("Error deleting:", err)
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -438,6 +485,35 @@ export function RequestDetail({ request, onBack, isClient = false }: RequestDeta
                                         </SelectContent>
                                     </Select>
                                 </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Client actions (cancel/delete) */}
+                    {isClient && (status === "pendiente" || status === "cancelada") && (
+                        <Card>
+                            <CardContent className="p-4 space-y-3">
+                                <h3 className="text-xs font-semibold text-muted-foreground uppercase">Acciones</h3>
+                                {status === "pendiente" && (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full gap-2 text-amber-600 border-amber-300 hover:bg-amber-50"
+                                        onClick={handleCancelRequest}
+                                        disabled={cancelling}
+                                    >
+                                        <Ban className="h-4 w-4" />
+                                        {cancelling ? "Cancelando..." : "Cancelar Solicitud"}
+                                    </Button>
+                                )}
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2 text-red-600 border-red-300 hover:bg-red-50"
+                                    onClick={handleDeleteRequest}
+                                    disabled={deleting}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    {deleting ? "Eliminando..." : "Eliminar Solicitud"}
+                                </Button>
                             </CardContent>
                         </Card>
                     )}
