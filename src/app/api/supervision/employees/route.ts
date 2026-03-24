@@ -78,10 +78,23 @@ export async function GET(request: Request) {
                 }
             }
 
+            // Activity log count for this employee this month
+            const { count: activityCount } = await supabase
+                .from("activity_log")
+                .select("*", { count: "exact", head: true })
+                .eq("user_id", emp.auth_user_id)
+                .gte("created_at", startDate)
+                .lt("created_at", endDate)
+
+            const activities = activityCount || 0
+            // Each activity ≈ 15 min of work for estimation
+            const activityHours = activities * 0.25
+            const totalHoursEstimated = hoursWorked + activityHours
+
             const tasksCompleted = empTasks?.length || 0
             const efficiency = tasksCompleted > 0 ? Math.round((onTime / tasksCompleted) * 100) : 0
             const compliance = tasksCompleted > 0 ? Math.round((onTime / tasksCompleted) * 100) : 0
-            const loadIndex = capacityHours > 0 ? Math.round((hoursWorked / capacityHours) * 100) : 0
+            const loadIndex = capacityHours > 0 ? Math.round((totalHoursEstimated / capacityHours) * 100) : 0
 
             // Load level
             let loadLevel: string
@@ -127,7 +140,7 @@ export async function GET(request: Request) {
                 name: emp.full_name,
                 email: emp.email,
                 role: emp.role,
-                hoursWorked: Math.round(hoursWorked * 10) / 10,
+                hoursWorked: Math.round(totalHoursEstimated * 10) / 10,
                 capacityHours,
                 loadIndex,
                 loadLevel,

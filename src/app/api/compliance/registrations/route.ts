@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAuth, requireRole } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
-import { createNotification } from "@/lib/activity"
+import { logActivity, createNotification } from "@/lib/activity"
 
 export async function GET(request: Request) {
     try {
@@ -86,6 +86,18 @@ export async function POST(request: Request) {
             console.error("Error sending notifications:", notifErr)
         }
 
+        // Log activity for ranking
+        await logActivity({
+            userId: user.id,
+            userName: sysUser.full_name,
+            clientId,
+            module: "compliance",
+            action: "registro_creado",
+            entityType: "registration",
+            entityId: data.id,
+            description: `${sysUser.full_name} registró "${label}" (${type || "otro"})`,
+        })
+
         return NextResponse.json({ data })
     } catch (error: unknown) {
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
@@ -125,6 +137,18 @@ export async function PATCH(request: Request) {
 
         if (error) throw error
 
+        // Log activity
+        await logActivity({
+            userId: auth.user.id,
+            userName: auth.sysUser.full_name,
+            clientId: data.client_id,
+            module: "compliance",
+            action: "registro_actualizado",
+            entityType: "registration",
+            entityId: id,
+            description: `${auth.sysUser.full_name} actualizó registro "${data.label || id}"`,
+        })
+
         return NextResponse.json({ data })
     } catch (error: unknown) {
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 })
@@ -148,6 +172,17 @@ export async function DELETE(request: Request) {
             .eq("id", id)
 
         if (error) throw error
+
+        // Log activity
+        await logActivity({
+            userId: auth.user.id,
+            userName: auth.sysUser.full_name,
+            module: "compliance",
+            action: "registro_eliminado",
+            entityType: "registration",
+            entityId: id,
+            description: `${auth.sysUser.full_name} eliminó un registro de compliance`,
+        })
 
         return NextResponse.json({ success: true })
     } catch (error: unknown) {
