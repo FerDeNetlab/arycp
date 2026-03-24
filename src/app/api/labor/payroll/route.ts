@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/api/errors"
+import { logActivity } from "@/lib/activity"
+import { getUserRole } from "@/lib/auth/get-user-role"
 
 export async function GET(request: Request) {
     try {
@@ -57,6 +59,19 @@ export async function POST(request: Request) {
         }).select().single()
 
         if (error) throw error
+
+        const userData = await getUserRole(user.id)
+        await logActivity({
+            userId: user.id,
+            userName: userData.fullName,
+            clientId: body.client_id,
+            module: "labor",
+            action: "nomina_creada",
+            entityType: "payroll",
+            entityId: data.id,
+            description: `${userData.fullName} creó nómina ${body.payroll_type} - ${body.period}`,
+        })
+
         return NextResponse.json({ data })
     } catch (error: unknown) {
         console.error("Error creating payroll:", error)

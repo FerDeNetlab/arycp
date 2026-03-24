@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAuth, requireRole } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
+import { logActivity } from "@/lib/activity"
 
 // Force Node.js runtime for PDF parsing
 export const runtime = "nodejs"
@@ -162,6 +163,18 @@ export async function POST(request: Request) {
 
             if (error) throw error
         }
+
+        const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+
+        await logActivity({
+            userId: user.id,
+            userName: auth.sysUser.full_name,
+            clientId,
+            module: "accounting",
+            action: "diot_registrado",
+            entityType: "diot",
+            description: `${auth.sysUser.full_name} registró DIOT ${monthNames[month - 1] || month} ${year} (${status})`,
+        })
 
         return NextResponse.json({
             success: true,

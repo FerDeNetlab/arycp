@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/api/errors"
+import { logActivity } from "@/lib/activity"
+import { getUserRole } from "@/lib/auth/get-user-role"
 
 export async function GET(request: Request) {
     try {
@@ -63,6 +65,19 @@ export async function POST(request: Request) {
         }).select().single()
 
         if (error) throw error
+
+        const userData = await getUserRole(user.id)
+        await logActivity({
+            userId: user.id,
+            userName: userData.fullName,
+            clientId: body.client_id,
+            module: "labor",
+            action: "imss_movimiento",
+            entityType: "imss",
+            entityId: data.id,
+            description: `${userData.fullName} registró ${body.movement_type} IMSS: ${body.employee_name}`,
+        })
+
         return NextResponse.json({ data })
     } catch (error: unknown) {
         console.error("Error creating IMSS movement:", error)

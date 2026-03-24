@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { createClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/api/errors"
+import { logActivity } from "@/lib/activity"
+import { getUserRole } from "@/lib/auth/get-user-role"
 
 export async function POST(req: NextRequest) {
   try {
@@ -79,6 +81,17 @@ export async function POST(req: NextRequest) {
       html_content: html,
       status: "sent",
       metadata: data ? { id: data.id } : null,
+    })
+
+    const senderInfo = await getUserRole(userData.user.id)
+    await logActivity({
+      userId: userData.user.id,
+      userName: senderInfo.fullName,
+      clientId: clientId || undefined,
+      module: "invoicing",
+      action: "email_enviado",
+      entityType: "email",
+      description: `${senderInfo.fullName} envió email: ${subject}`,
     })
 
     return NextResponse.json({ success: true, data })

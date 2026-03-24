@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/api/errors"
 import { validateFileUpload } from "@/lib/api/sanitize"
+import { logActivity } from "@/lib/activity"
+import { getUserRole } from "@/lib/auth/get-user-role"
 
 export async function POST(request: Request) {
     try {
@@ -65,6 +67,17 @@ export async function POST(request: Request) {
             .eq("id", registrationId)
 
         if (updateError) throw updateError
+
+        const userData = await getUserRole(user.id)
+        await logActivity({
+            userId: user.id,
+            userName: userData.fullName,
+            module: "compliance",
+            action: "archivo_subido",
+            entityType: "registration",
+            entityId: registrationId,
+            description: `${userData.fullName} subió archivo: ${file.name}`,
+        })
 
         return NextResponse.json({ fileUrl })
     } catch (error: unknown) {
