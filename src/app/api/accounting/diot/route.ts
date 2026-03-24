@@ -82,8 +82,6 @@ export async function POST(request: Request) {
                     const { text } = await extractText(new Uint8Array(buffer))
                     const fullText = Array.isArray(text) ? text.join("\n") : text
 
-                    console.log("[DIOT] Text extracted, length:", fullText.length)
-                    console.log("[DIOT] Text preview:", fullText.substring(0, 300))
 
                     const patterns = [
                         /N[u\u00fa]mero\s*de\s*operaci[o\u00f3]n[:\s]*(\d+)/i,
@@ -95,7 +93,6 @@ export async function POST(request: Request) {
                         const match = fullText.match(pattern)
                         if (match) {
                             extractedFolio = match[1]
-                            console.log("[DIOT] Folio found:", extractedFolio)
                             break
                         }
                     }
@@ -105,7 +102,6 @@ export async function POST(request: Request) {
                         const longNum = fullText.match(/\b(\d{12,})\b/)
                         if (longNum) {
                             extractedFolio = longNum[1]
-                            console.log("[DIOT] Folio (fallback):", extractedFolio)
                         }
                     }
                 } catch (parseErr) {
@@ -113,7 +109,6 @@ export async function POST(request: Request) {
                 }
             }
 
-            console.log("[DIOT] Final folio:", extractedFolio)
         }
 
         // Check if record already exists for this month

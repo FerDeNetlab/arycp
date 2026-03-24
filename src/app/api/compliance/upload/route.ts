@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getErrorMessage } from "@/lib/api/errors"
+import { validateFileUpload } from "@/lib/api/sanitize"
 
 export async function POST(request: Request) {
     try {
@@ -27,6 +28,12 @@ export async function POST(request: Request) {
 
         if (!file || !registrationId) {
             return NextResponse.json({ error: "Archivo y registrationId requeridos" }, { status: 400 })
+        }
+
+        // Validate file type and size
+        const validation = validateFileUpload(file)
+        if (!validation.valid) {
+            return NextResponse.json({ error: validation.error }, { status: 400 })
         }
 
         // Upload to Supabase Storage

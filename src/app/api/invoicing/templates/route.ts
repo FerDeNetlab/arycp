@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getErrorMessage } from "@/lib/api/errors"
+import { validateFileUpload } from "@/lib/api/sanitize"
 
 export async function GET(request: Request) {
     try {
@@ -55,6 +56,12 @@ export async function POST(request: Request) {
 
         if (!clientId || !file) {
             return NextResponse.json({ error: "clientId y archivo requeridos" }, { status: 400 })
+        }
+
+        // Validate file type and size
+        const validation = validateFileUpload(file)
+        if (!validation.valid) {
+            return NextResponse.json({ error: validation.error }, { status: 400 })
         }
 
         // Upload file to Supabase Storage

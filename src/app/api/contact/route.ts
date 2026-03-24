@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getErrorMessage } from "@/lib/api/errors"
+import { escapeHtml, truncate } from "@/lib/api/sanitize"
 
 export async function POST(request: NextRequest) {
     try {
@@ -24,14 +25,20 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Sanitize and limit input lengths
+        const safeName = escapeHtml(truncate(String(name), 200))
+        const safeEmail = escapeHtml(truncate(String(email), 200))
+        const safeCompany = company ? escapeHtml(truncate(String(company), 200)) : null
+        const safeMessage = escapeHtml(truncate(String(message), 5000))
+
         const adminClient = createAdminClient()
 
-        // 1. Save to Supabase
+        // 1. Save to Supabase (store raw data)
         const { error: dbError } = await adminClient.from("contact_messages").insert({
-            name,
-            email,
-            company: company || null,
-            message,
+            name: truncate(String(name), 200),
+            email: truncate(String(email), 200),
+            company: company ? truncate(String(company), 200) : null,
+            message: truncate(String(message), 5000),
         })
 
         if (dbError) {
@@ -67,27 +74,27 @@ export async function POST(request: NextRequest) {
                             <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
                                 <div style="margin-bottom: 20px;">
                                     <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 12px; text-transform: uppercase;">Nombre</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: 600;">${name}</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: 600;">${safeName}</p>
                                 </div>
                                 <div style="margin-bottom: 20px;">
                                     <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 12px; text-transform: uppercase;">Email</p>
-                                    <p style="margin: 0; font-size: 16px;"><a href="mailto:${email}" style="color: #0d9488;">${email}</a></p>
+                                    <p style="margin: 0; font-size: 16px;"><a href="mailto:${safeEmail}" style="color: #0d9488;">${safeEmail}</a></p>
                                 </div>
-                                ${company ? `
+                                ${safeCompany ? `
                                 <div style="margin-bottom: 20px;">
                                     <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 12px; text-transform: uppercase;">Empresa</p>
-                                    <p style="margin: 0; font-size: 16px;">${company}</p>
+                                    <p style="margin: 0; font-size: 16px;">${safeCompany}</p>
                                 </div>
                                 ` : ""}
                                 <div style="margin-bottom: 20px;">
                                     <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 12px; text-transform: uppercase;">Mensaje</p>
                                     <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #0d9488;">
-                                        <p style="margin: 0; font-size: 15px; white-space: pre-wrap;">${message}</p>
+                                        <p style="margin: 0; font-size: 15px; white-space: pre-wrap;">${safeMessage}</p>
                                     </div>
                                 </div>
                             </div>
                             <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">
-                                Este mensaje fue enviado desde el formulario de contacto de AR&CP
+                                Este mensaje fue enviado desde el formulario de contacto de AR&amp;CP
                             </p>
                         </body>
                         </html>
