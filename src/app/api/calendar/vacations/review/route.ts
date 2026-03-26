@@ -59,8 +59,8 @@ export async function PATCH(request: Request) {
                 .insert({
                     title: `🏖️ Vacaciones — ${request_data.user_name}`,
                     description: request_data.reason ? `Motivo: ${request_data.reason}` : "Vacaciones aprobadas",
-                    start_date: new Date(request_data.start_date).toISOString(),
-                    end_date: new Date(request_data.end_date).toISOString(),
+                    start_date: new Date(request_data.start_date + "T12:00:00").toISOString(),
+                    end_date: new Date(request_data.end_date + "T12:00:00").toISOString(),
                     all_day: true,
                     event_type: "vacation",
                     color: "#ec4899",
