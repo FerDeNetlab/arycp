@@ -88,6 +88,8 @@ function isToday(d: Date) {
 // Prevent UTC offset: "2025-03-24" → interpreted as UTC midnight → shows previous day in MX
 function parseDate(d: string) {
     if (d.length === 10) return new Date(d + "T12:00:00")
+    // ISO midnight like "2025-03-30T00:00:00.000Z" → also shifts day in MX timezone
+    if (d.includes("T00:00:00")) return new Date(d.substring(0, 10) + "T12:00:00")
     return new Date(d)
 }
 

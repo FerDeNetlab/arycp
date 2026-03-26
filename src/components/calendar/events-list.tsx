@@ -14,6 +14,7 @@ interface EventsListProps {
 // Prevent UTC offset: "2025-03-24" → interpreted as UTC midnight → shows previous day in MX
 function parseDate(d: string) {
     if (d.length === 10) return new Date(d + "T12:00:00") // date-only string
+    if (d.includes("T00:00:00")) return new Date(d.substring(0, 10) + "T12:00:00") // midnight UTC
     return new Date(d)
 }
 

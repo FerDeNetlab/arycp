@@ -144,8 +144,8 @@ export default function CalendarView({ userRole, currentUserId }: CalendarViewPr
     // Events for the selected date (sidebar list)
     const selectedDayEvents = selectedDate
         ? events.filter(e => {
-            const start = e.start_date.length === 10 ? new Date(e.start_date + "T12:00:00") : new Date(e.start_date)
-            const end = e.end_date.length === 10 ? new Date(e.end_date + "T12:00:00") : new Date(e.end_date)
+            const start = e.start_date.length === 10 ? new Date(e.start_date + "T12:00:00") : e.start_date.includes("T00:00:00") ? new Date(e.start_date.substring(0, 10) + "T12:00:00") : new Date(e.start_date)
+            const end = e.end_date.length === 10 ? new Date(e.end_date + "T12:00:00") : e.end_date.includes("T00:00:00") ? new Date(e.end_date.substring(0, 10) + "T12:00:00") : new Date(e.end_date)
             const dayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
             const dayEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59)
             return start <= dayEnd && end >= dayStart
