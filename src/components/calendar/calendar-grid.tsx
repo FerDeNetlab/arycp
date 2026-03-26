@@ -85,9 +85,15 @@ function isToday(d: Date) {
     return isSameDay(d, new Date())
 }
 
+// Prevent UTC offset: "2025-03-24" → interpreted as UTC midnight → shows previous day in MX
+function parseDate(d: string) {
+    if (d.length === 10) return new Date(d + "T12:00:00")
+    return new Date(d)
+}
+
 function eventOnDay(event: CalendarEvent, day: Date) {
-    const start = new Date(event.start_date)
-    const end = new Date(event.end_date)
+    const start = parseDate(event.start_date)
+    const end = parseDate(event.end_date)
     const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
     const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59)
     return start <= dayEnd && end >= dayStart

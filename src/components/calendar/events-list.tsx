@@ -11,16 +11,22 @@ interface EventsListProps {
     currentUserId?: string
 }
 
+// Prevent UTC offset: "2025-03-24" → interpreted as UTC midnight → shows previous day in MX
+function parseDate(d: string) {
+    if (d.length === 10) return new Date(d + "T12:00:00") // date-only string
+    return new Date(d)
+}
+
 function formatEventTime(event: CalendarEvent) {
     if (event.all_day) return "Todo el día"
-    const start = new Date(event.start_date)
-    const end = new Date(event.end_date)
+    const start = parseDate(event.start_date)
+    const end = parseDate(event.end_date)
     return `${start.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })} — ${end.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`
 }
 
 function formatDateRange(event: CalendarEvent) {
-    const start = new Date(event.start_date)
-    const end = new Date(event.end_date)
+    const start = parseDate(event.start_date)
+    const end = parseDate(event.end_date)
     const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }
     return `${start.toLocaleDateString("es-MX", opts)} — ${end.toLocaleDateString("es-MX", opts)}`
 }

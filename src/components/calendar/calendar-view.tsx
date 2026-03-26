@@ -114,7 +114,8 @@ export default function CalendarView({ userRole, currentUserId }: CalendarViewPr
 
     function handleEventClick(event: CalendarEvent) {
         // For now, just select the day
-        setSelectedDate(new Date(event.start_date))
+        const d = event.start_date.length === 10 ? new Date(event.start_date + "T12:00:00") : new Date(event.start_date)
+        setSelectedDate(d)
     }
 
     async function handleDeleteEvent(id: string) {
@@ -143,8 +144,8 @@ export default function CalendarView({ userRole, currentUserId }: CalendarViewPr
     // Events for the selected date (sidebar list)
     const selectedDayEvents = selectedDate
         ? events.filter(e => {
-            const start = new Date(e.start_date)
-            const end = new Date(e.end_date)
+            const start = e.start_date.length === 10 ? new Date(e.start_date + "T12:00:00") : new Date(e.start_date)
+            const end = e.end_date.length === 10 ? new Date(e.end_date + "T12:00:00") : new Date(e.end_date)
             const dayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
             const dayEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59)
             return start <= dayEnd && end >= dayStart
