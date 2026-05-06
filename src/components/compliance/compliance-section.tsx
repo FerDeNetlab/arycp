@@ -189,10 +189,16 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             if (!res.ok) throw new Error(result.error)
 
             const detectedType = result.type || createForm.type
-            const typeLabel = REGISTRATION_TYPES.find(t => t.value === detectedType)?.label || detectedType
+            // Respect the user's explicit choice between e.Firma and CSD: both are issued by
+            // the SAT and the certificate alone cannot reliably distinguish them, so the
+            // dropdown selection wins when the parser only managed to detect "efirma".
+            const finalType = (createForm.type === "csd" || createForm.type === "efirma") && detectedType === "efirma"
+                ? createForm.type
+                : detectedType
+            const typeLabel = REGISTRATION_TYPES.find(t => t.value === finalType)?.label || finalType
             setCreateForm(prev => ({
                 ...prev,
-                type: detectedType,
+                type: finalType,
                 label: result.label || `${typeLabel} — ${result.name || ""}`,
                 registrationNumber: result.registrationNumber || result.registroPatronal || result.rfc || "",
                 issuedDate: result.issuedDate || "",
@@ -230,10 +236,15 @@ export function ComplianceSection({ clientId, clientName, canEdit }: ComplianceS
             if (!res.ok) throw new Error(result.error)
 
             const detectedType = result.type || createForm.type
-            const typeLabel = REGISTRATION_TYPES.find(t => t.value === detectedType)?.label || detectedType
+            // Respect the user's explicit choice between e.Firma and CSD when the PDF parser
+            // only matched generic SAT keywords; both are SAT documents.
+            const finalType = (createForm.type === "csd" || createForm.type === "efirma") && detectedType === "efirma"
+                ? createForm.type
+                : detectedType
+            const typeLabel = REGISTRATION_TYPES.find(t => t.value === finalType)?.label || finalType
             setCreateForm(prev => ({
                 ...prev,
-                type: detectedType,
+                type: finalType,
                 label: result.label || `${typeLabel} — ${result.name || ""}`,
                 registrationNumber: result.registrationNumber || result.rfc || "",
                 issuedDate: result.issuedDate || "",
